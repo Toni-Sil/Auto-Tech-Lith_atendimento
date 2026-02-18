@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+        }
+
+        .header {
+            background-color: #27ae60;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            border-radius: 5px 5px 0 0;
+        }
+
+        .content {
+            padding: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>Obrigado pela Reunião!</h2>
+        </div>
+        <div class="content">
+            <p>Olá, {{ name }}!</p>
+            <p>Foi um prazer conversar com você hoje.</p>
+            <p>Gostaríamos de saber o que achou do nosso atendimento.</p>
+            <p>Se tiver qualquer dúvida adicional, basta responder a este email.</p>
+            <br>
+            <p>Atenciosamente,<br>Equipe Auto Tech Lith</p>
+        </div>
+    </div>
+</body>
+
+</html>

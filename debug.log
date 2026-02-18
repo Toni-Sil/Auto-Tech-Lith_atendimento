@@ -1,0 +1,54 @@
+2026-02-17 19:55:53,674 - src.api.routes - WARNING - Unauthorized webhook attempt with token: None
+2026-02-17 20:12:11,530 - src.services.telegram_service - ERROR - Failed to get Telegram updates: 
+2026-02-17 20:22:26,400 - src.services.telegram_service - ERROR - Failed to get Telegram updates: 
+2026-02-17 20:33:18,649 - src.services.telegram_service - ERROR - Failed to get Telegram updates: 
+2026-02-17 20:33:21,963 - src.services.telegram_service - ERROR - Failed to get Telegram updates: [Errno 11001] getaddrinfo failed
+2026-02-17 20:33:25,269 - src.services.telegram_service - ERROR - Failed to get Telegram updates: [Errno 11001] getaddrinfo failed
+2026-02-17 20:33:26,965 - src.services.telegram_service - ERROR - Failed to get Telegram updates: [Errno 11001] getaddrinfo failed
+2026-02-17 20:33:29,661 - src.services.telegram_service - ERROR - Failed to get Telegram updates: [Errno 11001] getaddrinfo failed
+2026-02-17 20:33:31,894 - src.services.telegram_service - ERROR - Failed to get Telegram updates: [Errno 11001] getaddrinfo failed
+2026-02-17 20:33:33,590 - src.services.telegram_service - ERROR - Failed to get Telegram updates: [Errno 11001] getaddrinfo failed
+2026-02-17 20:33:35,499 - src.services.telegram_service - ERROR - Failed to get Telegram updates: [Errno 11001] getaddrinfo failed
+2026-02-17 20:33:44,325 - src.workers.telegram_bot - INFO - Telegram worker cancelled.
+2026-02-18 11:32:05,374 - src.agents.admin_agent - INFO - AdminAgent processing message from Unknown (6866469144): Bom dia | Status: AUTHORIZED:Adão Antonio ADM (Unknown)
+2026-02-18 11:32:57,807 - src.agents.admin_agent - INFO - AdminAgent processing message from Unknown (6866469144): Preciso que vc exclua o cliente customer 13 | Status: AUTHORIZED:Adão Antonio ADM (Unknown)
+2026-02-18 11:32:59,829 - src.agents.admin_agent - INFO - AdminAgent executing tool: manage_customers with args: {'action': 'delete', 'customer_id': 13}
+2026-02-18 11:40:11,683 - src.agents.admin_agent - INFO - AdminAgent processing message from Unknown (6866469144): Verifique os ida novamente | Status: AUTHORIZED:Adão Antonio ADM (Unknown)
+2026-02-18 11:40:12,458 - src.agents.admin_agent - INFO - AdminAgent executing tool: get_daily_summary with args: {}
+2026-02-18 11:40:32,017 - src.agents.admin_agent - INFO - AdminAgent processing message from Unknown (6866469144): Exclua todas as reuniões | Status: AUTHORIZED:Adão Antonio ADM (Unknown)
+2026-02-18 11:40:33,845 - src.agents.admin_agent - INFO - AdminAgent executing tool: manage_meetings with args: {'action': 'list'}
+2026-02-18 11:40:47,305 - src.agents.admin_agent - INFO - AdminAgent processing message from Unknown (6866469144): Sim | Status: AUTHORIZED:Adão Antonio ADM (Unknown)
+2026-02-18 11:41:06,000 - src.agents.admin_agent - INFO - AdminAgent processing message from Unknown (6866469144): Adão antonio | Status: AUTHORIZED:Adão Antonio ADM (Unknown)
+2026-02-18 11:41:25,165 - src.agents.admin_agent - INFO - AdminAgent processing message from Unknown (6866469144): AN0372 | Status: AUTHORIZED:Adão Antonio ADM (Unknown)
+2026-02-18 11:41:46,510 - src.agents.admin_agent - INFO - AdminAgent processing message from Unknown (6866469144): Excluir | Status: AUTHORIZED:Adão Antonio ADM (Unknown)
+2026-02-18 12:15:52,915 - src.workers.telegram_bot - INFO - Telegram worker cancelled.
+2026-02-18 12:16:43,183 - src.agents.admin_agent - INFO - AdminAgent processing message from Unknown (6866469144): Ola max | Status: AUTHORIZED:Adão Antonio ADM (Unknown)
+2026-02-18 12:16:57,137 - src.agents.admin_agent - INFO - AdminAgent processing message from Unknown (6866469144): Adão Antonio | Status: AUTHORIZED:Adão Antonio ADM (Unknown)
+2026-02-18 12:17:07,029 - src.agents.admin_agent - INFO - AdminAgent processing message from Unknown (6866469144): Eu sou Adão Antonio | Status: AUTHORIZED:Adão Antonio ADM (Unknown)
+2026-02-18 12:18:25,333 - src.agents.admin_agent - INFO - AdminAgent processing message from Unknown (6866469144): Id dos clientes que temos no momento | Status: AUTHORIZED:Adão Antonio ADM (Unknown)
+2026-02-18 12:18:26,479 - src.agents.admin_agent - INFO - AdminAgent executing tool: manage_customers with args: {'action': 'search'}
+2026-02-18 12:18:44,348 - src.agents.admin_agent - INFO - AdminAgent processing message from Unknown (6866469144): Quero todos que tiver na lista | Status: AUTHORIZED:Adão Antonio ADM (Unknown)
+2026-02-18 12:18:46,811 - src.agents.admin_agent - INFO - AdminAgent executing tool: get_daily_summary with args: {}
+2026-02-18 12:18:47,238 - src.workers.telegram_bot - ERROR - Error processing admin message: Error code: 400 - {'error': {'message': "An assistant message with 'tool_calls' must be followed by tool messages responding to each 'tool_call_id'. The following tool_call_ids did not have response messages: call_pZDdJXq7PGboHHLIqNHRjsjA, call_JmSOIOjPcUtFNnWjhIgceuzh", 'type': 'invalid_request_error', 'param': 'messages', 'code': None}}
+2026-02-18 12:29:59,331 - src.agents.admin_agent - INFO - AdminAgent processing message from test_auth_user (999888777): Resumo do dia | Status: UNKNOWN
+2026-02-18 12:30:02,562 - src.agents.admin_agent - INFO - AdminAgent processing message from test_auth_user (999888777): Busque o Pedro | Status: UNKNOWN
+2026-02-18 12:30:45,587 - src.agents.admin_agent - INFO - AdminAgent processing message from IntelligentAdmin (999888666): Resumo do dia | Status: AUTHORIZED:Smart Admin
+2026-02-18 12:30:48,077 - src.agents.admin_agent - INFO - AdminAgent executing tool: get_daily_summary with args: {}
+2026-02-18 12:30:51,031 - src.agents.admin_agent - INFO - AdminAgent processing message from IntelligentAdmin (999888666): Busque o Pedro | Status: AUTHORIZED:Smart Admin
+2026-02-18 12:30:52,126 - src.agents.admin_agent - INFO - AdminAgent executing tool: manage_customers with args: {'action': 'search', 'query': 'Pedro'}
+2026-02-18 12:36:32,937 - src.agents.admin_agent - INFO - AdminAgent processing message from Unknown (6866469144): Ola | Status: AUTHORIZED:Adão Antonio ADM (Unknown)
+2026-02-18 12:36:39,224 - src.workers.telegram_bot - INFO - Telegram worker cancelled.
+2026-02-18 12:38:23,641 - src.agents.admin_agent - INFO - AdminAgent processing message from Unknown (6866469144): Exclua o cliente com nome de customer 13 | Status: AUTHORIZED:Adão Antonio ADM (Unknown)
+2026-02-18 12:38:25,961 - src.agents.admin_agent - INFO - AdminAgent executing tool: manage_customers with args: {'action': 'delete', 'customer_id': 13}
+2026-02-18 12:38:55,878 - src.agents.admin_agent - INFO - AdminAgent processing message from Unknown (6866469144): Ok | Status: AUTHORIZED:Adão Antonio ADM (Unknown)
+2026-02-18 12:41:13,100 - src.workers.telegram_bot - INFO - Telegram worker cancelled.
+2026-02-18 12:41:32,921 - src.workers.telegram_bot - INFO - ðŸ¤– Telegram Admin Bot worker started.
+2026-02-18 12:41:34,356 - src.workers.telegram_bot - INFO - ðŸ“© Telegram from Unknown (6866469144): Ola max
+2026-02-18 12:41:34,402 - src.agents.admin_agent - INFO - AdminAgent processing message from Unknown (6866469144): Ola max | Status: AUTHORIZED:AdÃ£o Antonio ADM (Unknown)
+2026-02-18 12:42:06,211 - src.workers.telegram_bot - INFO - ðŸ“© Telegram from Unknown (6866469144): Exclua o cliente com nome de customer 13
+2026-02-18 12:42:06,229 - src.agents.admin_agent - INFO - AdminAgent processing message from Unknown (6866469144): Exclua o cliente com nome de customer 13 | Status: AUTHORIZED:AdÃ£o Antonio ADM (Unknown)
+2026-02-18 12:42:07,100 - src.agents.admin_agent - INFO - AdminAgent executing tool: manage_customers with args: {'action': 'delete', 'customer_id': 13}
+2026-02-18 12:42:44,694 - src.workers.telegram_bot - INFO - ðŸ“© Telegram from Unknown (6866469144): Ok
+2026-02-18 12:42:44,711 - src.agents.admin_agent - INFO - AdminAgent processing message from Unknown (6866469144): Ok | Status: AUTHORIZED:AdÃ£o Antonio ADM (Unknown)
+2026-02-18 12:46:18,020 - src.workers.telegram_bot - INFO - Telegram worker cancelled.
+2026-02-18 14:18:42,205 - src.agents.admin_agent - ERROR - Error executing manage_customers: AdminAgent.manage_customers() missing 1 required positional argument: 'action'

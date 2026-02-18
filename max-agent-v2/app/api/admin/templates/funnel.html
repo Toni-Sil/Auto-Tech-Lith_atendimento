@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análise de Funil - Auto Tech Lith</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .metric-row:last-child {
+            border-bottom: none;
+        }
+
+        .metric-label {
+            font-weight: bold;
+            color: #555;
+        }
+
+        .metric-value {
+            font-weight: bold;
+            color: #2980b9;
+        }
+
+        .metric-rate {
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+
+        .insight-box {
+            background-color: #e8f6f3;
+            padding: 15px;
+            border-left: 5px solid #1abc9c;
+            margin-bottom: 20px;
+        }
+
+        .insight-box.warning {
+            background-color: #fef9e7;
+            border-left-color: #f1c40f;
+        }
+
+        .insight-box.danger {
+            background-color: #fdedec;
+            border-left-color: #e74c3c;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            width: 100%;
+        }
+
+        .nav {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .nav a {
+            margin: 0 10px;
+            text-decoration: none;
+            color: #3498db;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="nav">
+            <a href="/leads">Leads</a> | <a href="/funnel">Funil</a>
+        </div>
+
+        <h1>📊 Análise de Funil de Vendas (30 Dias)</h1>
+
+        <div class="grid">
+            <div class="card">
+                <h3>Visualização do Funil</h3>
+                <div class="chart-container">
+                    <canvas id="funnelChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Métricas de Conversão</h3>
+
+                <div class="metric-row">
+                    <span class="metric-label">Leads Totais</span>
+                    <span class="metric-value">{{ metrics.counts.leads }}</span>
+                </div>
+
+                <div class="metric-row">
+                    <span class="metric-label">Qualificados (Score >= 50)</span>
+                    <div>
+                        <span class="metric-value">{{ metrics.counts.qualified }}</span>
+                        <span class="metric-rate">({{ metrics.rates.lead_to_qualified }}%)</span>
+                    </div>
+                </div>
+
+                <div class="metric-row">
+                    <span class="metric-label">Agendados</span>
+                    <div>
+                        <span class="metric-value">{{ metrics.counts.booked }}</span>
+                        <span class="metric-rate">({{ metrics.rates.qualified_to_booked }}%)</span>
+                    </div>
+                </div>
+
+                <div class="metric-row">
+                    <span class="metric-label">Compareceram (Show)</span>
+                    <div>
+                        <span class="metric-value">{{ metrics.counts.showed }}</span>
+                        <span class="metric-rate">({{ metrics.rates.booked_to_showed }}%)</span>
+                    </div>
+                </div>
+
+                <div class="metric-row">
+                    <span class="metric-label">Propostas Enviadas</span>
+                    <div>
+                        <span class="metric-value">{{ metrics.counts.proposed }}</span>
+                        <span class="metric-rate">({{ metrics.rates.showed_to_proposed }}%)</span>
+                    </div>
+                </div>
+
+                <div class="metric-row">
+                    <span class="metric-label">Fechados (Venda)</span>
+                    <div>
+                        <span class="metric-value">{{ metrics.counts.closed }}</span>
+                        <span class="metric-rate">({{ metrics.rates.proposed_to_closed }}%)</span>
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px; text-align: center; font-size: 1.2em;">
+                    <strong>Conversão Global: {{ metrics.rates.overall }}%</strong>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top: 30px;">
+            <h3>🔍 Insights Automáticos</h3>
+            {% for insight in insights %}
+            <div class="insight-box {% if '⚠️' in insight %}warning{% elif '❌' in insight %}danger{% endif %}">
+                {{ insight }}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('funnelChart').getContext('2d');
+        const counts = {{ metrics.counts | tojson }};
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Leads', 'Qualificados', 'Agendados', 'Show', 'Propostas', 'Fechados'],
+                datasets: [{
+                    label: 'Quantidade',
+                    data: [
+                        counts.leads,
+                        counts.qualified,
+                        counts.booked,
+                        counts.showed,
+                        counts.proposed,
+                        counts.closed
+                    ],
+                    backgroundColor: [
+                        '#95a5a6', // Leads
+                        '#3498db', // Qualified
+                        '#9b59b6', // Booked
+                        '#f1c40f', // Showed
+                        '#e67e22', // Proposed
+                        '#27ae60'  // Closed
+                    ],
+                    barPercentage: 0.6
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: { beginAtZero: true }
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

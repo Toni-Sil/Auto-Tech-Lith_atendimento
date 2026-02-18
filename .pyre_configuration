@@ -1,0 +1,11 @@
+{
+  "source_directories": [
+    "p:\\agentes"
+  ],
+  "search_path": [
+    "p:\\agentes",
+    "C:\\Users\\Particular\\AppData\\Roaming\\Python\\Python314\\site-packages",
+    "C:\\Program Files\\Python314\\Lib\\site-packages",
+    "C:\\Program Files\\Python314\\Lib"
+  ]
+}

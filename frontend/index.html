@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Auto Tech Lith - Admin</title>
+    <!-- Use admin.css for new layout -->
+    <link rel="stylesheet" href="css/admin.css?v=2.0">
+    <!-- Keep original style for some components if needed, or migrate fully. For now, we use admin.css as primary -->
+    <link rel="stylesheet" href="css/style.css?v=1.5">
+    <style>
+        /* Overrides to ensure style.css doesn't break admin layout */
+        body {
+            display: flex;
+            flex-direction: row;
+        }
+
+        .container {
+            max-width: none;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <script>
+        // Security Check
+        if (!localStorage.getItem('token')) {
+            window.location.href = '/login.html';
+        }
+    </script>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h2>🤖 Auto Tech Lith</h2>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a class="nav-item active" data-target="dashboard">
+                <span class="nav-icon">📊</span> Dashboard
+            </a>
+            <a class="nav-item" data-target="customers">
+                <span class="nav-icon">👥</span> Clientes
+            </a>
+            <a class="nav-item" data-target="meetings">
+                <span class="nav-icon">📅</span> Reuniões
+            </a>
+            <a class="nav-item" data-target="tickets">
+                <span class="nav-icon">🎫</span> Tickets
+            </a>
+            <a class="nav-item" data-target="conversations">
+                <span class="nav-icon">💬</span> Conversas
+            </a>
+            <a class="nav-item" data-target="chat-test">
+                <span class="nav-icon">🧪</span> Testar Agente
+            </a>
+            <a class="nav-item" data-target="analytics">
+                <span class="nav-icon">📈</span> Analytics
+            </a>
+            <a class="nav-item" data-target="settings">
+                <span class="nav-icon">⚙️</span> Configurações
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar" id="userAvatar">U</div>
+                <div class="user-details">
+                    <div class="user-name" id="userNameDisplay">Carregando...</div>
+                    <div class="user-role" id="userRoleDisplay">...</div>
+                </div>
+                <button onclick="logout()" class="btn-logout" title="Sair">🚪</button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <header class="top-bar">
+            <h1 class="page-title" id="pageTitle">Dashboard</h1>
+            <div class="top-actions">
+                <button class="btn-primary" onclick="loadStats()">🔄 Atualizar</button>
+            </div>
+        </header>
+
+        <div class="content-wrapper">
+
+            <!-- VIEW: DASHBOARD -->
+            <section id="dashboard" class="view-section active">
+                <div class="stats"
+                    style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-bottom: 2rem;">
+                    <div class="stat-card">
+                        <h3>Clientes Ativos</h3>
+                        <div class="value" id="activeCustomers">0</div>
+                    </div>
+                    <div class="stat-card success">
+                        <h3>Tickets Abertos</h3>
+                        <div class="value" id="openTickets">0</div>
+                    </div>
+                    <div class="stat-card warning">
+                        <h3>Reuniões Agendadas</h3>
+                        <div class="value" id="scheduledMeetings">0</div>
+                    </div>
+                    <div class="stat-card danger">
+                        <h3>Conversas Hoje</h3>
+                        <div class="value" id="todayConversations">0</div>
+                    </div>
+                </div>
+                <!-- Future: Charts or Recent Activity -->
+            </section>
+
+            <!-- VIEW: CUSTOMERS -->
+            <section id="customers" class="view-section">
+                <div style="margin-bottom: 20px;">
+                    <button class="btn-primary" onclick="openCustomerModal()">+ Novo Cliente</button>
+                </div>
+                <div class="table-responsive">
+                    <table id="customersTable" style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nome</th>
+                                <th>Empresa</th>
+                                <th>Telefone</th>
+                                <th>Email</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customersBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- VIEW: MEETINGS -->
+            <section id="meetings" class="view-section">
+                <div style="margin-bottom: 20px;">
+                    <button class="btn-primary" onclick="openMeetingModal()">+ Agendar Reunião</button>
+                </div>
+                <div class="table-responsive">
+                    <table id="meetingsTable" style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr>
+                                <th>Cliente</th>
+                                <th>Tipo</th>
+                                <th>Data</th>
+                                <th>Hora</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="meetingsBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- VIEW: TICKETS -->
+            <section id="tickets" class="view-section">
+                <div class="table-responsive">
+                    <table id="ticketsTable" style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Cliente</th>
+                                <th>Assunto</th>
+                                <th>Status</th>
+                                <th>Prioridade</th>
+                                <th>Data</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ticketsBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- VIEW: CONVERSATIONS (NEW) -->
+            <section id="conversations" class="view-section">
+                <div id="conversationsList">
+                    <p style="text-align: center; color: #6b7280; margin-top: 2rem;">Carregando conversas...</p>
+                </div>
+            </section>
+
+            <!-- VIEW: TEST AGENT (NEW) -->
+            <section id="chat-test" class="view-section">
+                <div class="chat-container">
+                    <div class="chat-messages" id="chatTestMessages">
+                        <div class="message agent">
+                            Olá! Sou o Auto Tech Lith. Como posso ajudar você hoje? de um teste
+                        </div>
+                    </div>
+                    <div class="chat-input-area">
+                        <input type="text" class="chat-input" id="chatTestInput"
+                            placeholder="Digite sua mensagem para testar o agente...">
+                        <button class="btn-primary" onclick="sendTestMessage()">Enviar</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: ANALYTICS -->
+            <section id="analytics" class="view-section">
+                <div class="container-fluid">
+                    <div class="row" style="display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap;">
+                        <!-- Overview Cards -->
+                        <div class="stat-card" style="flex: 1; min-width: 200px; background: #e0f2fe; color: #0284c7;">
+                            <h3>Taxa de Automação</h3>
+                            <div class="value" id="stat-automation-rate">0%</div>
+                            <i class="fas fa-robot" style="float: right; opacity: 0.5;"></i>
+                        </div>
+                        <div class="stat-card" style="flex: 1; min-width: 200px; background: #dcfce7; color: #16a34a;">
+                            <h3>CSAT Médio</h3>
+                            <div class="value" id="stat-csat">0.0</div>
+                            <i class="fas fa-star" style="float: right; opacity: 0.5;"></i>
+                        </div>
+                        <div class="stat-card" style="flex: 1; min-width: 200px; background: #fef3c7; color: #d97706;">
+                            <h3>Novos Leads (30d)</h3>
+                            <div class="value" id="stat-leads">0</div>
+                            <i class="fas fa-user-plus" style="float: right; opacity: 0.5;"></i>
+                        </div>
+                        <div class="stat-card" style="flex: 1; min-width: 200px; background: #fee2e2; color: #dc2626;">
+                            <h3>Tickets Hoje</h3>
+                            <div class="value" id="stat-tickets-today">0</div>
+                            <i class="fas fa-ticket-alt" style="float: right; opacity: 0.5;"></i>
+                        </div>
+                    </div>
+
+                    <div class="row" style="display: flex; gap: 2rem; flex-wrap: wrap;">
+                        <div class="card"
+                            style="flex: 1; min-width: 300px; padding: 1rem; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                            <h3 style="margin-bottom: 1rem;">Canais de Atendimento</h3>
+                            <div style="position: relative; height: 300px;">
+                                <canvas id="channelsChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="card"
+                            style="flex: 1; min-width: 300px; padding: 1rem; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                            <h3 style="margin-bottom: 1rem;">Funil de Vendas</h3>
+                            <div style="position: relative; height: 300px;">
+                                <canvas id="funnelChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: SETTINGS -->
+            <section id="settings" class="view-section">
+                <h2 style="margin-bottom: 20px;">Configurações do Sistema</h2>
+
+                <div class="form-group">
+                    <label>Status da API Evolution</label>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+                        <div id="evolutionStatus"
+                            style="width: 12px; height: 12px; border-radius: 50%; background: #ef4444;"></div>
+                        <span id="evolutionStatusText">Desconectado</span>
+                        <button class="btn-primary" style="margin-left: auto;" onclick="testEvolutionAPI()">Testar
+                            Conexão</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Status do PostgreSQL</label>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+                        <div id="dbStatus" style="width: 12px; height: 12px; border-radius: 50%; background: #ef4444;">
+                        </div>
+                        <span id="dbStatusText">Desconectado</span>
+                        <button class="btn-primary" style="margin-left: auto;" onclick="testDatabase()">Testar
+                            Conexão</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Prompt do Sistema (Agente)</label>
+                    <textarea id="systemPrompt" rows="10" placeholder="Instruções do agente..."
+                        style="width: 100%; border: 1px solid #d1d5db; padding: 0.5rem;"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Chave OpenAI GPT-4</label>
+                    <input type="password" id="openaiKey" placeholder="sk-..."
+                        style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db;">
+                </div>
+
+                <div class="form-group">
+                    <label>URL ngrok</label>
+                    <input type="text" id="ngrokUrl" placeholder="https://xxxx-xxxx.ngrok.io" readonly
+                        style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db;">
+                    <button class="btn-secondary" style="margin-top: 10px;" onclick="copyNgrokUrl()">Copiar URL</button>
+                </div>
+
+                <button class="btn-primary" onclick="saveSettings()">💾 Salvar Configurações</button>
+            </section>
+
+        </div>
+    </main>
+
+    <div id="alertContainer" style="position: fixed; top: 20px; right: 20px; z-index: 999; max-width: 400px;"></div>
+
+    <!-- MODALS (Keep existing) -->
+    <!-- ... Copied from previous index.html via functionality preservation... -->
+    <!-- Reuse existing modals for Customer and Meeting -->
+    <div class="modal" id="customerModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Novo Cliente</h2>
+            </div>
+            <form onsubmit="saveCustomer(event)">
+                <div class="form-group"><label>Nome Completo *</label><input type="text" id="customerName" required>
+                </div>
+                <div class="form-group"><label>Telefone (WhatsApp) *</label><input type="tel" id="customerPhone"
+                        required></div>
+                <div class="form-group"><label>Email</label><input type="email" id="customerEmail"></div>
+                <div class="form-group"><label>Empresa</label><input type="text" id="customerCompany"></div>
+                <div class="form-group"><label>Descrição da Demanda</label><textarea id="customerDemand"></textarea>
+                </div>
+                <div class="form-group"><label>Status</label>
+                    <select id="customerStatus">
+                        <option value="em_processo">Em Processo</option>
+                        <option value="briefing">Briefing</option>
+                        <option value="proposal">Proposta</option>
+                        <option value="monthly">Mensal</option>
+                        <option value="completed">Finalizado</option>
+                    </select>
+                </div>
+                <div class="modal-footer" style="display: flex; justify-content: space-between;">
+                    <button type="button" id="btnDeleteCustomer" class="btn-secondary"
+                        style="background: #ef4444; color: white; display: none;"
+                        onclick="deleteCustomerFromModal()">Excluir</button>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="button" class="btn-secondary" onclick="closeCustomerModal()">Cancelar</button>
+                        <button type="submit" class="btn-primary" id="btnSaveCustomer">Salvar</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal" id="meetingModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Agendar Reunião</h2>
+            </div>
+            <form onsubmit="saveMeeting(event)">
+                <div class="form-group"><label>Cliente *</label><select id="meetingCustomer" required>
+                        <option value="">Selecione...</option>
+                    </select></div>
+                <div class="form-group"><label>Tipo *</label><select id="meetingType" required>
+                        <option value="briefing">Briefing</option>
+                        <option value="proposal">Proposta</option>
+                        <option value="follow-up">Follow-up</option>
+                    </select></div>
+                <div class="form-group"><label>Data *</label><input type="date" id="meetingDate" required></div>
+                <div class="form-group"><label>Hora *</label><input type="time" id="meetingTime" required></div>
+                <div class="form-group"><label>Notas</label><textarea id="meetingNotes"></textarea></div>
+                <div class="modal-footer" style="display: flex; justify-content: space-between;">
+                    <button type="button" id="btnDeleteMeeting" class="btn-secondary"
+                        style="background: #ef4444; color: white; display: none;"
+                        onclick="deleteMeetingFromModal()">Excluir</button>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="button" class="btn-secondary" onclick="closeMeetingModal()">Cancelar</button>
+                        <button type="submit" class="btn-primary" id="btnSaveMeeting">Agendar</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN JS -->
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- MAIN JS -->
+    <script src="js/main.js?v=2.1"></script>
+</body>
+
+</html>

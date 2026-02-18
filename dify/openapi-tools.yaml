@@ -1,0 +1,188 @@
+openapi: "3.0.0"
+info:
+  title: Auto Tech Lith - External Tools
+  description: APIs para o agente Dify da Auto Tech Lith interagir com o Supabase
+  version: "1.0.0"
+
+servers:
+  - url: https://lkobbhgmzppbhnevaycp.supabase.co/functions/v1
+
+paths:
+  /register-client:
+    post:
+      operationId: registrar_cliente
+      summary: Registra ou atualiza dados de um cliente no banco de dados
+      description: |
+        Use esta ferramenta quando coletar informações do cliente durante a conversa.
+        Pode ser chamada múltiplas vezes para atualizar informações parciais.
+        O telefone é obrigatório e serve como identificador único.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - phone
+              properties:
+                phone:
+                  type: string
+                  description: "Telefone do cliente com código do país (ex: 5511999999999)"
+                name:
+                  type: string
+                  description: "Nome completo do cliente"
+                company:
+                  type: string
+                  description: "Nome da empresa do cliente"
+                niche:
+                  type: string
+                  description: "Nicho ou segmento de atuação da empresa"
+                pain_point:
+                  type: string
+                  description: "Dor principal ou necessidade do cliente"
+                report:
+                  type: string
+                  description: "Relatório resumido das necessidades identificadas na conversa"
+      responses:
+        "200":
+          description: Cliente registrado/atualizado com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  action:
+                    type: string
+                    enum: [created, updated]
+                  data:
+                    type: object
+
+  /get-client:
+    get:
+      operationId: consultar_cliente
+      summary: Consulta dados de um cliente pelo número de telefone
+      description: |
+        Use esta ferramenta para verificar se o cliente já está cadastrado
+        e quais informações já foram coletadas anteriormente.
+      parameters:
+        - name: phone
+          in: query
+          required: true
+          description: "Telefone do cliente (ex: 5511999999999)"
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Resultado da consulta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  found:
+                    type: boolean
+                  data:
+                    type: object
+                    nullable: true
+
+  /schedule-meeting:
+    post:
+      operationId: agendar_reuniao
+      summary: Agenda uma reunião de briefing ou proposta com o cliente
+      description: |
+        Use esta ferramenta quando o cliente confirmar interesse em agendar uma reunião.
+        Sempre verifique os horários disponíveis antes com consultar_horarios.
+        O tipo pode ser "briefing" (primeira reunião, 30 min) ou "proposta" (apresentação, 60 min).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - phone
+                - name
+                - type
+                - datetime
+              properties:
+                phone:
+                  type: string
+                  description: "Telefone do cliente"
+                name:
+                  type: string
+                  description: "Nome do cliente"
+                company:
+                  type: string
+                  description: "Nome da empresa do cliente"
+                type:
+                  type: string
+                  enum: [briefing, proposta]
+                  description: "Tipo de reunião"
+                datetime:
+                  type: string
+                  format: date-time
+                  description: "Data e hora no formato ISO 8601 (ex: 2026-02-13T10:00:00-03:00)"
+                duration:
+                  type: integer
+                  description: "Duração em minutos (default: 30 para briefing, 60 para proposta)"
+                description:
+                  type: string
+                  description: "Descrição ou observações adicionais"
+      responses:
+        "200":
+          description: Reunião agendada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  data:
+                    type: object
+                  message:
+                    type: string
+        "409":
+          description: Horário já ocupado
+
+  /available-slots:
+    get:
+      operationId: consultar_horarios
+      summary: Retorna os horários disponíveis para agendamento em uma data
+      description: |
+        Use esta ferramenta para verificar quais horários estão livres antes de sugerir
+        ao cliente. Horário de atendimento: segunda a sexta, 9h-18h (Brasília).
+        Retorna slots de 30 minutos.
+      parameters:
+        - name: date
+          in: query
+          required: true
+          description: "Data no formato YYYY-MM-DD (ex: 2026-02-13)"
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Lista de horários disponíveis
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  date:
+                    type: string
+                  day_of_week:
+                    type: string
+                  available_slots:
+                    type: array
+                    items:
+                      type: string
+                    description: "Lista de horários no formato HH:MM"
+                  total_available:
+                    type: integer

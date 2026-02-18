@@ -1,6 +1,11 @@
 fastapi
 uvicorn
+sqlalchemy
+aiosqlite
 pydantic
-google-api-python-client
-google-auth
-requests
+pydantic-settings
+openai
+python-dotenv
+httpx
+jinja2
+python-telegram-bot

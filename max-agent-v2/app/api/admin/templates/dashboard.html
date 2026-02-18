@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lead Scoring Dashboard - Auto Tech Lith</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            border-left: 5px solid #bdc3c7;
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card.hot {
+            border-left-color: #e74c3c;
+        }
+
+        /* Red for HOT */
+        .card.warm {
+            border-left-color: #f1c40f;
+        }
+
+        /* Yellow for WARM */
+        .card.cold {
+            border-left-color: #3498db;
+        }
+
+        /* Blue for COLD (or Green?) Prompt said Red=Low, Green=High. Let's adjust. */
+
+        /* Prompt: Verde (alto), Amarelo (médio), Vermelho (baixo) */
+        .score-badge {
+            float: right;
+            font-weight: bold;
+            font-size: 1.2em;
+            padding: 5px 10px;
+            border-radius: 5px;
+            color: white;
+        }
+
+        .hot .score-badge {
+            background-color: #27ae60;
+        }
+
+        /* Green for High Score */
+        .warm .score-badge {
+            background-color: #f1c40f;
+        }
+
+        /* Yellow */
+        .cold .score-badge {
+            background-color: #e74c3c;
+        }
+
+        /* Red for Low Score */
+
+        .card-header {
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .card-header h2 {
+            margin: 0;
+            font-size: 1.2em;
+        }
+
+        .card-header span {
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+
+        .breakdown {
+            font-size: 0.9em;
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+
+        .breakdown p {
+            margin: 5px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .action-btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-top: 15px;
+            text-align: center;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .hot .action-btn {
+            background-color: #27ae60;
+            color: white;
+        }
+
+        .warm .action-btn {
+            background-color: #f39c12;
+            color: white;
+        }
+
+        .cold .action-btn {
+            background-color: #bdc3c7;
+            color: #333;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>📊 Dashboard de Leads (Scoring)</h1>
+
+        <div class="card-grid">
+            {% for lead in leads %}
+            {% set score = lead.lead_score | default(0) | int %}
+            {% set status = 'hot' if score >= 60 else 'warm' if score >= 30 else 'cold' %}
+
+            <div class="card {{ status }}">
+                <div class="card-header">
+                    <span class="score-badge">{{ score }}</span>
+                    <h2>{{ lead.nomeCliente or 'Visitante' }}</h2>
+                    <span>{{ lead.niche_trabalho or 'Nicho n/a' }}</span>
+                </div>
+
+                <div class="breakdown">
+                    <p><strong>Breakdown:</strong></p>
+                    {% if lead.score_breakdown %}
+                    <p>💰 Budget: <span>{{ lead.score_breakdown.budget }}</span></p>
+                    <p>⏰ Urgência: <span>{{ lead.score_breakdown.urgency }}</span></p>
+                    <p>🎯 Fit: <span>{{ lead.score_breakdown.fit }}</span></p>
+                    <p>💬 Engajamento: <span>{{ lead.score_breakdown.engagement }}</span></p>
+                    {% else %}
+                    <p>Sem dados detalhados</p>
+                    {% endif %}
+                </div>
+
+                <div class="actions">
+                    <a href="https://wa.me/{{ lead.telefoneCliente }}" target="_blank" class="action-btn">
+                        {% if score >= 60 %}
+                        🔥 Ligar Agora
+                        {% elif score >= 30 %}
+                        ⚠️ Nutrir (3 dias)
+                        {% else %}
+                        ❄️ Base (30 dias)
+                        {% endif %}
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+
+</html>
