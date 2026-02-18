@@ -1,0 +1,15 @@
+# Ambiente
+.env
+
+# Editor
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Credenciais (NUNCA versionar)
+credenciais_referencia.txt
+
+# Docker volumes
+docker-data/
