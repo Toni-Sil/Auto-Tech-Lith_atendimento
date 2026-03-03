@@ -77,6 +77,7 @@ services:
       - ./frontend/assets/uploads:/app/frontend/assets/uploads
     networks:
       - auto_tech_network
+      - dokploy-network
 
   # ─── pgAdmin (Gerenciador visual do banco) ────────────────────────────────────
   pgadmin:
@@ -105,3 +106,5 @@ volumes:
 networks:
   auto_tech_network:
     driver: bridge
+  dokploy-network:
+    external: true
