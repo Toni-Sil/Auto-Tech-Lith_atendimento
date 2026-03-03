@@ -964,7 +964,7 @@ async def list_whatsapp_instances(
             "phone_number": instance.phone_number,
             "status": instance.status,
             "created_at": str(instance.created_at) if instance.created_at else None,
-            "webhook_url": f"{base_webhook_url}/{instance.instance_name}?token={settings.VERIFY_TOKEN}",
+            "webhook_url": f"{base_webhook_url}?token={settings.VERIFY_TOKEN}",
             "evolution_api_url": instance.evolution_api_url,
             "evolution_api_key": instance.evolution_api_key
         })
@@ -1033,7 +1033,7 @@ async def create_whatsapp_instance(
     
     base_url = (settings.PUBLIC_URL or str(request.base_url)).rstrip("/")
     base_webhook_url = f"{base_url}{settings.API_V1_STR}/webhooks/whatsapp"
-    webhook_url = f"{base_webhook_url}/{new_instance.instance_name}?token={settings.VERIFY_TOKEN}"
+    webhook_url = f"{base_webhook_url}?token={settings.VERIFY_TOKEN}"
     
     # --- AUTOMATIC CONFIGURATION ---
     # 1. Set Webhook in Evolution API
