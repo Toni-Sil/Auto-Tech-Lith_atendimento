@@ -32,6 +32,7 @@ function authHeaders() {
 
 async function apiFetch(path, opts = {}) {
     opts.headers = { ...authHeaders(), ...(opts.headers || {}) };
+    if (!opts.cache) opts.cache = 'no-store';
     const r = await fetch(API + path, opts);
     if (r.status === 401) {
         localStorage.removeItem('token');
@@ -1616,8 +1617,8 @@ async function loadWhatsAppInstances() {
             const statusBadge = inst.status === 'connected'
                 ? `<span class="badge success"><span class="status-dot online"></span>${inst.status}</span>`
                 : inst.status === 'pending'
-                ? `<span class="badge" style="background:rgba(255,193,7,.15);color:#ffc107;"><span class="status-dot" style="background:#ffc107;"></span>${inst.status}</span>`
-                : `<span class="badge danger"><span class="status-dot offline"></span>${inst.status || 'desconhecido'}</span>`;
+                    ? `<span class="badge" style="background:rgba(255,193,7,.15);color:#ffc107;"><span class="status-dot" style="background:#ffc107;"></span>${inst.status}</span>`
+                    : `<span class="badge danger"><span class="status-dot offline"></span>${inst.status || 'desconhecido'}</span>`;
 
             const webhookShort = inst.webhook_url
                 ? `<code style="font-size:0.7rem;word-break:break-all;" title="${inst.webhook_url}">${inst.webhook_url.replace('https://', '').substring(0, 40)}…</code>`
@@ -1665,7 +1666,7 @@ async function openWhatsAppCreateModal() {
                     `<option value="${t.id}">${t.name} (#${t.id})</option>`
                 ).join('');
             }
-        } catch (_) {}
+        } catch (_) { }
     }
 
     // Clear form fields
@@ -1683,12 +1684,12 @@ function closeWhatsAppCreateModal() {
 
 // ── Create Submit ─────────────────────────────────────────────────
 async function createWhatsAppInstance() {
-    const instanceName   = document.getElementById('waInstanceName')?.value.trim();
-    const displayName    = document.getElementById('waDisplayName')?.value.trim();
-    const instanceToken  = document.getElementById('waInstanceToken')?.value.trim();
-    const evolUrl        = document.getElementById('waEvolUrl')?.value.trim();
-    const evolKey        = document.getElementById('waEvolKey')?.value.trim();
-    const tenantId       = document.getElementById('waTenantSelect')?.value;
+    const instanceName = document.getElementById('waInstanceName')?.value.trim();
+    const displayName = document.getElementById('waDisplayName')?.value.trim();
+    const instanceToken = document.getElementById('waInstanceToken')?.value.trim();
+    const evolUrl = document.getElementById('waEvolUrl')?.value.trim();
+    const evolKey = document.getElementById('waEvolKey')?.value.trim();
+    const tenantId = document.getElementById('waTenantSelect')?.value;
 
     if (!instanceName) {
         showAlert('O Nome da Instância é obrigatório!', 'error');
@@ -1721,18 +1722,18 @@ async function createWhatsAppInstance() {
         try {
             const parsed = JSON.parse(msg.split(': ').slice(1).join(': '));
             msg = parsed.detail || msg;
-        } catch (_) {}
+        } catch (_) { }
         showAlert(`❌ ${msg}`, 'error');
     }
 }
 
 // ── Edit Modal ────────────────────────────────────────────────────
 function openWhatsAppEditModal(instanceName, displayName, token, evolUrl, evolKey) {
-    document.getElementById('waEditInstanceName').value  = instanceName;
-    document.getElementById('waEditDisplayName').value   = displayName;
+    document.getElementById('waEditInstanceName').value = instanceName;
+    document.getElementById('waEditDisplayName').value = displayName;
     document.getElementById('waEditInstanceToken').value = token;
-    document.getElementById('waEditEvolUrl').value       = evolUrl;
-    document.getElementById('waEditEvolKey').value       = evolKey;
+    document.getElementById('waEditEvolUrl').value = evolUrl;
+    document.getElementById('waEditEvolKey').value = evolKey;
     document.getElementById('whatsappEditModal').classList.add('active');
 }
 
@@ -1742,11 +1743,11 @@ function closeWhatsAppEditModal() {
 
 // ── Edit Submit ───────────────────────────────────────────────────
 async function editWhatsAppInstance() {
-    const instanceName  = document.getElementById('waEditInstanceName')?.value.trim();
-    const displayName   = document.getElementById('waEditDisplayName')?.value.trim();
-    const token         = document.getElementById('waEditInstanceToken')?.value.trim();
-    const evolUrl       = document.getElementById('waEditEvolUrl')?.value.trim();
-    const evolKey       = document.getElementById('waEditEvolKey')?.value.trim();
+    const instanceName = document.getElementById('waEditInstanceName')?.value.trim();
+    const displayName = document.getElementById('waEditDisplayName')?.value.trim();
+    const token = document.getElementById('waEditInstanceToken')?.value.trim();
+    const evolUrl = document.getElementById('waEditEvolUrl')?.value.trim();
+    const evolKey = document.getElementById('waEditEvolKey')?.value.trim();
 
     if (!instanceName) return;
 
@@ -1770,7 +1771,7 @@ async function editWhatsAppInstance() {
         try {
             const parsed = JSON.parse(msg.split(': ').slice(1).join(': '));
             msg = parsed.detail || msg;
-        } catch (_) {}
+        } catch (_) { }
         showAlert(`❌ ${msg}`, 'error');
     }
 }
@@ -1788,7 +1789,7 @@ async function deleteWhatsAppInstance(instanceName) {
         try {
             const parsed = JSON.parse(msg.split(': ').slice(1).join(': '));
             msg = parsed.detail || msg;
-        } catch (_) {}
+        } catch (_) { }
         showAlert(`❌ ${msg}`, 'error');
     }
 }

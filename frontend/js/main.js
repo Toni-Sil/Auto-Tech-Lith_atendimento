@@ -21,6 +21,8 @@ async function authFetch(url, options = {}) {
         'Authorization': `Bearer ${token}`
     };
 
+    if (!options.cache) options.cache = 'no-store';
+
     const response = await fetch(url, { ...options, headers });
 
     if (response.status === 401) {
