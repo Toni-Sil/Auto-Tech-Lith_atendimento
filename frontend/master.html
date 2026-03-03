@@ -173,7 +173,7 @@
 
                 <!-- Modal for Create Instance -->
                 <div class="modal-overlay" id="whatsappCreateModal">
-                    <div class="modal" style="max-width: 500px;">
+                    <div class="modal-box" style="max-width: 500px;">
                         <div class="modal-header">
                             <h3>Criar Instância WhatsApp</h3>
                             <button class="btn-ghost" onclick="closeWhatsAppCreateModal()">✕</button>
@@ -219,7 +219,7 @@
 
                 <!-- Modal for Edit Instance -->
                 <div class="modal-overlay" id="whatsappEditModal">
-                    <div class="modal" style="max-width: 500px;">
+                    <div class="modal-box" style="max-width: 500px;">
                         <div class="modal-header">
                             <h3>Editar Instância WhatsApp</h3>
                             <button class="btn-ghost" onclick="closeWhatsAppEditModal()">✕</button>
@@ -1512,10 +1512,12 @@
     </div>
 
     <!-- Modal Genérico -->
-    <div id="genericModal" class="modal">
-        <div class="modal-content">
-            <h2 id="genericModalTitle">Aviso</h2>
-            <div id="genericModalBody" style="margin: 1.5rem 0;"></div>
+    <div id="genericModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h2 id="genericModalTitle">Aviso</h2>
+            </div>
+            <div id="genericModalBody" class="modal-body" style="margin: 1.5rem 0;"></div>
             <div class="modal-footer" style="text-align:right;">
                 <button class="btn btn-primary" onclick="closeGenericModal()">Entendido</button>
             </div>
