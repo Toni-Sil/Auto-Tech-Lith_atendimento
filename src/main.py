@@ -38,7 +38,7 @@ app.add_middleware(PrometheusMetricsMiddleware)
 app.add_middleware(RateLimitMiddleware)
 
 # Disable caching for frontend/static files — only active in DEBUG/development mode
-if settings.DEBUG:
+if getattr(settings, "APP_DEBUG", False):
     @app.middleware("http")
     async def add_no_cache_header(request: Request, call_next):
         response = await call_next(request)
