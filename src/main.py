@@ -145,6 +145,45 @@ else:
 
 @app.on_event("startup")
 async def startup_event():
+    # ─── Automatic Database Initialization ─────────────────────────────────────
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from src.models.database import Base
+    
+    # Import all models to ensure they are registered with Base.metadata
+    import src.models.admin
+    import src.models.audit
+    import src.models.tenant
+    import src.models.user_session
+    import src.models.api_key
+    import src.models.vault
+    import src.models.role
+    import src.models.usage_log
+    import src.models.customer
+    import src.models.conversation
+    import src.models.agent_profile
+    import src.models.ticket
+    import src.models.meeting
+    import src.models.lead
+    import src.models.lead_interaction
+    import src.models.tenant_quota
+    import src.models.butler_log
+    import src.models.automation
+    import src.models.notification
+    import src.models.preferences
+    import src.models.recovery
+    import src.models.sales_workflow
+    import src.models.tenant_ai_config
+    import src.models.webhook_config
+    import src.models.whatsapp
+    import src.models.config_model
+
+    engine = create_async_engine(settings.DATABASE_URL)
+    async with engine.begin() as conn:
+        logger.info("Database: Checking/creating tables...")
+        await conn.run_sync(Base.metadata.create_all)
+    await engine.dispose()
+    logger.info("Database: Initialization complete.")
+
     import os
     # Check ENCRYPTION_KEY — required for AI Config key vault
     if not settings.ENCRYPTION_KEY:
