@@ -1,7 +1,7 @@
 import sys
 import os
 import logging
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -122,23 +122,53 @@ app.include_router(webhooks_router, prefix=f"{settings.API_V1_STR}/webhooks", ta
 app.include_router(metrics_router, prefix=f"{settings.API_V1_STR}", tags=["observability"])
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
-# Montar arquivos estáticos do frontend (Dashboard) por último
+# --- Legacy Fallbacks ---
+@app.post("/api/auth/token", tags=["auth"], include_in_schema=False)
+async def legacy_token_fallback(request: Request):
+    """Fallback for old frontend versions that might still use the non-v1 path."""
+    from src.api.auth import login_for_access_token
+    from src.models.database import get_db
+    # This involves manually extracting form data or just redirecting internally
+    # For now, let's just log and raise a clear error or try to handle it.
+    logger.warning("Legacy auth endpoint called. Redirecting or suggesting update.")
+    raise HTTPException(
+        status_code=307, 
+        detail="Please use /api/v1/auth/token",
+        headers={"Location": f"{settings.API_V1_STR}/auth/token"}
+    )
+
+# Configuração de caminhos do frontend
 import os
-frontend_path = os.path.join(os.getcwd(), "frontend")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Check if we are in 'src' or root
+if os.path.basename(BASE_DIR) == "src":
+    frontend_path = os.path.join(os.path.dirname(BASE_DIR), "frontend")
+else:
+    frontend_path = os.path.join(BASE_DIR, "frontend")
 
 if os.path.exists(frontend_path):
+    logger.info(f"Frontend directory identified at {frontend_path}")
+    
+    # ─── Explicit Asset Mounts (More reliable than catch-all root) ───
+    for folder in ["css", "js", "assets", "img"]:
+        folder_path = os.path.join(frontend_path, folder)
+        if os.path.exists(folder_path):
+            app.mount(f"/{folder}", StaticFiles(directory=folder_path), name=folder)
+            logger.info(f"✅ Mounted /{folder} from {folder_path}")
+
+    # Standard /static mount for assets/uploads
     app.mount("/static", StaticFiles(directory=frontend_path), name="static")
     
-    # Serve favicon explicitly (or just let the catch-all below handle it if it exists)
+    # Serve favicon explicitly
     from fastapi.responses import FileResponse
     @app.get("/favicon.ico", include_in_schema=False)
     async def favicon():
         favicon_path = os.path.join(frontend_path, "favicon.ico")
         if os.path.exists(favicon_path):
             return FileResponse(favicon_path)
-        return FileResponse(os.path.join(frontend_path, "index.html")) # Fallback or just 404 cleanly
+        return FileResponse(os.path.join(frontend_path, "index.html"))
 
-    # Mount root to serve index.html for SPA-like behavior or just static files
+    # Mount root for HTML files only (or as final fallback)
     app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 else:
     logger.warning(f"Frontend directory not found at {frontend_path}")

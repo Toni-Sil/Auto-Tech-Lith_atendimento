@@ -1,0 +1,33 @@
+Note: Unnecessary use of -X or --request, POST is already inferred.
+* Host localhost:8000 was resolved.
+* IPv6: ::1
+* IPv4: 127.0.0.1
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0*   Trying [::1]:8000...
+* connect to ::1 port 8000 from ::1 port 43518 failed: Conexão recusada
+*   Trying 127.0.0.1:8000...
+* Connected to localhost (127.0.0.1) port 8000
+> POST /api/apikeys HTTP/1.1
+> Host: localhost:8000
+> User-Agent: curl/8.5.0
+> Accept: */*
+> Content-Type: application/json
+> Content-Length: 16
+> 
+} [16 bytes data]
+< HTTP/1.1 405 Method Not Allowed
+< date: Wed, 25 Feb 2026 16:40:26 GMT
+< server: uvicorn
+< content-length: 31
+< content-type: application/json
+< strict-transport-security: max-age=31536000; includeSubDomains
+< x-content-type-options: nosniff
+< x-frame-options: DENY
+< x-xss-protection: 1; mode=block
+< content-security-policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;
+< 
+{ [31 bytes data]
+100    47  100    31  100    16   2661   1373 --:--:-- --:--:-- --:--:--  4272
+* Connection #0 to host localhost left intact
+{"detail":"Method Not Allowed"}
