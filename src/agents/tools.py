@@ -3,14 +3,17 @@ from typing import Optional
 from sqlalchemy import select
 from src.models.database import async_session
 from src.models.customer import Customer
+from src.models.lead import Lead, LeadStatus
 from src.models.meeting import Meeting, MeetingType, MeetingStatus
 from src.utils.logger import setup_logger
 from src.services.telegram_service import telegram_service
 
 logger = setup_logger(__name__)
 
+from src.models.audit import AuditLog
+
 async def update_customer_info(customer_id: int, name: Optional[str] = None, email: Optional[str] = None, company: Optional[str] = None, demand: Optional[str] = None) -> str:
-    """Atualiza as informações cadastrais do cliente no banco de dados."""
+    """Atualiza as informações cadastrais do cliente e sincroniza com o CRM se for Master."""
     async with async_session() as session:
         result = await session.execute(select(Customer).where(Customer.id == customer_id))
         customer = result.scalar_one_or_none()
@@ -24,6 +27,48 @@ async def update_customer_info(customer_id: int, name: Optional[str] = None, ema
         if demand: customer.initial_demand = demand
         
         customer.updated_at = datetime.now()
+
+        # 🔥 SYNC: Se o tenant_id for None, este é um prospecto do Master Admin
+        # Devemos criar ou atualizar um Lead no CRM interno.
+        if customer.tenant_id is None:
+            try:
+                # Procurar lead existente pelo telefone
+                stmt = select(Lead).where(Lead.phone == customer.phone)
+                lead = (await session.execute(stmt)).scalar_one_or_none()
+                
+                if not lead:
+                    lead = Lead(
+                        name=customer.name or "Novo Lead (WhatsApp)",
+                        phone=customer.phone,
+                        email=customer.email,
+                        company=customer.company,
+                        source="WhatsApp",
+                        status=LeadStatus.CONTACT,
+                        notes=f"Auto-registrado via Max (Atendimento).\nDemanda: {customer.initial_demand or ''}"
+                    )
+                    session.add(lead)
+                    
+                    # Log de Auditoria para Registro de Novo Lead
+                    audit = AuditLog(
+                        event_type="customer_registered_by_agent",
+                        username=f"WA:{customer.phone}",
+                        details=f"Novo Lead '{lead.name}' registrado pelo agente Max.",
+                        ip_address="bot"
+                    )
+                    session.add(audit)
+                    
+                    logger.info(f"Sync: New Lead created for phone {customer.phone}")
+                else:
+                    # Update existing lead
+                    if name: lead.name = name
+                    if email: lead.email = email
+                    if company: lead.company = company
+                    if demand: 
+                        lead.notes = (lead.notes or "") + f"\n\n[Atualização {datetime.now().strftime('%d/%m/%Y')}]: {demand}"
+                    logger.info(f"Sync: Lead {lead.id} updated from Customer data")
+            except Exception as e:
+                logger.error(f"Sync Error (Customer -> Lead): {e}")
+        
         await session.commit()
         
         logger.info(f"Customer {customer_id} updated: {name}, {email}, {company}")
@@ -49,8 +94,12 @@ async def schedule_meeting(customer_id: int, meeting_type: str, date_str: str, t
              return f"Erro: Tipo de reunião '{meeting_type}' inválido. Use: {[t.value for t in MeetingType]}"
 
         async with async_session() as session:
-            # Verificar disponibilidade (simples: se já existe reunião no mesmo horário)
-            # Para produção, ideal verificar ranges
+            # Pegar dados do cliente primeiro para saber o tenant_id
+            customer = await session.scalar(select(Customer).where(Customer.id == customer_id))
+            if not customer:
+                 return "Erro: Cliente não encontrado."
+
+            # Verificar disponibilidade
             existing = await session.execute(select(Meeting).where(
                 Meeting.date == meeting_date,
                 Meeting.time == meeting_time,
@@ -61,6 +110,7 @@ async def schedule_meeting(customer_id: int, meeting_type: str, date_str: str, t
 
             new_meeting = Meeting(
                 customer_id=customer_id,
+                tenant_id=customer.tenant_id, # FIX: Usar o mesmo tenant do cliente
                 type=m_type,
                 date=meeting_date,
                 time=meeting_time,
@@ -69,9 +119,20 @@ async def schedule_meeting(customer_id: int, meeting_type: str, date_str: str, t
             )
             session.add(new_meeting)
             
-            # Pegar dados do cliente para notificação
-            customer = await session.scalar(select(Customer).where(Customer.id == customer_id))
-            
+            # 🔥 SYNC: Se for Master, atualizar o status do Lead no CRM
+            if customer.tenant_id is None:
+                try:
+                    stmt = select(Lead).where(Lead.phone == customer.phone)
+                    lead = (await session.execute(stmt)).scalar_one_or_none()
+                    if lead:
+                        if m_type == MeetingType.BRIEFING:
+                            lead.status = LeadStatus.BRIEFING
+                        elif m_type == MeetingType.PROPOSAL:
+                            lead.status = LeadStatus.PROPOSAL
+                        logger.info(f"Sync: Lead {lead.id} status updated to {lead.status}")
+                except Exception as e:
+                     logger.error(f"Sync Error (Meeting -> Lead): {e}")
+
             await session.commit()
             
             # Notificar equipe no Telegram
@@ -84,6 +145,9 @@ async def schedule_meeting(customer_id: int, meeting_type: str, date_str: str, t
                 f"📝 *Relatório de Serviço / Demanda:*\n"
                 f"{notes or customer.initial_demand or 'Sem detalhes informados.'}"
             )
+            if customer.tenant_id is None:
+                msg = "🏢 *[MASTER ADMIN]*\n" + msg
+            
             await telegram_service.send_message(msg)
             
             return f"Reunião de {m_type.value} agendada com sucesso para {date_str} às {time_str}."
@@ -94,9 +158,9 @@ async def schedule_meeting(customer_id: int, meeting_type: str, date_str: str, t
         logger.error(f"Error scheduling meeting: {e}")
         return "Erro interno ao agendar reunião."
 
-async def check_availability(date_str: Optional[str] = None) -> str:
+async def check_availability(tenant_id: Optional[int], date_str: Optional[str] = None) -> str:
     """
-    Verifica a disponibilidade da agenda.
+    Verifica a disponibilidade da agenda para um tenant específico.
     Se date_str for fornecido (YYYY-MM-DD), verifica aquele dia.
     Se não, verifica os próximos 3 dias úteis.
     """
@@ -120,8 +184,9 @@ async def check_availability(date_str: Optional[str] = None) -> str:
     
     async with async_session() as session:
         for d in check_days:
-            # Buscar reuniões agendadas para o dia (excluindo canceladas)
+            # Buscar reuniões agendadas para o dia e tenant (excluindo canceladas)
             stmt = select(Meeting).where(
+                Meeting.tenant_id == tenant_id,
                 Meeting.date == d,
                 Meeting.status != MeetingStatus.CANCELLED
             ).order_by(Meeting.time)
@@ -193,3 +258,4 @@ AGENT_TOOLS = [
         }
     }
 ]
+

@@ -1,8 +1,8 @@
 from sqlalchemy import String, Text, DateTime, ForeignKey, func, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from datetime import datetime
 from typing import Optional, List
 import enum
+from datetime import datetime
 from src.models.database import Base
 
 class TicketStatus(str, enum.Enum):
@@ -21,6 +21,7 @@ class Ticket(Base):
     __tablename__ = "tickets"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    tenant_id: Mapped[Optional[int]] = mapped_column(ForeignKey("tenants.id"), nullable=True)
     customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id"), index=True)
     
     subject: Mapped[str] = mapped_column(String)
@@ -38,4 +39,5 @@ class Ticket(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
     # Relacionamentos
+    tenant: Mapped[Optional["Tenant"]] = relationship(back_populates="tickets")
     customer: Mapped["Customer"] = relationship(back_populates="tickets")

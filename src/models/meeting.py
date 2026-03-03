@@ -20,6 +20,7 @@ class Meeting(Base):
     __tablename__ = "meetings"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    tenant_id: Mapped[Optional[int]] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True)
     customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id"), index=True)
     
     type: Mapped[MeetingType] = mapped_column(default=MeetingType.BRIEFING)
@@ -34,4 +35,5 @@ class Meeting(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
     # Relacionamentos
+    tenant: Mapped[Optional["Tenant"]] = relationship(back_populates="meetings")
     customer: Mapped["Customer"] = relationship(back_populates="meetings")

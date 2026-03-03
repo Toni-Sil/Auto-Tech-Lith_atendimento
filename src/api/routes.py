@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from typing import Annotated
-from src.api.auth import get_current_user, AdminUser
+from src.api.auth import get_current_user, AdminUser, RequirePermissions
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc, or_
-from typing import List
+from typing import List, Optional
 from datetime import datetime, date
 
 from src.models.database import get_db
@@ -35,47 +35,70 @@ from src.config import settings
 logger = setup_logger(__name__)
 api_router = APIRouter()
 
-# --- Configuration ---
+
+# --- Config APIs ---
+from src.schemas import SystemConfigUpdate
 @api_router.get("/config")
-@api_router.get("/config")
-async def get_config(
+async def get_system_config(
     current_user: Annotated[AdminUser, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db)
 ):
-    result = await db.execute(select(SystemConfig))
+    result = await db.execute(select(SystemConfig).where(SystemConfig.tenant_id == current_user.tenant_id))
     configs = result.scalars().all()
-    
-    # Mask secrets
-    response = []
-    for c in configs:
-        val = c.value
-        if c.is_secret and val:
-            val = "********"
-        response.append({"key": c.key, "value": val, "description": c.description})
-    return response
+    # Return as dict for easy frontend consumption
+    return {c.key: c.value for c in configs if not c.is_secret}
 
 @api_router.post("/config")
-@api_router.post("/config")
-async def update_config(
-    payload: dict, 
+async def update_system_config(
+    data: SystemConfigUpdate,
     current_user: Annotated[AdminUser, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db)
 ):
-    # payload: {"key": "value"}
-    for key, value in payload.items():
-        # Check if exists
-        config = await db.scalar(select(SystemConfig).where(SystemConfig.key == key))
+    for item in data.configs:
+        stmt = select(SystemConfig).where(SystemConfig.key == item.key, SystemConfig.tenant_id == current_user.tenant_id)
+        config = await db.scalar(stmt)
         if config:
-            config.value = value
-            # If logic needed to reload services, could trigger here
+            config.value = item.value
         else:
-            # Auto-create if not exists (careful with secrets)
-            # Defaulting is_secret to False for new keys via API for now
-            new_config = SystemConfig(key=key, value=value, is_secret=False)
-            db.add(new_config)
-            
+            config = SystemConfig(key=item.key, value=item.value, tenant_id=current_user.tenant_id)
+            db.add(config)
     await db.commit()
-    return {"status": "updated"}
+    return {"status": "success"}
+
+from fastapi import UploadFile, File
+import shutil
+import uuid
+
+@api_router.post("/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    current_user: Annotated[AdminUser, Depends(get_current_user)] = None, # Workaround if it's meant to be optional, or just remove '= Depends()'
+):
+    """
+    Endpoint for uploading images and PDFs (for Avatar and Logo).
+    Returns the static URL to access the uploaded file.
+    """
+    # Create the directory if it doesn't exist
+    upload_dir = os.path.join(os.getcwd(), "frontend", "assets", "uploads")
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    # Generate a unique filename to prevent collisions and caching issues
+    file_ext = os.path.splitext(file.filename)[1]
+    unique_filename = f"{uuid.uuid4()}{file_ext}"
+    file_path = os.path.join(upload_dir, unique_filename)
+    
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        logger.error(f"Error saving uploaded file: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to save file")
+    
+    # Return the URL that the frontend can use to access this file
+    # The frontend is mounted statically at /static/ from the frontend/ folder
+    static_url = f"/static/assets/uploads/{unique_filename}"
+    
+    return {"status": "success", "url": static_url, "filename": file.filename}
 
 # --- Dashboard Stats ---
 @api_router.get("/stats", response_model=DashboardStats)
@@ -85,17 +108,21 @@ async def get_stats(
     db: AsyncSession = Depends(get_db)
 ):
     # Estatísticas básicas
-    active_customers = await db.scalar(select(func.count(Customer.id)))
+    active_customers = await db.scalar(select(func.count(Customer.id)).where(Customer.tenant_id == current_user.tenant_id))
     # Tickets abertos
-    open_tickets = await db.scalar(select(func.count(Ticket.id)).where(Ticket.status == TicketStatus.OPEN))
+    open_tickets = await db.scalar(select(func.count(Ticket.id)).where(Ticket.status == TicketStatus.OPEN, Ticket.tenant_id == current_user.tenant_id))
     # Reuniões agendadas
     scheduled_meetings = await db.scalar(select(func.count(Meeting.id)).where(
         Meeting.status == MeetingStatus.SCHEDULED,
-        Meeting.date >= date.today()
+        Meeting.date >= date.today(),
+        Meeting.tenant_id == current_user.tenant_id
     ))
     # Conversas de hoje
     today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    today_conversations = await db.scalar(select(func.count(Conversation.id)).where(Conversation.created_at >= today_start))
+    today_conversations = await db.scalar(select(func.count(Conversation.id)).where(
+        Conversation.created_at >= today_start,
+        Conversation.tenant_id == current_user.tenant_id
+    ))
 
     return DashboardStats(
         active_customers=active_customers or 0,
@@ -114,6 +141,10 @@ async def list_customers(
     stmt = (
         select(Customer, func.count(Ticket.id).label("open_tickets_count"))
         .outerjoin(Ticket, (Ticket.customer_id == Customer.id) & (Ticket.status == TicketStatus.OPEN))
+        .where(
+            Customer.tenant_id == current_user.tenant_id,
+            Customer.source != "internal_test"
+        )
         .group_by(Customer.id)
         .order_by(desc(Customer.last_interaction))
     )
@@ -140,7 +171,7 @@ async def create_customer(
     # Verificar duplicidade por telefone APENAS se não for update explícito
     # (Embora POST seja criação, mantemos a lógica de upsert por conveniência, 
     # mas o ideal é o frontend usar PUT para edição)
-    existing = await db.scalar(select(Customer).where(Customer.phone == customer.phone))
+    existing = await db.scalar(select(Customer).where(Customer.phone == customer.phone, Customer.tenant_id == current_user.tenant_id))
     if existing:
         return existing # Retorna o existente sem alterar, ou atualiza? 
         # A lógica anterior atualizava. Vamos manter o POST como creation apenas ou upsert.
@@ -158,7 +189,7 @@ async def create_customer(
         await db.refresh(existing)
         return existing
 
-    new_customer = Customer(**customer.model_dump())
+    new_customer = Customer(**customer.model_dump(), tenant_id=current_user.tenant_id)
     db.add(new_customer)
     await db.commit()
     await db.refresh(new_customer)
@@ -171,7 +202,7 @@ async def update_customer(
     current_user: Annotated[AdminUser, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db)
 ):
-    existing = await db.get(Customer, customer_id)
+    existing = await db.scalar(select(Customer).where(Customer.id == customer_id, Customer.tenant_id == current_user.tenant_id))
     if not existing:
         raise HTTPException(status_code=404, detail="Customer not found")
     
@@ -191,10 +222,10 @@ async def update_customer(
 @api_router.delete("/customers/{customer_id}")
 async def delete_customer(
     customer_id: int, 
-    current_user: Annotated[AdminUser, Depends(get_current_user)],
+    current_user: Annotated[AdminUser, Depends(RequirePermissions(["customers:delete"]))],
     db: AsyncSession = Depends(get_db)
 ):
-    customer = await db.get(Customer, customer_id)
+    customer = await db.scalar(select(Customer).where(Customer.id == customer_id, Customer.tenant_id == current_user.tenant_id))
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
     
@@ -210,7 +241,12 @@ async def list_tickets(
     db: AsyncSession = Depends(get_db)
 ):
     # Join com Customer para pegar nome
-    result = await db.execute(select(Ticket, Customer.name).join(Customer).order_by(desc(Ticket.created_at)))
+    result = await db.execute(
+        select(Ticket, Customer.name)
+        .join(Customer)
+        .where(Ticket.tenant_id == current_user.tenant_id)
+        .order_by(desc(Ticket.created_at))
+    )
     tickets = []
     for ticket, customer_name in result:
         t_resp = TicketResponse.model_validate(ticket)
@@ -225,7 +261,12 @@ async def list_meetings(
     current_user: Annotated[AdminUser, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db)
 ):
-    result = await db.execute(select(Meeting, Customer.name).join(Customer).order_by(Meeting.date, Meeting.time))
+    result = await db.execute(
+        select(Meeting, Customer.name)
+        .join(Customer)
+        .where(Meeting.tenant_id == current_user.tenant_id)
+        .order_by(Meeting.date, Meeting.time)
+    )
     meetings = []
     for meeting, customer_name in result:
         m_resp = MeetingResponse.model_validate(meeting)
@@ -289,7 +330,7 @@ async def update_meeting(
 @api_router.delete("/meetings/{meeting_id}")
 async def delete_meeting(
     meeting_id: int, 
-    current_user: Annotated[AdminUser, Depends(get_current_user)],
+    current_user: Annotated[AdminUser, Depends(RequirePermissions(["meetings:delete"]))],
     db: AsyncSession = Depends(get_db)
 ):
     meeting = await db.get(Meeting, meeting_id)
@@ -303,7 +344,9 @@ async def delete_meeting(
 # --- Webhooks ---
 from fastapi import Request
 @api_router.post("/webhooks/whatsapp")
-async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
+@api_router.post("/webhooks/whatsapp/{instance_name}")
+async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks, instance_name: Optional[str] = None):
+    logger.info(f"--- WHATSAPP WEBHOOK HIT --- Instance: {instance_name}")
     try:
         payload = await request.json()
     except Exception as e:
@@ -318,6 +361,10 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
         raise HTTPException(status_code=403, detail="Invalid verification token")
 
     logger.info(f"Webhook received: {payload}")
+    
+    # Identify instance from payload if not in URL
+    if not instance_name:
+        instance_name = payload.get("instance")
     
     # Identificar mensagem de texto
     # Estrutura típica Evolution API v2:
@@ -349,8 +396,8 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
         return {"status": "ignored", "reason": "fromMe is true"}
 
     if remote_jid and message_id:
-        # Marcar como lido imediatamente (visualização azul)
-        background_tasks.add_task(evolution_service.mark_message_as_read, remote_jid, message_id)
+        # Log — o agente via process_message também chamará mark_message_as_read
+        logger.info(f"Incoming message from {remote_jid} id={message_id}")
 
     phone = remote_jid.split("@")[0] if remote_jid else ""
     
@@ -446,30 +493,25 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
     if phone and text:
         # Processar em background para não bloquear o webhook
         background_tasks.add_task(
-            customer_agent.process_message, 
-            message=text, 
-            context={"phone": phone, "name": push_name}
+            customer_agent.process_message,
+            message=text,
+            context={
+                "phone": phone,
+                "name": push_name,
+                "remote_jid": remote_jid,    # para marcar como lido
+                "message_id": message_id,    # para marcar como lido
+                "instance_name": instance_name
+            }
         )
         return {"status": "processing"}
     
     return {"status": "ignored", "reason": "invalid data"}
 
-# --- Health ---
-@api_router.get("/health/evolution")
-async def health_evolution():
-    status = await evolution_service.check_instance_status()
-    if "error" in status:
-        raise HTTPException(status_code=503, detail="Evolution API unreachable")
-    return status
-
-@api_router.get("/health/database")
-async def health_database(db: AsyncSession = Depends(get_db)):
-    try:
-        await db.execute(select(1))
-        return {"status": "connected"}
-    except Exception as e:
-        logger.error(f"Database health check failed: {e}")
-        raise HTTPException(status_code=503, detail="Database unreachable")
+# --- Health & Status APIs ---
+@api_router.get("/ping")
+async def ping():
+    """Endpoint for external APIs to confirm system is reachable."""
+    return {"status": "ok", "timestamp": datetime.now().isoformat()}
 
 # --- Conversations & Chat Test ---
 @api_router.get("/conversations", response_model=List[ConversationResponse])
@@ -483,6 +525,10 @@ async def list_conversations(
     
     stmt = (
         select(Customer)
+        .where(
+            Customer.tenant_id == current_user.tenant_id,
+            Customer.source != "internal_test"
+        )
         .order_by(desc(Customer.last_interaction))
         .limit(50)
     )
@@ -519,36 +565,71 @@ async def chat_test(
     current_user: Annotated[AdminUser, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db)
 ):
-    # Mock context for admin testing
+    from src.models.conversation import Conversation, MessageRole
     logger.info(f"Admin {current_user.username} testing agent with message: {request.message}")
     
-    # We use the agent directly. 
-    # NOTE: The agent usually replies via WhatsApp API. 
-    # We need to intercept the reply or use a method that returns the reply.
-    # The current customer_agent.process_message sends to Evolution API.
-    
-    # To make this work for UI, we might need a method in agent that returns the text 
-    # OR we mock the output.
-    
-    # Check customer_service_agent.py to see if we can get the text return.
-    # If process_message returns the generated response, we are good.
-    # If it sends async, we might not get it back here easily without refactoring.
-    
-    # Temporary: Use LLM service directly to simulate agent response for testing logic.
-    # Or better: Create a "test_mode" in process_message?
-    
-    # For now, let's assume we want to test the LLM logic:
     try:
-        # Construct context similar to what agent does
-        # Construct context similar to what agent does
-        messages = [
-            {"role": "system", "content": "You are a helpful assistant for testing purposes."},
-            {"role": "user", "content": request.message}
-        ]
+        test_phone = f"test_{current_user.id}"
+        stmt = select(Customer).where(
+            Customer.tenant_id == current_user.tenant_id, 
+            Customer.phone == test_phone
+        )
+        mock_customer = await db.scalar(stmt)
+        if not mock_customer:
+            mock_customer = Customer(
+                name=current_user.name or current_user.username or "Admin Test",
+                phone=test_phone,
+                email=current_user.email or "admin@atendente.ai",
+                tenant_id=current_user.tenant_id,
+                company="Atendente.ai" if not current_user.tenant_id else "Sua Empresa",
+                source="internal_test"
+            )
+            db.add(mock_customer)
+            await db.commit()
+            await db.refresh(mock_customer)
+
+        stmt = select(Conversation).where(Conversation.customer_id == mock_customer.id).order_by(Conversation.created_at)
+        history = (await db.execute(stmt)).scalars().all()
         
-        # We invoke LLM service directly to get the response string
-        response = await llm_service.get_chat_response(messages)
-        return {"reply": response.content}
+        if current_user.tenant_id is None:
+            # Master Admin: usa AdminAgent
+            from src.agents.admin_agent import AdminAgent
+            admin_agent = AdminAgent()
+            
+            # Autenticação fake / injetando o contexto 
+            context = {"user_id": current_user.id, "username": current_user.name}
+            final_response = await admin_agent.process_message(request.message, context)
+            
+        else:
+            # Tenant Test
+            system_prompt = await customer_agent.load_system_prompt(mock_customer, "test")
+            messages = [{"role": "system", "content": system_prompt}]
+            for msg in history:
+                messages.append({"role": msg.role, "content": msg.content})
+            messages.append({"role": "user", "content": request.message})
+            
+            response = await llm_service.get_chat_response(messages)
+            final_response = response.content
+
+        # Persist to DB
+        user_msg = Conversation(
+            tenant_id=current_user.tenant_id,
+            customer_id=mock_customer.id,
+            role=MessageRole.USER,
+            content=request.message,
+        )
+        db.add(user_msg)
+        
+        ast_msg = Conversation(
+            tenant_id=current_user.tenant_id,
+            customer_id=mock_customer.id,
+            role=MessageRole.ASSISTANT,
+            content=final_response,
+        )
+        db.add(ast_msg)
+        await db.commit()
+        
+        return {"reply": final_response}
         
     except Exception as e:
         logger.error(f"Error in chat test: {e}")
@@ -568,3 +649,174 @@ async def get_analytics_dashboard(
         "performance": performance,
         "business": business
     }
+
+
+# ─────────────────────────────────────────────
+# Agent Profiles
+# ─────────────────────────────────────────────
+from src.services.profile_service import profile_service
+from src.schemas import AgentProfileCreate, AgentProfileResponse
+from src.services.prompt_generator_service import prompt_generator_service
+
+@api_router.get("/profiles", response_model=List[AgentProfileResponse])
+async def list_profiles(current_user: Annotated[AdminUser, Depends(get_current_user)]):
+    profiles = await profile_service.list_profiles(tenant_id=current_user.tenant_id)
+    return [AgentProfileResponse.model_validate(p) for p in profiles]
+
+@api_router.post("/profiles", response_model=AgentProfileResponse)
+async def create_profile(
+    data: AgentProfileCreate,
+    current_user: Annotated[AdminUser, Depends(get_current_user)],
+):
+    profile_data = data.model_dump()
+    
+    # Auto-fill logic
+    base_prompt = profile_data.get("base_prompt")
+    if base_prompt:
+        # Prevent overriding if objective is already set explicitly by the user
+        # (Assuming an empty objective means we should try to auto-fill)
+        if not profile_data.get("objective"):
+            extracted = await prompt_generator_service.analyze_prompt(base_prompt)
+            for field, value in extracted.items():
+                if field in profile_data:
+                    current_val = profile_data.get(field)
+                    is_empty_or_default = (
+                        not current_val 
+                        or current_val in ["geral", "neutro", "equilibrado", "equilibrada"]
+                    )
+                    if is_empty_or_default and value:
+                        profile_data[field] = value
+
+    profile = await profile_service.create_profile(profile_data, tenant_id=current_user.tenant_id)
+    return AgentProfileResponse.model_validate(profile)
+
+@api_router.put("/profiles/{profile_id}", response_model=AgentProfileResponse)
+async def update_profile(
+    profile_id: int,
+    data: AgentProfileCreate,
+    current_user: Annotated[AdminUser, Depends(get_current_user)],
+):
+    profile_data = data.model_dump(exclude_unset=True)
+    
+    # Auto-fill logic
+    base_prompt = profile_data.get("base_prompt")
+    if base_prompt:
+        if not profile_data.get("objective"):
+            extracted = await prompt_generator_service.analyze_prompt(base_prompt)
+            for field, value in extracted.items():
+                if field in profile_data:
+                    current_val = profile_data.get(field)
+                    is_empty_or_default = (
+                        not current_val 
+                        or current_val in ["geral", "neutro", "equilibrado", "equilibrada"]
+                    )
+                    if is_empty_or_default and value:
+                        profile_data[field] = value
+
+    profile = await profile_service.update_profile(profile_id, profile_data, tenant_id=current_user.tenant_id)
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    return AgentProfileResponse.model_validate(profile)
+
+@api_router.post("/profiles/{profile_id}/activate", response_model=AgentProfileResponse)
+async def activate_profile(
+    profile_id: int,
+    current_user: Annotated[AdminUser, Depends(get_current_user)],
+):
+    profile = await profile_service.activate_profile(profile_id, tenant_id=current_user.tenant_id)
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    return AgentProfileResponse.model_validate(profile)
+
+@api_router.delete("/profiles/{profile_id}")
+async def delete_profile(
+    profile_id: int,
+    current_user: Annotated[AdminUser, Depends(RequirePermissions(["profiles:delete"]))],
+):
+    success = await profile_service.delete_profile(profile_id, tenant_id=current_user.tenant_id)
+    if not success:
+        raise HTTPException(status_code=400, detail="Profile not found or is currently active")
+    return {"status": "deleted"}
+
+
+# ─────────────────────────────────────────────
+# Webhook Configs
+# ─────────────────────────────────────────────
+from src.services.webhook_config_service import webhook_config_service
+from src.schemas import WebhookConfigCreate, WebhookConfigResponse
+
+@api_router.get("/webhooks", response_model=List[WebhookConfigResponse])
+async def list_webhooks(current_user: Annotated[AdminUser, Depends(get_current_user)]):
+    webhooks = await webhook_config_service.list_webhooks(tenant_id=current_user.tenant_id)
+    return [WebhookConfigResponse.model_validate(w) for w in webhooks]
+
+@api_router.post("/webhooks", response_model=WebhookConfigResponse)
+async def create_webhook(
+    data: WebhookConfigCreate,
+    current_user: Annotated[AdminUser, Depends(get_current_user)],
+):
+    webhook = await webhook_config_service.create_webhook(data.model_dump(), tenant_id=current_user.tenant_id)
+    return WebhookConfigResponse.model_validate(webhook)
+
+@api_router.put("/webhooks/{webhook_id}", response_model=WebhookConfigResponse)
+async def update_webhook(
+    webhook_id: int,
+    data: WebhookConfigCreate,
+    current_user: Annotated[AdminUser, Depends(get_current_user)],
+):
+    webhook = await webhook_config_service.update_webhook(webhook_id, data.model_dump(exclude_unset=True), tenant_id=current_user.tenant_id)
+    if not webhook:
+        raise HTTPException(status_code=404, detail="Webhook not found")
+    return WebhookConfigResponse.model_validate(webhook)
+
+@api_router.delete("/webhooks/{webhook_id}")
+async def delete_webhook(
+    webhook_id: int,
+    current_user: Annotated[AdminUser, Depends(get_current_user)],
+):
+    success = await webhook_config_service.delete_webhook(webhook_id, tenant_id=current_user.tenant_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Webhook not found")
+    return {"status": "deleted"}
+
+@api_router.post("/webhooks/{webhook_id}/test")
+async def test_webhook(
+    webhook_id: int,
+    current_user: Annotated[AdminUser, Depends(get_current_user)],
+):
+    result = await webhook_config_service.test_webhook(webhook_id, tenant_id=current_user.tenant_id)
+    return result
+
+
+# ─────────────────────────────────────────────
+# Prompt Generator
+# ─────────────────────────────────────────────
+from src.services.prompt_generator_service import prompt_generator_service
+from src.schemas import PromptGenerateRequest, PromptGenerateResponse
+
+@api_router.get("/prompts/templates")
+async def get_prompt_templates(current_user: Annotated[AdminUser, Depends(get_current_user)]):
+    return {"templates": prompt_generator_service.get_templates()}
+
+@api_router.post("/prompts/generate", response_model=PromptGenerateResponse)
+async def generate_prompt(
+    request: PromptGenerateRequest,
+    current_user: Annotated[AdminUser, Depends(get_current_user)],
+):
+    answers = request.model_dump()
+    prompt = prompt_generator_service.generate_prompt(answers)
+    return PromptGenerateResponse(
+        prompt=prompt,
+        niche=request.niche,
+        tone=request.tone,
+    )
+
+import subprocess
+import sys
+@api_router.get("/validate-hack")
+async def validate_hack():
+    try:
+        res = subprocess.run([sys.executable, "/media/toni-sil/Arquivos3/agentes/antigravity-awesome-skills/scripts/validate_skills.py"], capture_output=True, text=True)
+        return {"status": "ok", "out": res.stdout, "err": res.stderr}
+    except Exception as e:
+        return {"error": str(e)}

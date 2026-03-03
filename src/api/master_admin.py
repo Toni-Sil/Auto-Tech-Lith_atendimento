@@ -7,7 +7,9 @@ This represents the platform-level super-admin with no tenant affiliation.
 
 from datetime import datetime, timedelta
 from typing import Annotated, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+import re
+
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel
 from sqlalchemy import select, func, and_, desc
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,10 +17,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.database import get_db
 from src.models.admin import AdminUser
 from src.models.tenant import Tenant
+from src.models.tenant_quota import TenantQuota
 from src.models.agent_profile import AgentProfile
+from src.models.audit import AuditLog
 from src.api.auth import get_current_user
 from src.services.usage_service import usage_service
+from src.utils.security import get_password_hash
+from src.utils.logger import setup_logger
+from src.config import settings
 
+logger = setup_logger(__name__)
 master_router = APIRouter()
 
 
@@ -26,10 +34,10 @@ master_router = APIRouter()
 
 def _require_master_admin(current_user: AdminUser = Depends(get_current_user)) -> AdminUser:
     """
-    Strict gate: only a platform-level owner with NO tenant affiliation
+    Strict gate: only a platform-level owner, admin or master_admin with NO tenant affiliation
     may access these endpoints. Tenant owners are denied.
     """
-    if current_user.role != "owner" or current_user.tenant_id is not None:
+    if current_user.role not in ["owner", "admin", "master_admin"] or current_user.tenant_id is not None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Master Admin access required. This endpoint is restricted to platform-level administrators.",
@@ -62,6 +70,26 @@ class TenantUpdate(BaseModel):
     max_messages_monthly: Optional[int] = None
 
 
+class TenantAccountCreate(BaseModel):
+    """
+    Payload para o Master Admin criar uma nova conta (tenant + usuário owner).
+    """
+
+    tenant_name: str
+    subdomain: str
+
+    admin_name: str
+    admin_email: str
+    admin_phone: str
+    admin_password: str
+
+    # Configurações de plano / cotas (opcionais com defaults seguros)
+    plan_tier: Optional[str] = "basic"
+    max_whatsapp_instances: Optional[int] = 1
+    max_messages_daily: Optional[int] = 1000
+    max_messages_monthly: Optional[int] = 20000
+
+
 class GlobalKPIResponse(BaseModel):
     total_tenants: int
     active_tenants: int
@@ -86,6 +114,45 @@ class InternalAIConfig(BaseModel):
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
+@master_router.get("/registrations")
+async def get_registration_validations(
+    master: Annotated[AdminUser, Depends(_require_master_admin)],
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Lista os logs de auditoria relacionados à validação de registros e acesso.
+    Mostra como o agente identifica e valida cada pessoa (Admin ou Lead).
+    """
+    # Eventos de interesse
+    event_types = [
+        "telegram_id_identified", 
+        "telegram_access_code_validated",
+        "customer_registered_by_agent",
+        "login_success",
+        "login_failure"
+    ]
+    
+    stmt = (
+        select(AuditLog)
+        .where(AuditLog.event_type.in_(event_types))
+        .order_by(desc(AuditLog.created_at))
+        .limit(100)
+    )
+    
+    rows = (await db.execute(stmt)).scalars().all()
+    
+    return [
+        {
+            "id": r.id,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "event_type": r.event_type,
+            "username": r.username,
+            "details": r.details,
+            "ip_address": r.ip_address
+        }
+        for r in rows
+    ]
 
 @master_router.get("/kpis", response_model=GlobalKPIResponse)
 async def get_global_kpis(
@@ -147,6 +214,139 @@ async def list_all_tenants(
             )
         )
     return result
+
+
+@master_router.post("/tenants", status_code=status.HTTP_201_CREATED)
+async def create_tenant_with_owner(
+    body: TenantAccountCreate,
+    master: Annotated[AdminUser, Depends(_require_master_admin)],
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Cria uma nova conta completa:
+    - Novo tenant
+    - Usuário owner associado
+    - Registro de cotas básicas
+    """
+    from sqlalchemy import or_
+    from src.models.audit import AuditLog
+    import json
+
+    # Validação básica de subdomínio (mesma regra do /tenant/register público)
+    if not re.match(r"^[a-z0-9-]+$", body.subdomain):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Subdomínio inválido. Use apenas letras minúsculas, números e hífen.",
+        )
+
+    # Garante unicidade de subdomínio
+    existing_tenant = await db.scalar(
+        select(Tenant).where(Tenant.subdomain == body.subdomain)
+    )
+    if existing_tenant:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Subdomínio já está em uso.",
+        )
+
+    # Garante que o e-mail/username do admin não está sendo reutilizado
+    existing_admin = await db.scalar(
+        select(AdminUser).where(
+            or_(
+                AdminUser.username == body.admin_email,
+                AdminUser.email == body.admin_email,
+            )
+        )
+    )
+    if existing_admin:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="E-mail do usuário já está em uso.",
+        )
+
+    try:
+        # 1) Cria o Tenant já ativo
+        new_tenant = Tenant(
+            name=body.tenant_name,
+            subdomain=body.subdomain,
+            status="active",
+            is_active=True,
+        )
+        db.add(new_tenant)
+        await db.flush()  # garante new_tenant.id
+
+        # 2) Cria o usuário owner principal dessa conta
+        import secrets
+        import string
+
+        random_code = "".join(secrets.choice(string.digits) for _ in range(6))
+
+        new_admin = AdminUser(
+            tenant_id=new_tenant.id,
+            username=body.admin_email,
+            email=body.admin_email,
+            name=body.admin_name,
+            phone=body.admin_phone,
+            password_hash=get_password_hash(body.admin_password),
+            role="owner",
+            access_code=random_code,
+            # Criado manualmente pelo Master → consideramos verificado
+            email_verified=True,
+            phone_verified=True,
+            phone_otp=None,
+        )
+        db.add(new_admin)
+
+        # 3) Define cotas iniciais para o tenant
+        quota = TenantQuota(
+            tenant_id=new_tenant.id,
+            plan_tier=body.plan_tier or "basic",
+            max_whatsapp_instances=body.max_whatsapp_instances or 1,
+            max_messages_daily=body.max_messages_daily or 1000,
+            max_messages_monthly=body.max_messages_monthly or 20000,
+            updated_by=master.username,
+        )
+        db.add(quota)
+
+        # 4) Audit log da criação
+        audit = AuditLog(
+            tenant_id=new_tenant.id,
+            event_type="tenant_created_by_master",
+            username=master.username,
+            details=json.dumps(
+                {
+                    "tenant": {
+                        "name": new_tenant.name,
+                        "subdomain": new_tenant.subdomain,
+                        "plan_tier": quota.plan_tier,
+                    },
+                    "admin": {
+                        "name": new_admin.name,
+                        "email": new_admin.email,
+                        "phone": new_admin.phone,
+                    },
+                }
+            ),
+        )
+        db.add(audit)
+
+        await db.commit()
+        await db.refresh(new_tenant)
+        await db.refresh(new_admin)
+
+        return {
+            "message": "Conta criada com sucesso.",
+            "tenant_id": new_tenant.id,
+            "admin_id": new_admin.id,
+            "admin_email": new_admin.email,
+        }
+
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Falha ao criar conta: {str(e)}",
+        )
 
 
 @master_router.get("/tenants/{tenant_id}")
@@ -216,26 +416,28 @@ async def update_tenant(
     if body.is_active is not None:
         tenant.is_active = body.is_active
         
-    # Update Quota
-    if quota:
-        if body.plan_tier is not None:
-            quota.plan_tier = body.plan_tier
-        if body.max_whatsapp_instances is not None:
-            quota.max_whatsapp_instances = body.max_whatsapp_instances
-        if body.max_messages_daily is not None:
-            quota.max_messages_daily = body.max_messages_daily
-        if body.max_messages_monthly is not None:
-            quota.max_messages_monthly = body.max_messages_monthly
+    # Update Quota (ensure it exists)
+    from src.services.quota_service import quota_service
+    quota = await quota_service.get_or_create(tenant_id, db)
+    
+    if body.plan_tier is not None:
+        quota.plan_tier = body.plan_tier
+    if body.max_whatsapp_instances is not None:
+        quota.max_whatsapp_instances = body.max_whatsapp_instances
+    if body.max_messages_daily is not None:
+        quota.max_messages_daily = body.max_messages_daily
+    if body.max_messages_monthly is not None:
+        quota.max_messages_monthly = body.max_messages_monthly
     
     # Create audit log
     new_data = {
         "name": tenant.name,
         "status": tenant.status,
         "is_active": tenant.is_active,
-        "plan_tier": quota.plan_tier if quota else None,
-        "max_whatsapp_instances": quota.max_whatsapp_instances if quota else None,
-        "max_messages_daily": quota.max_messages_daily if quota else None,
-        "max_messages_monthly": quota.max_messages_monthly if quota else None,
+        "plan_tier": quota.plan_tier,
+        "max_whatsapp_instances": quota.max_whatsapp_instances,
+        "max_messages_daily": quota.max_messages_daily,
+        "max_messages_monthly": quota.max_messages_monthly,
     }
     
     if old_data != new_data:
@@ -251,7 +453,55 @@ async def update_tenant(
         db.add(audit)
         
     await db.commit()
+    await db.refresh(tenant)
+    await db.refresh(quota)
     return {"status": "success", "message": "Tenant atualizado com sucesso."}
+
+
+@master_router.delete("/tenants/{tenant_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_tenant(
+    tenant_id: int,
+    master: Annotated[AdminUser, Depends(_require_master_admin)],
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Exclusão definitiva de um tenant e seus dados associados.
+
+    Uso recomendado apenas para ambientes de teste ou contas claramente descartáveis.
+    """
+    from src.models.audit import AuditLog
+    import json
+
+    logger.info(f"🗑️ Attempting to delete tenant ID: {tenant_id} (Master: {master.username})")
+    
+    # Use explicit select to avoid potential issues with db.get in some edge cases
+    tenant = await db.scalar(select(Tenant).where(Tenant.id == tenant_id))
+    
+    if not tenant:
+        logger.warning(f"⚠️ Tenant {tenant_id} not found for deletion.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant não encontrado.")
+
+    snapshot = {
+        "id": tenant.id,
+        "name": tenant.name,
+        "subdomain": tenant.subdomain,
+        "status": tenant.status,
+        "is_active": tenant.is_active,
+    }
+
+    # Remoção via ORM para respeitar cascades definidos nos relacionamentos
+    await db.delete(tenant)
+
+    audit = AuditLog(
+        tenant_id=tenant_id,
+        event_type="tenant_deleted_by_master",
+        username=master.username,
+        details=json.dumps(snapshot),
+    )
+    db.add(audit)
+
+    await db.commit()
+    return None
 
 
 @master_router.get("/usage/ranking")
@@ -658,3 +908,269 @@ async def change_account_password(
     )
     return {"status": "success", "message": "Senha alterada com sucesso."}
 
+
+# ── WhatsApp / Evolution API Management ───────────────────────────────────────
+
+from src.models.whatsapp import EvolutionInstance
+from src.services.evolution_service import evolution_service
+
+class WhatsAppInstanceCreate(BaseModel):
+    tenant_id: Optional[int] = None
+    instance_name: str
+    display_name: Optional[str] = None
+    instance_token: Optional[str] = None
+    evolution_api_url: Optional[str] = None
+    evolution_api_key: Optional[str] = None
+
+class WhatsAppInstanceUpdate(BaseModel):
+    display_name: Optional[str] = None
+    instance_token: Optional[str] = None
+    evolution_api_url: Optional[str] = None
+    evolution_api_key: Optional[str] = None
+
+class WhatsAppInstanceResponse(BaseModel):
+    id: int
+    tenant_id: Optional[int]
+    tenant_name: Optional[str]
+    display_name: Optional[str]
+    instance_name: str
+    phone_number: Optional[str]
+    status: str
+    created_at: Optional[str]
+    webhook_url: Optional[str] = None
+    evolution_api_url: Optional[str] = None
+    evolution_api_key: Optional[str] = None
+
+@master_router.get("/whatsapp", response_model=List[WhatsAppInstanceResponse])
+async def list_whatsapp_instances(
+    request: Request,
+    master: Annotated[AdminUser, Depends(_require_master_admin)],
+    db: AsyncSession = Depends(get_db),
+):
+    base_url = (settings.PUBLIC_URL or str(request.base_url)).rstrip("/")
+    base_webhook_url = f"{base_url}{settings.API_V1_STR}/webhooks/whatsapp"
+    
+    stmt = select(EvolutionInstance, Tenant.name).outerjoin(Tenant, Tenant.id == EvolutionInstance.tenant_id)
+    results = await db.execute(stmt)
+    
+    response = []
+    for instance, tenant_name in results:
+        response.append({
+            "id": instance.id,
+            "tenant_id": instance.tenant_id,
+            "tenant_name": tenant_name or "Interno (Max)",
+            "display_name": instance.display_name or instance.instance_name,
+            "instance_name": instance.instance_name,
+            "phone_number": instance.phone_number,
+            "status": instance.status,
+            "created_at": str(instance.created_at) if instance.created_at else None,
+            "webhook_url": f"{base_webhook_url}/{instance.instance_name}?token={settings.VERIFY_TOKEN}",
+            "evolution_api_url": instance.evolution_api_url,
+            "evolution_api_key": instance.evolution_api_key
+        })
+    return response
+
+@master_router.post("/whatsapp", status_code=status.HTTP_201_CREATED)
+async def create_whatsapp_instance(
+    request: Request,
+    body: WhatsAppInstanceCreate,
+    master: Annotated[AdminUser, Depends(_require_master_admin)],
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a new WhatsApp instance for a specific tenant in Evolution API and DB."""
+    # Check if tenant exists (only if tenant_id is provided)
+    if body.tenant_id:
+        tenant = await db.get(Tenant, body.tenant_id)
+        if not tenant:
+            raise HTTPException(status_code=404, detail="Tenant not found.")
+        
+    # Check if instance name is already taken in DB
+    existing = await db.scalar(select(EvolutionInstance).where(EvolutionInstance.instance_name == body.instance_name))
+    if existing:
+        raise HTTPException(status_code=400, detail="Instance name already in use.")
+
+    logger.info(f"Master Admin: Creating instance '{body.instance_name}' at {body.evolution_api_url or settings.EVOLUTION_API_URL}")
+    
+    # Create in Evolution API
+    # Pass custom token if provided
+    evo_response = await evolution_service.create_instance(
+        body.instance_name, 
+        token=body.instance_token,
+        custom_url=body.evolution_api_url,
+        custom_key=body.evolution_api_key
+    )
+    if "error" in evo_response:
+        error_msg = evo_response.get("error", "")
+        # Check for Evolution API "already in use" error
+        if evo_response.get("status_code") in [403, 409] and "already in use" in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail=f"O nome '{body.instance_name}' já está em uso na Evolution API. Escolha outro nome ou remova a instância antiga."
+            )
+        
+        # Check for 401 Unauthorized
+        if evo_response.get("status_code") == 401:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Chave Global (API Key) da Evolution API está incorreta ou não autorizada. Verifique as configurações."
+            )
+
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Evolution API Error: {evo_response}")
+        
+    # Save to DB
+    new_instance = EvolutionInstance(
+        tenant_id=body.tenant_id,
+        instance_name=body.instance_name,
+        display_name=body.display_name,
+        instance_token=body.instance_token,
+        evolution_api_url=body.evolution_api_url,
+        evolution_api_key=body.evolution_api_key,
+        status="pending"
+    )
+    db.add(new_instance)
+    await db.commit()
+    await db.refresh(new_instance)
+    
+    base_url = (settings.PUBLIC_URL or str(request.base_url)).rstrip("/")
+    base_webhook_url = f"{base_url}{settings.API_V1_STR}/webhooks/whatsapp"
+    webhook_url = f"{base_webhook_url}/{new_instance.instance_name}?token={settings.VERIFY_TOKEN}"
+    
+    # --- AUTOMATIC CONFIGURATION ---
+    # 1. Set Webhook in Evolution API
+    await evolution_service.set_webhook(
+        new_instance.instance_name, 
+        webhook_url,
+        custom_url=body.evolution_api_url,
+        custom_key=body.evolution_api_key
+    )
+    # 2. Set Optimal Settings
+    await evolution_service.set_settings(
+        new_instance.instance_name,
+        custom_url=body.evolution_api_url,
+        custom_key=body.evolution_api_key
+    )
+    
+    return {
+        "status": "success", 
+        "instance_id": new_instance.id, 
+        "instance_name": new_instance.instance_name,
+        "webhook_url": webhook_url,
+        "message": "Instância criada e configurada (Webhook e Settings aplicados)."
+    }
+
+@master_router.put("/whatsapp/{instance_name}", response_model=WhatsAppInstanceResponse)
+async def update_whatsapp_instance(
+    instance_name: str,
+    body: WhatsAppInstanceUpdate,
+    request: Request,
+    master: Annotated[AdminUser, Depends(_require_master_admin)],
+    db: AsyncSession = Depends(get_db),
+):
+    """Edit an existing WhatsApp instance's details."""
+    instance = await db.scalar(select(EvolutionInstance).where(EvolutionInstance.instance_name == instance_name))
+    if not instance:
+        raise HTTPException(status_code=404, detail="Instance not found.")
+
+    if body.display_name is not None:
+        instance.display_name = body.display_name
+    if body.instance_token is not None:
+        instance.instance_token = body.instance_token
+    if body.evolution_api_url is not None:
+        instance.evolution_api_url = body.evolution_api_url
+    if body.evolution_api_key is not None:
+        instance.evolution_api_key = body.evolution_api_key
+
+    await db.commit()
+    await db.refresh(instance)
+
+    # Re-apply webhook and settings to ensure changes propagate to Evolution API
+    base_url = (settings.PUBLIC_URL or str(request.base_url)).rstrip("/")
+    base_webhook_url = f"{base_url}{settings.API_V1_STR}/webhooks/whatsapp"
+    webhook_url = f"{base_webhook_url}/{instance.instance_name}?token={settings.VERIFY_TOKEN}"
+
+    # Ignore errors during these background updates since the main edit is DB level
+    try:
+        await evolution_service.set_webhook(
+            instance.instance_name,
+            webhook_url,
+            custom_url=instance.evolution_api_url,
+            custom_key=instance.evolution_api_key
+        )
+        await evolution_service.set_settings(
+            instance.instance_name,
+            custom_url=instance.evolution_api_url,
+            custom_key=instance.evolution_api_key
+        )
+    except Exception as e:
+        logger.warning(f"Failed to re-sync Evolution API after update for {instance_name}: {e}")
+
+    # For response schema compatibility
+    tenant_name = await db.scalar(select(Tenant.name).where(Tenant.id == instance.tenant_id)) if instance.tenant_id else "Interno (Max)"
+    
+    return {
+        "id": instance.id,
+        "tenant_id": instance.tenant_id,
+        "tenant_name": tenant_name,
+        "display_name": instance.display_name,
+        "instance_name": instance.instance_name,
+        "phone_number": instance.phone_number,
+        "status": instance.status,
+        "created_at": str(instance.created_at) if instance.created_at else None,
+        "webhook_url": webhook_url,
+        "evolution_api_url": instance.evolution_api_url,
+        "evolution_api_key": instance.evolution_api_key
+    }
+
+@master_router.get("/whatsapp/{instance_name}/pairing-code")
+async def get_pairing_code(
+    instance_name: str,
+    phone: str,
+    master: Annotated[AdminUser, Depends(_require_master_admin)],
+    db: AsyncSession = Depends(get_db),
+):
+    """Get a pairing code to connect WhatsApp without scanning QR."""
+    # Ensure phone is numeric only
+    clean_phone = re.sub(r"\D", "", phone)
+    if not clean_phone:
+        raise HTTPException(status_code=400, detail="Invalid phone number format.")
+        
+    instance = await db.scalar(select(EvolutionInstance).where(EvolutionInstance.instance_name == instance_name))
+    custom_url = instance.evolution_api_url if instance else None
+    custom_key = instance.evolution_api_key if instance else None
+
+    evo_response = await evolution_service.get_pairing_code(
+        instance_name, 
+        clean_phone,
+        custom_url=custom_url,
+        custom_key=custom_key
+    )
+    if "error" in evo_response:
+        raise HTTPException(status_code=500, detail=f"Evolution API Error: {evo_response['error']}")
+        
+    return evo_response
+
+@master_router.delete("/whatsapp/{instance_name}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_whatsapp_instance(
+    instance_name: str,
+    master: Annotated[AdminUser, Depends(_require_master_admin)],
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a WhatsApp instance from Evolution API and DB."""
+    instance = await db.scalar(select(EvolutionInstance).where(EvolutionInstance.instance_name == instance_name))
+    if not instance:
+        raise HTTPException(status_code=404, detail="Instance not found in database.")
+        
+    # Call Evolution API to delete
+    evo_response = await evolution_service.delete_instance(
+        instance_name,
+        custom_url=instance.evolution_api_url,
+        custom_key=instance.evolution_api_key
+    )
+    if "error" in evo_response:
+        # Pelo menos logamos e tentamos remover do banco mesmo se falhar na api (ex: já deletada)
+        logger.warning(f"Evolution API Error on delete: {evo_response['error']} - Proceeding with DB cleanup.")
+         
+    # Exclui do banco
+    await db.delete(instance)
+    await db.commit()
+    return None

@@ -1,0 +1,37 @@
+{
+    "common": {
+        "save": "Salvar",
+        "cancel": "Cancelar",
+        "delete": "Excluir",
+        "edit": "Editar",
+        "loading": "Carregando..."
+    },
+    "auth": {
+        "login_title": "Bem-vindo de volta",
+        "username": "Usuário",
+        "password": "Password",
+        "mfa_placeholder": "Código do Autenticador",
+        "login_button": "Entrar"
+    },
+    "dashboard": {
+        "welcome": "Olá, {{name}}!",
+        "metrics_title": "Visão Geral",
+        "total_customers": "Total de Clientes",
+        "active_tickets": "Tickets Ativos",
+        "meetings": "Reuniões Agendadas"
+    },
+    "settings": {
+        "title": "Configurações da Conta",
+        "theme": "Tema Visual",
+        "language": "Idioma",
+        "light": "Claro",
+        "dark": "Escuro",
+        "system": "Sistema",
+        "mfa_enable": "Ativar Autenticação de 2 Fatores"
+    },
+    "tenant": {
+        "branding": "Personalização da Marca",
+        "primary_color": "Cor Primária",
+        "secondary_color": "Cor Secundária"
+    }
+}

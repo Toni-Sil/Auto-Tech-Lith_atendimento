@@ -38,10 +38,11 @@ class CustomerServiceAgent(BaseAgent):
         ### SUA PERSONALIDADE E ESTILO:
         - **Estilo:** Atendente calmo, organizado e direto ao ponto. Sempre educado e focado em resolver rápido e corretamente.
         - **Comportamento:**
-          - Faça poucas perguntas, bem focadas, para entender o caso e registrar tudo no sistema.
-          - Resume o problema com suas próprias palavras e confirme com o cliente antes de agir.
-          - Entregue a solução em passos numerados, curtos, indicando o que você fará e o que o cliente precisa fazer.
-          - Se algo fugir do escopo, explique o limite com respeito e ofereça a melhor alternativa (falar com humano, agendar, etc.).
+          - **Seja EXTREMAMENTE conciso e objetivo.**
+          - Responda com frases curtas e diretas. Evite textos longos ou explicações desnecessárias.
+          - Faça apenas UMA pergunta por vez se precisar de dados.
+          - **RECUSE** educadamente qualquer assunto fora do escopo (piadas, clima, notícias, curiosidades). Diga apenas: "Não posso ajudar com isso. Vamos focar no seu atendimento?".
+          - Não repita o que o cliente disse, vá direto para a solução ou próxima pergunta.
 
         ### INFORMAÇÕES DE PREÇOS (Reference quando perguntado):
         - **Instalação:** Média de R$ 2.000,00 (dois mil reais).
@@ -89,22 +90,29 @@ class CustomerServiceAgent(BaseAgent):
         Lembre-se: O agendamento notifica a equipe no Telegram automaticamente.
         """
 
-    async def get_or_create_customer(self, phone: str, name: Optional[str] = None) -> Customer:
+    async def get_or_create_customer(self, phone: str, name: Optional[str] = None, tenant_id: Optional[int] = None) -> Customer:
         async with async_session() as session:
-            result = await session.execute(select(Customer).where(Customer.phone == phone))
+            # Query customer scoped by tenant_id
+            stmt = select(Customer).where(Customer.phone == phone)
+            if tenant_id:
+                stmt = stmt.where(Customer.tenant_id == tenant_id)
+            else:
+                stmt = stmt.where(Customer.tenant_id == None)
+                
+            result = await session.execute(stmt)
             customer = result.scalar_one_or_none()
             
             if not customer:
-                customer = Customer(phone=phone, name=name or "Visitante")
+                customer = Customer(phone=phone, name=name or "Visitante", tenant_id=tenant_id)
                 session.add(customer)
                 await session.commit()
                 await session.refresh(customer)
             
             return customer
 
-    async def save_message(self, customer_id: int, role: MessageRole, content: str):
+    async def save_message(self, customer_id: int, role: MessageRole, content: str, tenant_id: Optional[int] = None):
         async with async_session() as session:
-            msg = Conversation(customer_id=customer_id, role=role, content=content)
+            msg = Conversation(customer_id=customer_id, role=role, content=content, tenant_id=tenant_id)
             session.add(msg)
             # Atualizar última interação do cliente
             stmt = select(Customer).where(Customer.id == customer_id)
@@ -114,8 +122,35 @@ class CustomerServiceAgent(BaseAgent):
             
             await session.commit()
 
-    async def _load_system_prompt(self, customer: Customer, step: str) -> str:
-        # Tentar carregar prompt do banco
+    async def load_system_prompt(self, customer: Customer, step: str) -> str:
+        # Prioridade 1: Perfil ativo no banco (AgentProfile)
+        try:
+            from src.services.profile_service import profile_service
+            active_profile = await profile_service.get_active_profile(tenant_id=customer.tenant_id)
+            if active_profile and active_profile.base_prompt:
+                logger.info(f"Loading prompt from active profile: '{active_profile.name}' (id={active_profile.id})")
+                
+                prompt_content = active_profile.base_prompt
+                
+                # Injetar instrução do administrador se houver
+                if customer.admin_instruction:
+                    logger.info(f"Injecting admin instruction for customer {customer.id}")
+                    prompt_content = f"{prompt_content}\n\n🚩 **[INSTRUÇÃO PRIORITÁRIA DO ADMINISTRADOR]**: {customer.admin_instruction}\n(Siga esta instrução acima de qualquer outra regra se houver conflito)"
+                
+                try:
+                    return prompt_content.format(
+                        customer_name=customer.name or "Cliente",
+                        customer_email=customer.email or "Não informado",
+                        customer_company=customer.company or "Não informado",
+                        current_step=step,
+                        date_now=datetime.now().strftime("%d/%m/%Y %H:%M")
+                    )
+                except KeyError:
+                    return prompt_content
+        except Exception as e:
+            logger.warning(f"Could not load active agent profile: {e}")
+
+        # Prioridade 2: system_prompt no SystemConfig (configuração manual via painel)
         db_prompt = None
         try:
            async with async_session() as session:
@@ -135,14 +170,15 @@ class CustomerServiceAgent(BaseAgent):
                     date_now=datetime.now().strftime("%d/%m/%Y %H:%M")
                 )
             except KeyError:
-                return db_prompt 
-        else:
-            return await self.get_system_prompt({
-                "customer_name": customer.name,
-                "customer_email": customer.email,
-                "customer_company": customer.company,
-                "current_step": step
-            })
+                return db_prompt
+
+        # Prioridade 3: Prompt hardcoded (fallback final)
+        return await self.get_system_prompt({
+            "customer_name": customer.name,
+            "customer_email": customer.email,
+            "customer_company": customer.company,
+            "current_step": step
+        })
 
     async def _get_conversation_history(self, customer_id: int, limit: int = 10) -> List[Dict[str, str]]:
         messages = []
@@ -174,10 +210,9 @@ class CustomerServiceAgent(BaseAgent):
             arguments.pop("customer_id", None)
             return await schedule_meeting(customer.id, **arguments)
         elif function_name == "check_availability":
-             # Assuming check_availability doesn't need customer_id or has been updated
-             # If check_availability is in agents.tools and needs arguments
+             # Pass tenant_id for scoped availability check
              from src.agents.tools import check_availability
-             return await check_availability(**arguments)
+             return await check_availability(tenant_id=customer.tenant_id, **arguments)
         else:
             return f"Erro: Ferramenta {function_name} desconhecida."
 
@@ -192,32 +227,57 @@ class CustomerServiceAgent(BaseAgent):
             })
         return results
 
-    async def _send_response(self, customer: Customer, response_text: str, phone: str):
+    async def _send_response(self, customer: Customer, response_text: str, phone: str, instance_name: Optional[str] = None):
         if not response_text:
             return
 
-        base_delay = 1500
-        char_delay = 50
-        typing_delay = min(base_delay + (len(response_text) * char_delay), 15000)
+        # Delay fixo entre 8-10s para simular digitação humana natural.
+        MIN_DELAY = 8000
+        MAX_DELAY = 10000
+        char_delay = 15  # ms extra por caractere acima do mínimo
+        typing_delay = min(MIN_DELAY + len(response_text) * char_delay, MAX_DELAY)
 
-        await self.save_message(customer.id, MessageRole.ASSISTANT, response_text)
-        await self.evolution.send_message(phone, response_text, delay=typing_delay)
+        await self.save_message(customer.id, MessageRole.ASSISTANT, response_text, tenant_id=customer.tenant_id)
+        await self.evolution.send_message(phone, response_text, delay=typing_delay, instance_name=instance_name)
 
     async def process_message(self, message: str, context: dict) -> str:
         phone = context.get("phone")
         name = context.get("name")
-        
+        remote_jid = context.get("remote_jid", "")
+        message_id = context.get("message_id", "")
+        instance_name = context.get("instance_name")
+
         logger.info(f"Processing message from {phone}: {message}")
-        
-        # 1. Identificar Cliente
-        customer = await self.get_or_create_customer(phone, name)
-        
-        # 2. Salvar mensagem do usuário
-        await self.save_message(customer.id, MessageRole.USER, message)
-        
-        # 3. Construir Contexto
+
+        # 1. Marcar mensagem como lida (✔✔ azul) — fire-and-forget
+        if remote_jid and message_id:
+            await self.evolution.mark_message_as_read(remote_jid, message_id, instance_name=instance_name)
+            logger.info(f"Marked message {message_id} as read for {remote_jid} on {instance_name}")
+
+        # 2. Identificar Instância e Tenant
+        tenant_id = None
+        async with async_session() as session:
+             from src.models.whatsapp import EvolutionInstance
+             stmt = select(EvolutionInstance).where(EvolutionInstance.instance_name == instance_name)
+             inst_obj = (await session.execute(stmt)).scalar_one_or_none()
+             if inst_obj:
+                 tenant_id = inst_obj.tenant_id
+                 logger.info(f"Instance {instance_name} associated with tenant_id={tenant_id}")
+             else:
+                 logger.warning(f"Instance {instance_name} not found in DB. Defaulting to tenant_id=None (Master)")
+
+        # 3. Identificar Cliente (escopado pelo tenant)
+        customer = await self.get_or_create_customer(phone, name, tenant_id=tenant_id)
+
+        # 4. Salvar mensagem do usuário
+        await self.save_message(customer.id, MessageRole.USER, message, tenant_id=tenant_id)
+
+        # 4. Ativar ícone 'digitando' ANTES do LLM, para aparecer durante o processamento
+        await self.evolution.send_composing(phone, duration_ms=12000, instance_name=instance_name)
+
+        # 5. Construir Contexto
         step = "scheduling" if (customer.name and customer.name != "Visitante" and customer.email) else "initial_contact"
-        system_prompt = await self._load_system_prompt(customer, step)
+        system_prompt = await self.load_system_prompt(customer, step)
         history = await self._get_conversation_history(customer.id)
         
         messages = [{"role": "system", "content": system_prompt}] + history
@@ -240,11 +300,18 @@ class CustomerServiceAgent(BaseAgent):
             # Re-call LLM with tool outputs
             final_response = await self.llm.get_chat_response(messages)
             response_text = final_response.content
+            
+            # Se a resposta estiver vazia após ferramentas, forçar uma confirmação
+            if not response_text:
+                logger.info("Agent response empty after tool calls, forcing confirmation...")
+                messages.append({"role": "system", "content": "A tarefa foi realizada. Agora, por favor, envie uma mensagem curta e amigável ao cliente confirmando a ação realizada."})
+                final_response = await self.llm.get_chat_response(messages)
+                response_text = final_response.content or "Tarefa concluída com sucesso. Como posso ajudar mais?"
         else:
             response_text = response_msg.content
             
         # 6. Enviar Resposta
-        await self._send_response(customer, response_text, phone)
+        await self._send_response(customer, response_text, phone, instance_name=instance_name)
         
         return response_text
 

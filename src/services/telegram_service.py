@@ -1,6 +1,7 @@
 import httpx
 from src.config import settings
 from src.utils.logger import setup_logger
+from typing import Optional
 
 logger = setup_logger(__name__)
 
@@ -47,5 +48,43 @@ class TelegramService:
         except Exception as e:
             logger.error(f"Failed to get Telegram updates: {e}")
             return []
+
+    async def get_file(self, file_id: str) -> Optional[dict]:
+        """
+        Obtém informações de um arquivo pelo file_id (path para download).
+        https://api.telegram.org/bot{token}/getFile?file_id={file_id}
+        """
+        if not self.base_url:
+            return None
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{self.base_url}/getFile",
+                    params={"file_id": file_id},
+                    timeout=10.0
+                )
+                response.raise_for_status()
+                data = response.json()
+                return data.get("result")
+        except Exception as e:
+            logger.error(f"Failed to get file info for {file_id}: {e}")
+            return None
+
+    async def download_file(self, file_path: str) -> Optional[bytes]:
+        """
+        Faz download do conteúdo de um arquivo usando o file_path retornado por get_file.
+        https://api.telegram.org/file/bot{token}/{file_path}
+        """
+        if not self.bot_token:
+            return None
+        url = f"https://api.telegram.org/file/bot{self.bot_token}/{file_path}"
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url, timeout=30.0)
+                response.raise_for_status()
+                return response.content
+        except Exception as e:
+            logger.error(f"Failed to download file {file_path}: {e}")
+            return None
 
 telegram_service = TelegramService()

@@ -1,0 +1,37 @@
+{
+    "common": {
+        "save": "Save",
+        "cancel": "Cancel",
+        "delete": "Delete",
+        "edit": "Edit",
+        "loading": "Loading..."
+    },
+    "auth": {
+        "login_title": "Welcome back",
+        "username": "Username",
+        "password": "Password",
+        "mfa_placeholder": "Authenticator Code",
+        "login_button": "Sign In"
+    },
+    "dashboard": {
+        "welcome": "Hello, {{name}}!",
+        "metrics_title": "Overview",
+        "total_customers": "Total Customers",
+        "active_tickets": "Active Tickets",
+        "meetings": "Scheduled Meetings"
+    },
+    "settings": {
+        "title": "Account Settings",
+        "theme": "Visual Theme",
+        "language": "Language",
+        "light": "Light",
+        "dark": "Dark",
+        "system": "System",
+        "mfa_enable": "Enable Two-Factor Authentication"
+    },
+    "tenant": {
+        "branding": "Brand Customization",
+        "primary_color": "Primary Color",
+        "secondary_color": "Secondary Color"
+    }
+}

@@ -1,8 +1,19 @@
-import whisper
 import os
 import subprocess
 import logging
 from typing import Optional
+
+# Lazy import: whisper (e torch) são carregados apenas quando necessário
+whisper = None
+
+def _import_whisper():
+    global whisper
+    if whisper is None:
+        try:
+            import whisper as _whisper
+            whisper = _whisper
+        except ImportError:
+            raise ImportError("openai-whisper não está instalado. Instale com: pip install openai-whisper")
 
 # Configuração de log
 logger = logging.getLogger(__name__)
@@ -21,6 +32,7 @@ class AudioService:
         if not self.model:
             logger.info(f"Carregando modelo Whisper: {self.model_size}")
             try:
+                _import_whisper()
                 self.model = whisper.load_model(self.model_size)
             except Exception as e:
                 logger.error(f"Erro ao carregar modelo Whisper: {e}")
