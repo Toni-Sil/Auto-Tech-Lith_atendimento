@@ -66,6 +66,9 @@
                 <span class="nav-icon">🚨</span> Monitoramento de Abuso
                 <span class="nav-badge" id="abuseCount" style="background:var(--yellow)">0</span>
             </a>
+            <a class="nav-item" data-target="whatsapp">
+                <span class="nav-icon">📱</span> WhatsApp (Evolution)
+            </a>
 
             <div class="sidebar-divider"></div>
             <div class="nav-group-label">🤵 Mordomo Digital</div>
@@ -83,6 +86,9 @@
             </a>
             <a class="nav-item" data-target="butler-scheduler">
                 <span class="nav-icon">⏰</span> Agendador
+            </a>
+            <a class="nav-item" data-target="registrations">
+                <span class="nav-icon">🛡️</span> Validação de Registro
             </a>
 
             <div class="sidebar-divider"></div>
@@ -134,6 +140,118 @@
         </header>
 
         <div class="content-wrapper">
+
+            <!-- ─────────── WHATSAPP / EVOLUTION API ─────────── -->
+            <section id="whatsapp" class="view-section">
+                <div class="card" style="margin-bottom: 2rem;">
+                    <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+                        <h2>Instâncias do WhatsApp (Evolution API)</h2>
+                        <button class="btn btn-primary" onclick="openWhatsAppCreateModal()">+ Nova Instância</button>
+                    </div>
+                    <div class="card-body">
+                        <table class="table" style="width:100%">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Tenant</th>
+                                    <th>Nome da Instância</th>
+                                    <th>Telefone</th>
+                                    <th>Webhook</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="whatsappInstancesBody">
+                                <tr>
+                                    <td colspan="7" style="text-align:center;color:var(--text-muted);padding:2rem;">
+                                        Carregando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Modal for Create Instance -->
+                <div class="modal-overlay" id="whatsappCreateModal">
+                    <div class="modal" style="max-width: 500px;">
+                        <div class="modal-header">
+                            <h3>Criar Instância WhatsApp</h3>
+                            <button class="btn-ghost" onclick="closeWhatsAppCreateModal()">✕</button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="form-group pb-3">
+                                <label>Selecione o Tenant</label>
+                                <select id="waTenantSelect" class="form-control" style="width:100%"></select>
+                            </div>
+                            <div class="form-group pb-3">
+                                <label>Nome da Instância (Identificador Único na Evolution)</label>
+                                <input type="text" id="waInstanceName" class="form-control"
+                                    placeholder="ex: inst-loja-01" style="width:100%">
+                            </div>
+                            <div class="form-group pb-3">
+                                <label>Nome de Exibição (Apelido)</label>
+                                <input type="text" id="waDisplayName" class="form-control"
+                                    placeholder="ex: WhatsApp Suporte Loja" style="width:100%">
+                            </div>
+                            <div class="form-group pb-3">
+                                <label>Token Personalizado (Opcional)</label>
+                                <input type="password" id="waInstanceToken" class="form-control"
+                                    placeholder="Deixe vazio para gerar automático" style="width:100%">
+                            </div>
+                            <div class="form-group pb-3">
+                                <label>URL da Evolution API (Opcional)</label>
+                                <input type="text" id="waEvolUrl" class="form-control"
+                                    placeholder="ex: http://meu-servidor:8080" style="width:100%">
+                            </div>
+                            <div class="form-group pb-3">
+                                <label>API Key da Evolution API (Opcional)</label>
+                                <input type="password" id="waEvolKey" class="form-control"
+                                    placeholder="Global API Key ou Instance API Key" style="width:100%">
+                            </div>
+                        </div>
+                        <div class="modal-footer"
+                            style="padding:1rem; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:1rem;">
+                            <button class="btn btn-ghost" onclick="closeWhatsAppCreateModal()">Cancelar</button>
+                            <button class="btn btn-primary" onclick="createWhatsAppInstance()">Criar Instância</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal for Edit Instance -->
+                <div class="modal-overlay" id="whatsappEditModal">
+                    <div class="modal" style="max-width: 500px;">
+                        <div class="modal-header">
+                            <h3>Editar Instância WhatsApp</h3>
+                            <button class="btn-ghost" onclick="closeWhatsAppEditModal()">✕</button>
+                        </div>
+                        <div class="modal-body">
+                            <input type="hidden" id="waEditInstanceName">
+                            <div class="form-group pb-3">
+                                <label>Nome de Exibição (Apelido)</label>
+                                <input type="text" id="waEditDisplayName" class="form-control" style="width:100%">
+                            </div>
+                            <div class="form-group pb-3">
+                                <label>Token Personalizado</label>
+                                <input type="password" id="waEditInstanceToken" class="form-control" style="width:100%">
+                            </div>
+                            <div class="form-group pb-3">
+                                <label>URL da Evolution API</label>
+                                <input type="text" id="waEditEvolUrl" class="form-control" style="width:100%">
+                            </div>
+                            <div class="form-group pb-3">
+                                <label>API Key da Evolution API</label>
+                                <input type="password" id="waEditEvolKey" class="form-control" style="width:100%">
+                            </div>
+                        </div>
+                        <div class="modal-footer"
+                            style="padding:1rem; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:1rem;">
+                            <button class="btn btn-ghost" onclick="closeWhatsAppEditModal()">Cancelar</button>
+                            <button class="btn btn-primary" onclick="editWhatsAppInstance()">Salvar Alterações</button>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
 
             <!-- ─────────── DASHBOARD GLOBAL ─────────────────── -->
             <section id="dashboard" class="view-section active">
@@ -218,9 +336,11 @@
                 <div class="flex-between mb-3">
                     <div>
                         <h2 style="font-size:1.05rem;font-weight:700;">🏢 Gestão de Tenants</h2>
-                        <p class="text-muted text-sm mt-1">Todos os lojistas cadastrados na plataforma.</p>
+                        <p class="text-muted text-sm mt-1">Todos os lojistas cadastrados na plataforma. Crie novas
+                            contas completas (tenant + usuário owner) diretamente daqui.</p>
                     </div>
                     <div class="flex-center gap-1">
+                        <button class="btn btn-primary btn-sm" onclick="openTenantCreateModal()">+ Novo Tenant</button>
                         <input type="text" id="tenantSearch" placeholder="🔍  Buscar tenant..."
                             oninput="filterTenants(this.value)"
                             style="width:220px;padding:0.5rem 0.85rem;font-size:0.82rem;">
@@ -532,6 +652,8 @@
                                 <thead>
                                     <tr>
                                         <th>Nome</th>
+                                        <th>Telefone</th>
+                                        <th>E-mail</th>
                                         <th>Empresa</th>
                                         <th>Status</th>
                                         <th>MRR Est.</th>
@@ -806,6 +928,39 @@
                             <tbody id="blBody">
                                 <tr>
                                     <td colspan="7" style="text-align:center;color:var(--text-muted);padding:2rem">
+                                        Carregando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ─────────── VALIDAÇÃO DE REGISTROS ────────────────── -->
+            <section id="registrations" class="view-section">
+                <div class="flex-between mb-3">
+                    <div>
+                        <h2 style="font-size:1.05rem;font-weight:700;">🛡️ Validação de Registro</h2>
+                        <p class="text-muted text-sm mt-1">Como o agente identifica e valida cada pessoa (Admin ou
+                            Lead).</p>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="loadRegistrations()">🔄 Atualizar</button>
+                </div>
+                <div class="card">
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Data/Hora</th>
+                                    <th>Tipo de Evento</th>
+                                    <th>Usuário/Identificador</th>
+                                    <th>IP/Origem</th>
+                                    <th>Detalhes da Validação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="registrationsBody">
+                                <tr>
+                                    <td colspan="5" style="text-align:center;color:var(--text-muted);padding:2rem">
                                         Carregando...</td>
                                 </tr>
                             </tbody>
@@ -1177,6 +1332,79 @@
         </div>
     </div>
 
+    <!-- ═══ NEW TENANT + OWNER MODAL ═════════════════════════════════ -->
+    <div class="modal-overlay" id="tenantCreateModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <span id="tenantCreateModalTitle">+ Novo Tenant / Conta</span>
+                <button class="btn-close-drawer" onclick="closeTenantCreateModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <h4 style="margin-bottom:0.5rem;font-size:0.9rem">Dados do Tenant</h4>
+                <div class="form-group">
+                    <label>Nome do Tenant (Empresa)</label>
+                    <input id="newTenantName" type="text" placeholder="Nome da empresa">
+                </div>
+                <div class="form-group">
+                    <label>Subdomínio</label>
+                    <input id="newTenantSubdomain" type="text" placeholder="ex: minhaempresa">
+                    <small class="text-muted text-sm">Use apenas letras minúsculas, números e hífen. Ex:
+                        <code>minha-loja</code></small>
+                </div>
+
+                <hr style="border:0;border-top:1px solid var(--border);margin:1rem 0;">
+
+                <h4 style="margin-bottom:0.5rem;font-size:0.9rem">Usuário Owner (Admin Principal)</h4>
+                <div class="form-group">
+                    <label>Nome completo</label>
+                    <input id="newAdminName" type="text" placeholder="Nome do responsável">
+                </div>
+                <div class="form-group">
+                    <label>E-mail (login)</label>
+                    <input id="newAdminEmail" type="email" placeholder="admin@cliente.com">
+                </div>
+                <div class="form-group">
+                    <label>Telefone</label>
+                    <input id="newAdminPhone" type="text" placeholder="+55 11 99999-9999">
+                </div>
+                <div class="form-group">
+                    <label>Senha inicial</label>
+                    <input id="newAdminPassword" type="password" placeholder="Defina uma senha forte">
+                </div>
+
+                <hr style="border:0;border-top:1px solid var(--border);margin:1rem 0;">
+
+                <h4 style="margin-bottom:0.5rem;font-size:0.9rem">Plano & Cotas Iniciais</h4>
+                <div class="form-group">
+                    <label>Plano</label>
+                    <select id="newTenantPlan">
+                        <option value="basic">Basic</option>
+                        <option value="pro">Pro</option>
+                        <option value="enterprise">Enterprise</option>
+                    </select>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                    <div class="form-group">
+                        <label>Instâncias WhatsApp</label>
+                        <input id="newTenantWA" type="number" min="0" placeholder="1" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Msgs/Dia</label>
+                        <input id="newTenantDaily" type="number" min="0" placeholder="1000" value="1000">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Msgs/Mês</label>
+                    <input id="newTenantMonthly" type="number" min="0" placeholder="20000" value="20000">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeTenantCreateModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="saveNewTenant()">🚀 Criar Conta</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ═══ TENANT EDIT MODAL ════════════════════════════════════════ -->
     <div class="modal-overlay" id="tenantModal">
         <div class="modal-box">
@@ -1280,6 +1508,17 @@
         <div class="drawer-footer flex-end gap-2">
             <button class="btn btn-ghost" onclick="closeWebhookModal()">Cancelar</button>
             <button class="btn btn-primary" onclick="saveWebhook()">💾 Salvar Integração</button>
+        </div>
+    </div>
+
+    <!-- Modal Genérico -->
+    <div id="genericModal" class="modal">
+        <div class="modal-content">
+            <h2 id="genericModalTitle">Aviso</h2>
+            <div id="genericModalBody" style="margin: 1.5rem 0;"></div>
+            <div class="modal-footer" style="text-align:right;">
+                <button class="btn btn-primary" onclick="closeGenericModal()">Entendido</button>
+            </div>
         </div>
     </div>
 

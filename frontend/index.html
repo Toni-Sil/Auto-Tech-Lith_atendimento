@@ -101,12 +101,6 @@
 
             <div class="sidebar-divider"></div>
             <div class="nav-group-label">Configurações</div>
-            <a class="nav-item" data-target="webhooks">
-                <span class="nav-icon">🔗</span> Webhooks &amp; APIs
-            </a>
-            <a class="nav-item" data-target="prompt-wizard">
-                <span class="nav-icon">✨</span> Gerador de Prompts
-            </a>
             <a class="nav-item" data-target="settings">
                 <span class="nav-icon">⚙️</span> Configurações
             </a>
@@ -345,134 +339,7 @@
                 </div>
             </section>
 
-            <!-- ═══════════════════════════════════════════════════════
-                 WEBHOOKS & APIs
-            ══════════════════════════════════════════════════════════ -->
-            <section id="webhooks" class="view-section">
-                <div class="flex-between mb-2">
-                    <div>
-                        <h2 style="margin:0;font-size:1.1rem;font-weight:700;">🔗 Webhooks & APIs</h2>
-                        <p class="text-muted mt-1">Configure notificações de saída e integrações de entrada com sistemas
-                            externos.</p>
-                    </div>
-                    <button class="btn-primary" id="btnNewWebhook" onclick="openWebhookModal()">+ Novo Webhook</button>
-                </div>
 
-                <!-- Abas -->
-                <div class="inner-tabs">
-                    <button class="inner-tab active" id="tabWebhooks" onclick="switchWebhookTab('webhooks')">
-                        🔔 Webhooks <span style="font-size:0.7rem;opacity:0.7;">(Saída)</span>
-                    </button>
-                    <button class="inner-tab" id="tabApis" onclick="switchWebhookTab('apis')">
-                        🔌 APIs & Integrações <span style="font-size:0.7rem;opacity:0.7;">(Entrada)</span>
-                    </button>
-                </div>
-
-                <!-- Painel: WEBHOOK -->
-                <div id="webhookPanel">
-                    <div class="info-banner blue">
-                        <div class="info-banner-icon">🔔</div>
-                        <div>
-                            <div class="info-banner-title">O que é um Webhook?</div>
-                            <div class="info-banner-desc">
-                                Um <strong>Webhook (Saída)</strong> é uma notificação automática que <strong>este
-                                    sistema envia para você</strong> quando algo acontece — como uma nova mensagem,
-                                reunião agendada ou ticket aberto. Você configura a URL do seu sistema e nós chamamos
-                                ela com os dados do evento.
-                                <br><br>
-                                <strong>Exemplo:</strong> "Quando um lead novo entrar, avise meu CRM em
-                                <em>https://meucrm.com/webhook</em>"
-                            </div>
-                        </div>
-                    </div>
-                    <div class="table-responsive">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Nome</th>
-                                    <th>URL de Destino</th>
-                                    <th>Método</th>
-                                    <th>Status</th>
-                                    <th>Último Teste</th>
-                                    <th>Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="webhooksBody"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Painel: API -->
-                <div id="apiPanel" style="display:none;">
-                    <div class="info-banner purple">
-                        <div class="info-banner-icon">🔌</div>
-                        <div>
-                            <div class="info-banner-title">O que é uma API de Integração?</div>
-                            <div class="info-banner-desc">
-                                Uma <strong>API (Entrada)</strong> é um endpoint que <strong>sistemas externos chamam
-                                    para enviar dados a este agente</strong>. Ao registrar uma integração aqui, você
-                                documenta de onde vêm os dados — como um CRM, formulário do site, ou plataforma de
-                                e-commerce.
-                                <br><br>
-                                <strong>Exemplo:</strong> "Meu formulário do site envia o lead para
-                                <em>https://meuagente.com/api/webhook</em> — registre aqui para controlar esse fluxo."
-                            </div>
-                        </div>
-                    </div>
-                    <div class="table-responsive">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Nome</th>
-                                    <th>URL de Origem/Destino</th>
-                                    <th>Método</th>
-                                    <th>Status</th>
-                                    <th>Último Teste</th>
-                                    <th>Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="apisBody"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ─────────────── GERADOR DE PROMPTS ─────────────── -->
-            <section id="prompt-wizard" class="view-section">
-                <h2 style="margin-bottom:0.5rem;font-size:1.1rem;font-weight:700;">✨ Gerador Inteligente de Prompts</h2>
-                <p class="text-muted mb-3">Responda as perguntas para gerar automaticamente o prompt ideal para o seu
-                    nicho.</p>
-                <div id="wizardContainer" style="max-width:700px;margin:0 auto;">
-                    <div id="wizardProgress"
-                        style="background:#e5e7eb;border-radius:99px;height:6px;margin-bottom:1.5rem;">
-                        <div id="wizardProgressBar"
-                            style="background:linear-gradient(90deg,#6366f1,#8b5cf6);height:6px;border-radius:99px;width:12.5%;transition:width 0.4s;">
-                        </div>
-                    </div>
-                    <div id="wizardStep"
-                        style="background:white;border-radius:var(--radius-lg);padding:2rem;box-shadow:var(--card-shadow);border:1px solid var(--card-border);">
-                    </div>
-                    <div style="display:flex;gap:1rem;margin-top:1.2rem;justify-content:space-between;">
-                        <button class="btn-secondary" id="wizardBack" onclick="wizardBack()" style="display:none;">←
-                            Anterior</button>
-                        <div style="flex:1"></div>
-                        <button class="btn-primary" id="wizardNext" onclick="wizardNext()">Próximo →</button>
-                    </div>
-                    <div id="wizardPreview"
-                        style="display:none;margin-top:1.5rem;background:#1e293b;border-radius:var(--radius-lg);padding:1.5rem;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
-                            <h3 style="margin:0;color:#e2e8f0;font-size:1rem;">Prompt Gerado</h3>
-                            <div style="display:flex;gap:0.5rem;">
-                                <button class="btn-secondary btn-sm" onclick="copyWizardPrompt()">📋 Copiar</button>
-                                <button class="btn-primary btn-sm" onclick="saveWizardAsProfile()">💾 Salvar como
-                                    Agente</button>
-                            </div>
-                        </div>
-                        <pre id="wizardPromptOutput"
-                            style="white-space:pre-wrap;color:#94a3b8;font-size:0.83rem;line-height:1.7;margin:0;"></pre>
-                    </div>
-                </div>
-            </section>
 
             <!-- ═══════════════════════════════════════════════════════
                  CONFIGURAÇÕES
@@ -487,6 +354,12 @@
                     </button>
                     <button class="inner-tab" id="tabBranding" onclick="switchSettingsTab('branding')">
                         🎨 Marca & Tema
+                    </button>
+                    <button class="inner-tab" id="tabSettingsWebhooks" onclick="switchSettingsTab('webhooks')">
+                        🔗 Webhooks & APIs
+                    </button>
+                    <button class="inner-tab" id="tabSettingsPrompt" onclick="switchSettingsTab('prompt')">
+                        ✨ Gerador de Prompts
                     </button>
                 </div>
 
@@ -577,6 +450,140 @@
                             <hr style="margin:1.5rem 0; border:0; border-top:1px solid #e5e7eb;">
 
                             <button class="btn-primary" onclick="saveThemePreferences()">🎨 Salvar Marca Glocal</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Painel: WEBHOOKS & APIs -->
+                <div id="settingsWebhooksPanel" style="display:none;">
+                    <div class="flex-between mb-2">
+                        <div>
+                            <h3 style="margin:0;font-size:1.1rem;font-weight:700;">🔗 Webhooks & APIs</h3>
+                            <p class="text-muted mt-1">Configure notificações de saída e integrações de entrada com
+                                sistemas externos.</p>
+                        </div>
+                        <button class="btn-primary" id="btnNewWebhook" onclick="openWebhookModal()">+ Novo
+                            Webhook</button>
+                    </div>
+
+                    <!-- Sub-abas Webhooks -->
+                    <div class="inner-tabs mb-2">
+                        <button class="inner-tab active" id="tabWebhooks" onclick="switchWebhookTab('webhooks')">
+                            🔔 Webhooks <span style="font-size:0.7rem;opacity:0.7;">(Saída)</span>
+                        </button>
+                        <button class="inner-tab" id="tabApis" onclick="switchWebhookTab('apis')">
+                            🔌 APIs & Integrações <span style="font-size:0.7rem;opacity:0.7;">(Entrada)</span>
+                        </button>
+                    </div>
+
+                    <!-- Sub-painel: WEBHOOK -->
+                    <div id="webhookPanel">
+                        <div class="info-banner blue">
+                            <div class="info-banner-icon">🔔</div>
+                            <div>
+                                <div class="info-banner-title">O que é um Webhook?</div>
+                                <div class="info-banner-desc">
+                                    Um <strong>Webhook (Saída)</strong> é uma notificação automática que <strong>este
+                                        sistema envia para você</strong> quando algo acontece — como uma nova mensagem,
+                                    reunião agendada ou ticket aberto. Você configura a URL do seu sistema e nós
+                                    chamamos
+                                    ela com os dados do evento.
+                                    <br><br>
+                                    <strong>Exemplo:</strong> "Quando um lead novo entrar, avise meu CRM em
+                                    <em>https://meucrm.com/webhook</em>"
+                                </div>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Nome</th>
+                                        <th>URL de Destino</th>
+                                        <th>Método</th>
+                                        <th>Status</th>
+                                        <th>Último Teste</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="webhooksBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Sub-painel: API -->
+                    <div id="apiPanel" style="display:none;">
+                        <div class="info-banner purple">
+                            <div class="info-banner-icon">🔌</div>
+                            <div>
+                                <div class="info-banner-title">O que é uma API de Integração?</div>
+                                <div class="info-banner-desc">
+                                    Uma <strong>API (Entrada)</strong> é um endpoint que <strong>sistemas externos
+                                        chamam
+                                        para enviar dados a este agente</strong>. Ao registrar uma integração aqui, você
+                                    documenta de onde vêm os dados — como um CRM, formulário do site, ou plataforma de
+                                    e-commerce.
+                                    <br><br>
+                                    <strong>Exemplo:</strong> "Meu formulário do site envia o lead para
+                                    <em>https://meuagente.com/api/webhook</em> — registre aqui para controlar esse
+                                    fluxo."
+                                </div>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Nome</th>
+                                        <th>URL de Origem/Destino</th>
+                                        <th>Método</th>
+                                        <th>Status</th>
+                                        <th>Último Teste</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="apisBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Painel: GERADOR DE PROMPTS -->
+                <div id="settingsPromptPanel" style="display:none;">
+                    <h3 style="margin-bottom:0.5rem;font-size:1.1rem;font-weight:700;">✨ Gerador Inteligente de Prompts
+                    </h3>
+                    <p class="text-muted mb-3">Responda as perguntas para gerar automaticamente o prompt ideal para o
+                        seu
+                        nicho.</p>
+                    <div id="wizardContainer" style="max-width:700px;margin:0 auto;">
+                        <div id="wizardProgress"
+                            style="background:#e5e7eb;border-radius:99px;height:6px;margin-bottom:1.5rem;">
+                            <div id="wizardProgressBar"
+                                style="background:linear-gradient(90deg,#6366f1,#8b5cf6);height:6px;border-radius:99px;width:12.5%;transition:width 0.4s;">
+                            </div>
+                        </div>
+                        <div id="wizardStep"
+                            style="background:white;border-radius:var(--radius-lg);padding:2rem;box-shadow:var(--card-shadow);border:1px solid var(--card-border);">
+                        </div>
+                        <div style="display:flex;gap:1rem;margin-top:1.2rem;justify-content:space-between;">
+                            <button class="btn-secondary" id="wizardBack" onclick="wizardBack()" style="display:none;">←
+                                Anterior</button>
+                            <div style="flex:1"></div>
+                            <button class="btn-primary" id="wizardNext" onclick="wizardNext()">Próximo →</button>
+                        </div>
+                        <div id="wizardPreview"
+                            style="display:none;margin-top:1.5rem;background:#1e293b;border-radius:var(--radius-lg);padding:1.5rem;">
+                            <div
+                                style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+                                <h3 style="margin:0;color:#e2e8f0;font-size:1rem;">Prompt Gerado</h3>
+                                <div style="display:flex;gap:0.5rem;">
+                                    <button class="btn-secondary btn-sm" onclick="copyWizardPrompt()">📋 Copiar</button>
+                                    <button class="btn-primary btn-sm" onclick="saveWizardAsProfile()">💾 Salvar como
+                                        Agente</button>
+                                </div>
+                            </div>
+                            <pre id="wizardPromptOutput"
+                                style="white-space:pre-wrap;color:#94a3b8;font-size:0.83rem;line-height:1.7;margin:0;"></pre>
                         </div>
                     </div>
                 </div>

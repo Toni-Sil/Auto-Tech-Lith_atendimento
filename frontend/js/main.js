@@ -719,6 +719,8 @@ function switchSettingsTab(tabName) {
     document.querySelectorAll('.inner-tab').forEach(t => t.classList.remove('active'));
     document.getElementById('settingsProfilePanel').style.display = 'none';
     document.getElementById('settingsBrandingPanel').style.display = 'none';
+    document.getElementById('settingsWebhooksPanel').style.display = 'none';
+    document.getElementById('settingsPromptPanel').style.display = 'none';
 
     if (tabName === 'profile') {
         document.getElementById('tabMyProfile').classList.add('active');
@@ -726,6 +728,12 @@ function switchSettingsTab(tabName) {
     } else if (tabName === 'branding') {
         document.getElementById('tabBranding').classList.add('active');
         document.getElementById('settingsBrandingPanel').style.display = 'block';
+    } else if (tabName === 'webhooks') {
+        document.getElementById('tabSettingsWebhooks').classList.add('active');
+        document.getElementById('settingsWebhooksPanel').style.display = 'block';
+    } else if (tabName === 'prompt') {
+        document.getElementById('tabSettingsPrompt').classList.add('active');
+        document.getElementById('settingsPromptPanel').style.display = 'block';
     }
 }
 

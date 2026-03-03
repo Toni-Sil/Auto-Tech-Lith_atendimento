@@ -1,5 +1,8 @@
-
 import asyncio
+import sys
+import os
+sys.path.append(os.getcwd())
+
 from src.agents.admin_agent import admin_agent
 
 async def main():

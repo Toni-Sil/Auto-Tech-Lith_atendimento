@@ -1,10 +1,12 @@
-
 import asyncio
-from src.agents.admin_agent import admin_agent
-from src.services.llm_service import llm_service
+import sys
+import os
 
-# Mock identifying user to always return AUTHORIZED for this test
-# We want to test the NL -> Tool logic, not the auth logic again.
+sys.path.append(os.getcwd())
+
+from src.agents.admin_agent import admin_agent
+
+# Mock identifying user to always return AUTHORIZED
 async def mock_identify_user(self, user_id, username, message):
     return "AUTHORIZED"
 
@@ -14,19 +16,23 @@ admin_agent.identify_user = mock_identify_user.__get__(admin_agent, type(admin_a
 async def main():
     print("=== ADMIN AGENT NLP TEST ===")
     
-    context = {"user_id": 123456789, "username": "Tester"}
+    # Contexto simula um usuário autorizado
+    context = {"user_id": 999999, "username": "TesterAdmin"}
     
-    test_inputs = [
-        "Resumo de hoje",
-        "Quem é o cliente Thiago?",
-        "Anote que preciso verificar os backups amanha",
-        "Me mostre as notas",
-        "Agende uma reunião com o cliente 1 para amanhã às 10:00"
+    # Cenários de Teste Prático
+    scenarios = [
+        "Crie um cliente chamado 'Empresa X' com telefone 11988887777",
+        "Busque o cliente 'Empresa X'",
+        "Crie um ticket para 'Empresa X' informando 'Problema de Login'",
+        "Agende uma reunião com 'Empresa X' para 2026-12-25 às 14:00",
+        "Me mostre os tickets abertos",
+        "Delete o cliente 'Empresa X'"
     ]
     
-    for msg in test_inputs:
+    for msg in scenarios:
         print(f"\n🔹 User: {msg}")
         try:
+            # O agente deve interpretar a NL, chamar a tool e devolver a resposta final
             response = await admin_agent.process_message(msg, context)
             print(f"🔸 Agent: {response}")
         except Exception as e:
@@ -35,4 +41,6 @@ async def main():
     print("\n=== END TEST ===")
 
 if __name__ == "__main__":
+    if sys.platform == "win32":
+         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     asyncio.run(main())

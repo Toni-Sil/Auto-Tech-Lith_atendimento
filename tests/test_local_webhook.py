@@ -7,7 +7,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 async def test_webhook():
-    url = "http://localhost:8000/api/webhooks/whatsapp"
+    import os
+    token = os.getenv("VERIFY_TOKEN", "MEU_TOKEN_SECRETO")
+    url = f"http://localhost:8000/api/webhooks/whatsapp?token={token}"
     
     # Payload simulando uma mensagem de texto simples da Evolution API v2
     payload = {

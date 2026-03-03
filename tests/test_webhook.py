@@ -2,7 +2,9 @@ import httpx
 import asyncio
 
 async def main():
-    url = "http://localhost:8000/api/webhooks/whatsapp"
+    import os
+    token = os.getenv("VERIFY_TOKEN", "MEU_TOKEN_SECRETO")
+    url = f"http://localhost:8000/api/webhooks/whatsapp?token={token}"
     # Payload simulando Evolution API v2
     payload = {
         "event": "messages.upsert",

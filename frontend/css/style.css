@@ -129,6 +129,39 @@ header p {
     display: block;
 }
 
+/* --- Inner Tabs for Settings --- */
+.inner-tabs {
+    display: inline-flex;
+    background: #e5e7eb;
+    border-radius: 8px;
+    padding: 4px;
+    gap: 4px;
+}
+
+.inner-tab {
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #4b5563;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.inner-tab:hover {
+    background: rgba(255, 255, 255, 0.5);
+    color: var(--dark);
+}
+
+.inner-tab.active {
+    background: white;
+    color: var(--primary);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    font-weight: 600;
+}
+
 .form-group {
     margin-bottom: 20px;
 }

@@ -49,6 +49,7 @@ async function apiFetch(path, opts = {}) {
         throw new Error(`403: ${body}`);
     }
     if (!r.ok) throw new Error(`${r.status}: ${await r.text()}`);
+    if (r.status === 204) return null;
     return r.json();
 }
 
@@ -106,6 +107,7 @@ function initNav() {
             if (target === 'butler-churn') loadButlerChurn();
             if (target === 'butler-billing') loadButlerBilling();
             if (target === 'butler-scheduler') loadSchedulerJobs();
+            if (target === 'registrations') loadRegistrations();
 
             // Additional Master sections
             if (target === 'leads') loadLeads();
@@ -113,6 +115,7 @@ function initNav() {
             if (target === 'abuse') loadAbuseAlerts();
             if (target === 'internal-finance') loadFinancial();
             if (target === 'internal-ai') loadInternalAIConfig();
+            if (target === 'whatsapp') loadWhatsAppInstances();
             if (target === 'configuracao') {
                 loadAccountConfig();
                 loadWebhooks();
@@ -235,6 +238,74 @@ async function loadTenants() {
     }
 }
 
+function openTenantCreateModal() {
+    const setV = (id, v) => {
+        const el = document.getElementById(id);
+        if (el) el.value = v || '';
+    };
+    setV('newTenantName', '');
+    setV('newTenantSubdomain', '');
+    setV('newAdminName', '');
+    setV('newAdminEmail', '');
+    setV('newAdminPhone', '');
+    setV('newAdminPassword', '');
+    setV('newTenantPlan', 'basic');
+    setV('newTenantWA', 1);
+    setV('newTenantDaily', 1000);
+    setV('newTenantMonthly', 20000);
+    const modal = document.getElementById('tenantCreateModal');
+    if (modal) modal.classList.add('active');
+}
+
+function closeTenantCreateModal() {
+    const modal = document.getElementById('tenantCreateModal');
+    if (modal) modal.classList.remove('active');
+}
+
+async function saveNewTenant() {
+    const tenantName = document.getElementById('newTenantName')?.value.trim();
+    const subdomain = document.getElementById('newTenantSubdomain')?.value.trim();
+    const adminName = document.getElementById('newAdminName')?.value.trim();
+    const adminEmail = document.getElementById('newAdminEmail')?.value.trim();
+    const adminPhone = document.getElementById('newAdminPhone')?.value.trim();
+    const adminPassword = document.getElementById('newAdminPassword')?.value;
+    const plan = document.getElementById('newTenantPlan')?.value || 'basic';
+    const wa = parseInt(document.getElementById('newTenantWA')?.value) || 1;
+    const daily = parseInt(document.getElementById('newTenantDaily')?.value) || 1000;
+    const monthly = parseInt(document.getElementById('newTenantMonthly')?.value) || 20000;
+
+    if (!tenantName || !subdomain || !adminName || !adminEmail || !adminPassword) {
+        showAlert('Preencha os campos obrigatórios (tenant, subdomínio, usuário e senha).', 'error');
+        return;
+    }
+
+    const payload = {
+        tenant_name: tenantName,
+        subdomain,
+        admin_name: adminName,
+        admin_email: adminEmail,
+        admin_phone: adminPhone,
+        admin_password: adminPassword,
+        plan_tier: plan,
+        max_whatsapp_instances: wa,
+        max_messages_daily: daily,
+        max_messages_monthly: monthly,
+    };
+
+    try {
+        const res = await apiFetch('/master/tenants', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        });
+        if (!res) return;
+        showAlert('✅ Conta criada com sucesso!', 'success');
+        closeTenantCreateModal();
+        loadTenants();
+    } catch (e) {
+        showAlert('Erro ao criar tenant: ' + e.message, 'error');
+    }
+}
+
 function renderTenantsTable(tenants) {
     const tbody = document.getElementById('tenantsBody');
     if (!tbody) return;
@@ -254,8 +325,22 @@ function renderTenantsTable(tenants) {
             <td class="text-muted text-sm">${t.last_active ? t.last_active.slice(0, 16).replace('T', ' ') : '—'}</td>
             <td>
                 <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); openTenantModal(${t.id})">✏️ Editar</button>
+                <button class="btn btn-ghost btn-danger btn-sm" onclick="event.stopPropagation(); deleteTenant(${t.id}, '${t.name?.replace(/'/g, "\\'") || ''}')">🗑️ Excluir</button>
             </td>
         </tr>`).join('');
+}
+
+async function deleteTenant(id, name = '') {
+    const label = name ? ` o tenant "${name}"` : '';
+    const ok = confirm(`Tem certeza que deseja excluir definitivamente${label}? Esta ação não poderá ser desfeita.`);
+    if (!ok) return;
+    try {
+        await apiFetch(`/master/tenants/${id}`, { method: 'DELETE' });
+        showAlert('🗑️ Tenant excluído com sucesso.', 'info');
+        loadTenants();
+    } catch (e) {
+        showAlert('Erro ao excluir tenant: ' + e.message, 'error');
+    }
 }
 
 async function openTenantModal(id) {
@@ -736,11 +821,13 @@ function renderLeadsList(leads) {
     tbody.innerHTML = leads.map(l => `
     <tr>
         <td style="font-weight:700;color:var(--text-primary)">${l.name}</td>
+        <td>${l.phone || '—'}</td>
+        <td>${l.email || '—'}</td>
         <td>${l.company || '—'}</td>
         <td><span class="badge ${l.status === 'closed_won' ? 'active' : l.status === 'closed_lost' ? 'danger' : 'info'}">${statusLabel[l.status] || l.status}</span></td>
         <td style="color:var(--green)">R$${(l.estimated_mrr || 0).toFixed(0)}</td>
         <td>${l.assigned_to || '—'}</td>
-        <td><button class="btn btn-ghost btn-sm" onclick='openLeadModal(${JSON.stringify(l)})'>✏️</button></td>
+        <td><button class="btn btn-ghost btn-sm" onclick='openLeadModal(${JSON.stringify(l).replace(/'/g, "&#39;")})'>✏️</button></td>
     </tr>`).join('');
 }
 
@@ -981,6 +1068,10 @@ window.suspendTenant = suspendTenant;
 window.unsuspendTenant = unsuspendTenant;
 window.loadAbuseAlerts = loadAbuseAlerts;
 window.loadFinancial = loadFinancial;
+window.openTenantCreateModal = openTenantCreateModal;
+window.closeTenantCreateModal = closeTenantCreateModal;
+window.saveNewTenant = saveNewTenant;
+window.deleteTenant = deleteTenant;
 window.loadAccountConfig = loadAccountConfig;
 window.saveAccountProfile = saveAccountProfile;
 window.changeAccountPassword = changeAccountPassword;
@@ -1213,9 +1304,491 @@ async function changeAccountPassword() {
     }
 }
 
+// ── WHATSAPP EVOLUTION ───────────────────────────────────────────
+async function loadWhatsAppInstances() {
+    try {
+        const instances = await apiFetch('/master/whatsapp');
+        const tbody = document.getElementById('whatsappInstancesBody');
+        if (!tbody) return;
+        if (!instances || !instances.length) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem;">Nenhuma instância encontrada</td></tr>';
+            return;
+        }
+        tbody.innerHTML = instances.map(i => `
+            <tr>
+                <td>#${i.id}</td>
+                <td><span class="bold">${i.tenant_name}</span> <span class="text-sm text-muted">(ID: ${i.tenant_id})</span></td>
+                <td class="mono">
+                    <div class="bold">${i.display_name}</div>
+                    <div class="text-sm text-muted">${i.instance_name}</div>
+                </td>
+                <td>${i.phone_number || '<span class="text-muted text-sm">Não conectado</span>'}</td>
+                <td>
+                    <div style="display:flex; align-items:center; gap:0.5rem;">
+                        <input type="text" class="form-control text-sm" value="${i.webhook_url}" readonly style="width:120px; padding:0.2rem 0.5rem;">
+                        <button class="btn btn-ghost btn-sm" onclick="copyToClipboard('${i.webhook_url}')" title="Copiar Webhook">📋</button>
+                    </div>
+                </td>
+                <td><span class="badge ${i.status === 'open' || i.status === 'connected' ? 'active' : i.status === 'pending' || i.status === 'connecting' ? 'warn' : 'danger'}">${i.status || 'desconhecido'}</span></td>
+                <td>
+                    ${i.status !== 'open' && i.status !== 'connected' ? `<button class="btn btn-ghost btn-sm" onclick="getWhatsAppPairingCode('${i.instance_name}')">🔗 Pareamento</button>` : ''}
+                    <button class="btn btn-ghost btn-sm" onclick="openWhatsAppEditModal('${i.instance_name}')">✏️ Editar</button>
+                    <button class="btn btn-ghost btn-danger btn-sm" onclick="deleteWhatsAppInstance('${i.instance_name}')">🗑️ Excluir</button>
+                </td>
+            </tr>
+        `).join('');
+        // Store globally for edit modal
+        window._waInstances = instances;
+    } catch (e) {
+        showAlert('Erro ao carregar instâncias do WhatsApp: ' + e.message, 'error');
+    }
+}
+
+window.openWhatsAppCreateModal = async function () {
+    try {
+        const tenants = await apiFetch('/master/tenants');
+        const select = document.getElementById('waTenantSelect');
+        if (select && tenants) {
+            select.innerHTML = '<option value="">-- Selecione o Beneficiário --</option>' +
+                '<option value="internal">--- INTERNO / MASTER AGENTE (MAX) ---</option>' +
+                tenants.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+        }
+        document.getElementById('waInstanceName').value = '';
+        document.getElementById('waDisplayName').value = '';
+        document.getElementById('waInstanceToken').value = '';
+        document.getElementById('whatsappCreateModal').classList.add('active');
+    } catch (e) {
+        showAlert('Erro ao carregar tenants: ' + e.message, 'error');
+    }
+};
+
+window.closeWhatsAppCreateModal = function () {
+    document.getElementById('whatsappCreateModal').classList.remove('active');
+};
+
+window.createWhatsAppInstance = async function () {
+    const tenantId = document.getElementById('waTenantSelect').value;
+    const instanceName = document.getElementById('waInstanceName').value.trim();
+    const displayName = document.getElementById('waDisplayName').value.trim();
+    const instanceToken = document.getElementById('waInstanceToken').value.trim();
+    const evolUrl = document.getElementById('waEvolUrl').value.trim();
+    const evolKey = document.getElementById('waEvolKey').value.trim();
+
+    if (!tenantId || !instanceName) {
+        showAlert('Obrigatório: Selecione o tenant e defina o identificador da instância!', 'warn');
+        return;
+    }
+
+    // UI Loading state
+    const btn = document.querySelector('#whatsappCreateModal .btn-primary');
+    const oldText = btn.textContent;
+    btn.textContent = 'Criando...';
+    btn.disabled = true;
+
+    try {
+        const res = await apiFetch('/master/whatsapp', {
+            method: 'POST',
+            body: JSON.stringify({
+                tenant_id: tenantId === 'internal' ? null : parseInt(tenantId),
+                instance_name: instanceName,
+                display_name: displayName || instanceName,
+                instance_token: instanceToken || null,
+                evolution_api_url: evolUrl || null,
+                evolution_api_key: evolKey || null
+            })
+        });
+        if (res) {
+            showAlert('Instância criada com sucesso!', 'success');
+            closeWhatsAppCreateModal();
+            loadWhatsAppInstances();
+
+            // Show new modal with instructions
+            setTimeout(() => {
+                const instructions = `
+                    <div style="text-align:left;">
+                        <p>A instância <strong>${instanceName}</strong> foi criada e <strong>configurada automaticamente</strong> (Webhook e Settings aplicados).</p>
+                        <p><strong>Configurações Aplicadas:</strong></p>
+                        <ul>
+                            <li>Webhook URL configurada com token de segurança.</li>
+                            <li>Auto-rejeição de chamadas habilitada.</li>
+                            <li>Ignorar grupos habilitado (melhor performance).</li>
+                        </ul>
+                        <p><strong>Próximos Passos:</strong></p>
+                        <ol>
+                            <li>Conecte o seu WhatsApp usando o <strong>Código de Pareamento</strong> na lista.</li>
+                            <li>Certifique-se que a Evolution API está acessível para o backend.</li>
+                        </ol>
+                        <div class="card bg-dark" style="padding:1rem; margin:1rem 0; word-break:break-all; background:#1e293b; color:#38bdf8; font-family:monospace; border-radius:8px;">
+                            ${res.webhook_url}
+                        </div>
+                        <button class="btn btn-primary w-100" onclick="copyToClipboard('${res.webhook_url}')">Copiar URL da Webhook</button>
+                    </div>
+                `;
+                showGenericModal('Configuração Manual do WhatsApp', instructions);
+            }, 600);
+        }
+    } catch (e) {
+        console.error(e);
+        showAlert('Erro ao criar instância: ' + e.message, 'error');
+    } finally {
+        btn.textContent = oldText;
+        btn.disabled = false;
+    }
+};
+
+window.openWhatsAppEditModal = function (instanceName) {
+    if (!window._waInstances) return;
+    const inst = window._waInstances.find(i => i.instance_name === instanceName);
+    if (!inst) return;
+
+    document.getElementById('waEditInstanceName').value = inst.instance_name;
+    document.getElementById('waEditDisplayName').value = inst.display_name || '';
+    document.getElementById('waEditInstanceToken').value = ''; // Don't show existing token for security
+    document.getElementById('waEditEvolUrl').value = inst.evolution_api_url || '';
+    document.getElementById('waEditEvolKey').value = inst.evolution_api_key || ''; // Will update if provided
+
+    document.getElementById('whatsappEditModal').classList.add('active');
+};
+
+window.closeWhatsAppEditModal = function () {
+    document.getElementById('whatsappEditModal').classList.remove('active');
+};
+
+window.editWhatsAppInstance = async function () {
+    const instanceName = document.getElementById('waEditInstanceName').value;
+    const displayName = document.getElementById('waEditDisplayName').value.trim();
+    const instanceToken = document.getElementById('waEditInstanceToken').value.trim();
+    const evolUrl = document.getElementById('waEditEvolUrl').value.trim();
+    const evolKey = document.getElementById('waEditEvolKey').value.trim();
+
+    if (!instanceName) return;
+
+    const btn = document.querySelector('#whatsappEditModal .btn-primary');
+    const oldText = btn.textContent;
+    btn.textContent = 'Salvando...';
+    btn.disabled = true;
+
+    try {
+        const body = {};
+        if (displayName) body.display_name = displayName;
+        if (instanceToken) body.instance_token = instanceToken;
+        if (evolUrl !== undefined) body.evolution_api_url = evolUrl || null;
+        if (evolKey !== undefined && evolKey !== '') body.evolution_api_key = evolKey || null;
+
+        const res = await apiFetch(`/master/whatsapp/${encodeURIComponent(instanceName)}`, {
+            method: 'PUT',
+            body: JSON.stringify(body)
+        });
+
+        if (res) {
+            showAlert('Instância atualizada com sucesso!', 'success');
+            closeWhatsAppEditModal();
+            loadWhatsAppInstances();
+        }
+    } catch (e) {
+        console.error(e);
+        showAlert('Erro ao atualizar: ' + e.message, 'error');
+    } finally {
+        btn.textContent = oldText;
+        btn.disabled = false;
+    }
+};
+
+window.deleteWhatsAppInstance = async function (instanceName) {
+    if (!confirm(`Tem certeza que deseja remover a instância "${instanceName}"? A conexão com o WhatsApp será desfeita.`)) return;
+    try {
+        await apiFetch(`/master/whatsapp/${instanceName}`, { method: 'DELETE' });
+        showAlert('Instância removida com sucesso.', 'info');
+        loadWhatsAppInstances();
+    } catch (e) {
+        showAlert('Erro ao deletar: ' + e.message, 'error');
+    }
+};
+
+async function getWhatsAppPairingCode(instanceName) {
+    const phone = prompt('Digite o número do WhatsApp (ex: 5511999999999):');
+    if (!phone) return;
+
+    try {
+        showAlert('Gerando código de pareamento...', 'info');
+        const res = await apiFetch(`/master/whatsapp/${instanceName}/pairing-code?phone=${phone}`);
+        if (res && res.code) {
+            const html = `
+                <div style="text-align:center;">
+                    <p>Use o código abaixo no seu WhatsApp (Configurações > Dispositivos Conectados > Conectar com número de telefone):</p>
+                    <div style="font-size:3rem; font-weight:bold; letter-spacing:10px; margin:2rem 0; color:var(--primary); font-family:serif;">
+                        ${res.code}
+                    </div>
+                    <button class="btn btn-ghost w-100" onclick="copyToClipboard('${res.code}')">Copiar Código</button>
+                </div>
+            `;
+            showGenericModal('Código de Pareamento', html);
+        } else {
+            throw new Error(res?.error || 'Erro ao gerar código');
+        }
+    } catch (e) {
+        showAlert('Erro: ' + e.message, 'error');
+    }
+}
+
 // ── UTILS ────────────────────────────────────────────────────────
 function setText(id, val) {
     const el = document.getElementById(id);
     if (el) el.textContent = val;
 }
 function fmt(n) { return Number(n || 0).toLocaleString('pt-BR'); }
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        showAlert('Copiado para a área de transferência!', 'success');
+    }).catch(err => {
+        console.error('Erro ao copiar: ', err);
+        showAlert('Falha ao copiar texto.', 'error');
+    });
+}
+
+function showGenericModal(title, htmlBody) {
+    document.getElementById('genericModalTitle').textContent = title;
+    document.getElementById('genericModalBody').innerHTML = htmlBody;
+    document.getElementById('genericModal').classList.add('active');
+}
+
+function closeGenericModal() {
+    document.getElementById('genericModal').classList.remove('active');
+}
+
+// ── REGISTRATION VALIDATIONS ──────────────────────────────────────
+async function loadRegistrations() {
+    const body = document.getElementById('registrationsBody');
+    if (!body) return;
+    body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;">Carregando...</td></tr>';
+
+    try {
+        const regs = await apiFetch('/master/registrations');
+        if (!regs || !regs.length) {
+            body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted);">Nenhum registro de validação encontrado.</td></tr>';
+            return;
+        }
+
+        body.innerHTML = regs.map(r => {
+            let badgeClass = 'badge';
+            if (r.event_type.includes('success') || r.event_type.includes('identified') || r.event_type.includes('validated') || r.event_type.includes('registered')) {
+                badgeClass += ' success';
+            } else if (r.event_type.includes('failure')) {
+                badgeClass += ' danger';
+            }
+
+            const date = new Date(r.created_at).toLocaleString('pt-BR');
+            return `
+                <tr>
+                    <td class="text-sm">${date}</td>
+                    <td><span class="${badgeClass}">${r.event_type}</span></td>
+                    <td class="bold">${r.username || 'Sistema'}</td>
+                    <td class="text-sm text-muted">${r.ip_address || '—'}</td>
+                    <td class="text-sm">${r.details || '—'}</td>
+                </tr>
+            `;
+        }).join('');
+    } catch (e) {
+        console.error('loadRegistrations', e);
+        body.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--red);">Erro ao carregar registros: ${e.message}</td></tr>`;
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// WHATSAPP / EVOLUTION API MANAGEMENT
+// ══════════════════════════════════════════════════════════════════
+
+// ── Load & Render Table ──────────────────────────────────────────
+async function loadWhatsAppInstances() {
+    const body = document.getElementById('whatsappInstancesBody');
+    if (!body) return;
+    body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;">Carregando...</td></tr>';
+
+    try {
+        const instances = await apiFetch('/master/whatsapp');
+        if (!instances || !instances.length) {
+            body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted);">Nenhuma instância de WhatsApp cadastrada.</td></tr>';
+            return;
+        }
+
+        body.innerHTML = instances.map(inst => {
+            const statusBadge = inst.status === 'connected'
+                ? `<span class="badge success"><span class="status-dot online"></span>${inst.status}</span>`
+                : inst.status === 'pending'
+                ? `<span class="badge" style="background:rgba(255,193,7,.15);color:#ffc107;"><span class="status-dot" style="background:#ffc107;"></span>${inst.status}</span>`
+                : `<span class="badge danger"><span class="status-dot offline"></span>${inst.status || 'desconhecido'}</span>`;
+
+            const webhookShort = inst.webhook_url
+                ? `<code style="font-size:0.7rem;word-break:break-all;" title="${inst.webhook_url}">${inst.webhook_url.replace('https://', '').substring(0, 40)}…</code>`
+                : '<span class="text-muted">—</span>';
+
+            const escapedName = (inst.instance_name || '').replace(/'/g, "\\'");
+            const escapedDisplay = (inst.display_name || '').replace(/'/g, "\\'");
+            const escapedToken = (inst.instance_token || '').replace(/'/g, "\\'");
+            const escapedUrl = (inst.evolution_api_url || '').replace(/'/g, "\\'");
+            const escapedKey = (inst.evolution_api_key || '').replace(/'/g, "\\'");
+
+            return `
+            <tr>
+                <td class="text-muted text-sm">#${inst.id}</td>
+                <td>${inst.tenant_name || '<span class="text-muted">Interno</span>'}</td>
+                <td>
+                    <strong>${inst.display_name || inst.instance_name}</strong>
+                    <div class="text-muted text-sm">${inst.instance_name}</div>
+                </td>
+                <td class="text-sm">${inst.phone_number || '<span class="text-muted">—</span>'}</td>
+                <td>${webhookShort}</td>
+                <td>${statusBadge}</td>
+                <td style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                    <button class="btn btn-sm" onclick="openWhatsAppEditModal('${escapedName}','${escapedDisplay}','${escapedToken}','${escapedUrl}','${escapedKey}')">✏️ Editar</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteWhatsAppInstance('${escapedName}')">🗑️ Excluir</button>
+                </td>
+            </tr>`;
+        }).join('');
+    } catch (e) {
+        console.error('loadWhatsAppInstances', e);
+        body.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--red);">Erro ao carregar instâncias: ${e.message}</td></tr>`;
+    }
+}
+
+// ── Create Modal ─────────────────────────────────────────────────
+async function openWhatsAppCreateModal() {
+    // Populate tenant select
+    const sel = document.getElementById('waTenantSelect');
+    if (sel) {
+        sel.innerHTML = '<option value="">Interno (Max) — Sem tenant</option>';
+        try {
+            const tenants = await apiFetch('/master/tenants');
+            if (tenants && tenants.length) {
+                sel.innerHTML += tenants.map(t =>
+                    `<option value="${t.id}">${t.name} (#${t.id})</option>`
+                ).join('');
+            }
+        } catch (_) {}
+    }
+
+    // Clear form fields
+    ['waInstanceName', 'waDisplayName', 'waInstanceToken', 'waEvolUrl', 'waEvolKey'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+
+    document.getElementById('whatsappCreateModal').classList.add('active');
+}
+
+function closeWhatsAppCreateModal() {
+    document.getElementById('whatsappCreateModal').classList.remove('active');
+}
+
+// ── Create Submit ─────────────────────────────────────────────────
+async function createWhatsAppInstance() {
+    const instanceName   = document.getElementById('waInstanceName')?.value.trim();
+    const displayName    = document.getElementById('waDisplayName')?.value.trim();
+    const instanceToken  = document.getElementById('waInstanceToken')?.value.trim();
+    const evolUrl        = document.getElementById('waEvolUrl')?.value.trim();
+    const evolKey        = document.getElementById('waEvolKey')?.value.trim();
+    const tenantId       = document.getElementById('waTenantSelect')?.value;
+
+    if (!instanceName) {
+        showAlert('O Nome da Instância é obrigatório!', 'error');
+        return;
+    }
+
+    const payload = {
+        instance_name: instanceName,
+        display_name: displayName || null,
+        instance_token: instanceToken || null,
+        evolution_api_url: evolUrl || null,
+        evolution_api_key: evolKey || null,
+        tenant_id: tenantId ? parseInt(tenantId) : null,
+    };
+
+    try {
+        const result = await apiFetch('/master/whatsapp', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        });
+
+        if (result) {
+            closeWhatsAppCreateModal();
+            showAlert(`✅ Instância "${instanceName}" criada! Webhook: ${result.webhook_url}`, 'success');
+            loadWhatsAppInstances();
+        }
+    } catch (e) {
+        let msg = e.message || 'Erro ao criar instância.';
+        // Try to extract the detail from the error JSON
+        try {
+            const parsed = JSON.parse(msg.split(': ').slice(1).join(': '));
+            msg = parsed.detail || msg;
+        } catch (_) {}
+        showAlert(`❌ ${msg}`, 'error');
+    }
+}
+
+// ── Edit Modal ────────────────────────────────────────────────────
+function openWhatsAppEditModal(instanceName, displayName, token, evolUrl, evolKey) {
+    document.getElementById('waEditInstanceName').value  = instanceName;
+    document.getElementById('waEditDisplayName').value   = displayName;
+    document.getElementById('waEditInstanceToken').value = token;
+    document.getElementById('waEditEvolUrl').value       = evolUrl;
+    document.getElementById('waEditEvolKey').value       = evolKey;
+    document.getElementById('whatsappEditModal').classList.add('active');
+}
+
+function closeWhatsAppEditModal() {
+    document.getElementById('whatsappEditModal').classList.remove('active');
+}
+
+// ── Edit Submit ───────────────────────────────────────────────────
+async function editWhatsAppInstance() {
+    const instanceName  = document.getElementById('waEditInstanceName')?.value.trim();
+    const displayName   = document.getElementById('waEditDisplayName')?.value.trim();
+    const token         = document.getElementById('waEditInstanceToken')?.value.trim();
+    const evolUrl       = document.getElementById('waEditEvolUrl')?.value.trim();
+    const evolKey       = document.getElementById('waEditEvolKey')?.value.trim();
+
+    if (!instanceName) return;
+
+    const payload = {
+        display_name: displayName || null,
+        instance_token: token || null,
+        evolution_api_url: evolUrl || null,
+        evolution_api_key: evolKey || null,
+    };
+
+    try {
+        await apiFetch(`/master/whatsapp/${instanceName}`, {
+            method: 'PUT',
+            body: JSON.stringify(payload),
+        });
+        closeWhatsAppEditModal();
+        showAlert(`✅ Instância "${instanceName}" atualizada com sucesso!`, 'success');
+        loadWhatsAppInstances();
+    } catch (e) {
+        let msg = e.message || 'Erro ao atualizar instância.';
+        try {
+            const parsed = JSON.parse(msg.split(': ').slice(1).join(': '));
+            msg = parsed.detail || msg;
+        } catch (_) {}
+        showAlert(`❌ ${msg}`, 'error');
+    }
+}
+
+// ── Delete ────────────────────────────────────────────────────────
+async function deleteWhatsAppInstance(instanceName) {
+    if (!confirm(`⚠️ Tem certeza que deseja excluir a instância "${instanceName}"?\n\nIsso irá desconectar o WhatsApp da Evolution API e remover do banco de dados.`)) return;
+
+    try {
+        await apiFetch(`/master/whatsapp/${instanceName}`, { method: 'DELETE' });
+        showAlert(`✅ Instância "${instanceName}" excluída com sucesso!`, 'success');
+        loadWhatsAppInstances();
+    } catch (e) {
+        let msg = e.message || 'Erro ao excluir instância.';
+        try {
+            const parsed = JSON.parse(msg.split(': ').slice(1).join(': '));
+            msg = parsed.detail || msg;
+        } catch (_) {}
+        showAlert(`❌ ${msg}`, 'error');
+    }
+}

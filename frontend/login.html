@@ -5,119 +5,392 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login · Auto Tech Lith</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --accent: #6366f1;
+            --accent-dark: #4f46e5;
+            --accent-glow: rgba(99, 102, 241, 0.35);
+        }
+
         body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
             display: flex;
-            justify-content: center;
             align-items: center;
-            height: 100vh;
-            background-color: #f3f4f6;
+            justify-content: center;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            position: relative;
+            overflow: hidden;
         }
 
-        .login-card {
-            background: white;
-            padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        /* Animated background orbs */
+        body::before,
+        body::after {
+            content: '';
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            animation: float 8s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        body::before {
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.25), transparent);
+            top: -100px;
+            left: -100px;
+        }
+
+        body::after {
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.2), transparent);
+            bottom: -80px;
+            right: -80px;
+            animation-delay: -4s;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0) scale(1);
+            }
+
+            50% {
+                transform: translateY(-30px) scale(1.05);
+            }
+        }
+
+        .login-wrapper {
+            position: relative;
+            z-index: 10;
             width: 100%;
-            max-width: 400px;
+            max-width: 420px;
+            padding: 1.5rem;
         }
 
-        .login-header {
+        /* Logo / Brand */
+        .brand {
             text-align: center;
             margin-bottom: 2rem;
         }
 
-        .login-header h1 {
-            color: #1f2937;
+        .brand-icon {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, var(--accent), #8b5cf6);
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 0 40px var(--accent-glow);
+        }
+
+        .brand h1 {
+            color: white;
             font-size: 1.5rem;
-            margin-bottom: 0.5rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .brand p {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        /* Card */
+        .login-card {
+            background: rgba(255, 255, 255, 0.07);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 24px;
+            padding: 2.5rem;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+        }
+
+        .card-title {
+            color: white;
+            font-size: 1.125rem;
+            font-weight: 700;
+            margin-bottom: 1.75rem;
         }
 
         .form-group {
-            margin-bottom: 1rem;
+            margin-bottom: 1.25rem;
         }
 
         .form-group label {
             display: block;
+            color: rgba(255, 255, 255, 0.65);
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
             margin-bottom: 0.5rem;
-            color: #374151;
         }
 
         .form-group input {
             width: 100%;
-            padding: 0.5rem;
-            border: 1px solid #d1d5db;
-            border-radius: 4px;
+            padding: 0.85rem 1rem;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            color: white;
+            font-size: 0.95rem;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.2s;
+            outline: none;
         }
 
-        .btn-primary {
+        .form-group input::placeholder {
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        .form-group input:focus {
+            border-color: var(--accent);
+            background: rgba(99, 102, 241, 0.12);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .btn-login {
             width: 100%;
-            padding: 0.75rem;
-            margin-top: 1rem;
+            padding: 0.95rem;
+            margin-top: 0.5rem;
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 700;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
         }
 
-        .error-msg {
-            color: #ef4444;
+        .btn-login:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 24px var(--accent-glow);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+        }
+
+        .btn-login:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Spinner */
+        .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Error */
+        .error-banner {
+            display: none;
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            color: #fca5a5;
             font-size: 0.875rem;
             margin-top: 1rem;
             text-align: center;
+        }
+
+        /* Portal badges (shown after role detected) */
+        .portal-hint {
             display: none;
+            margin-top: 1.5rem;
+            gap: 0.75rem;
+            flex-direction: column;
+        }
+
+        .portal-badge {
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .portal-badge.master {
+            background: linear-gradient(135deg, #1e1b4b, #312e81);
+            border: 1px solid #4338ca;
+            color: #a5b4fc;
+        }
+
+        .portal-badge.lojista {
+            background: linear-gradient(135deg, #064e3b, #065f46);
+            border: 1px solid #10b981;
+            color: #6ee7b7;
+        }
+
+        /* Footer */
+        .login-footer {
+            text-align: center;
+            margin-top: 1.5rem;
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 0.78rem;
         }
     </style>
 </head>
 
 <body>
-    <div class="login-card">
-        <div class="login-header">
+    <div class="login-wrapper">
+        <div class="brand">
+            <div class="brand-icon">🤖</div>
             <h1>Auto Tech Lith</h1>
-            <p>Login Administrativo</p>
+            <p>Plataforma de Atendimento com IA</p>
         </div>
-        <form id="loginForm">
-            <div class="form-group">
-                <label for="username">Usuário</label>
-                <input type="text" id="username" required>
-            </div>
-            <div class="form-group">
-                <label for="password">Senha</label>
-                <input type="password" id="password" required>
-            </div>
-            <button type="submit" class="btn-primary">Entrar</button>
-            <div id="errorMsg" class="error-msg">Usuário ou senha inválidos</div>
-        </form>
+
+        <div class="login-card">
+            <div class="card-title">Entrar na plataforma</div>
+
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">Usuário</label>
+                    <input type="text" id="username" placeholder="seu@email.com" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label for="password">Senha</label>
+                    <input type="password" id="password" placeholder="••••••••" required
+                        autocomplete="current-password">
+                </div>
+
+                <button type="submit" class="btn-login" id="btnLogin">
+                    <span id="btnText">Entrar</span>
+                    <div class="spinner" id="spinner"></div>
+                </button>
+
+                <div class="error-banner" id="errorBanner">
+                    ❌ Usuário ou senha inválidos. Tente novamente.
+                </div>
+
+                <!-- Role detected hint -->
+                <div class="portal-hint" id="portalHint">
+                    <div class="portal-badge master" id="masterBadge" style="display:none;">
+                        🛡️ Redirecionando para o Painel Master Admin...
+                    </div>
+                    <div class="portal-badge lojista" id="lojistaBadge" style="display:none;">
+                        🏪 Redirecionando para o Portal do Lojista...
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="login-footer">
+            Auto Tech Lith · Antigravity Admin v3.0 · © 2025
+        </div>
     </div>
 
     <script>
+        // Clear any old session on load (unless coming back from portal)
+        // Don't auto-logout here — let portals handle expired tokens
+
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            const errorMsg = document.getElementById('errorMsg');
 
-            errorMsg.style.display = 'none';
+            const btn = document.getElementById('btnLogin');
+            const btnText = document.getElementById('btnText');
+            const spinner = document.getElementById('spinner');
+            const errorBanner = document.getElementById('errorBanner');
+            const portalHint = document.getElementById('portalHint');
+
+            // Loading state
+            btn.disabled = true;
+            btnText.style.display = 'none';
+            spinner.style.display = 'block';
+            errorBanner.style.display = 'none';
+
+            const formData = new URLSearchParams();
+            formData.append('username', document.getElementById('username').value.trim());
+            formData.append('password', document.getElementById('password').value);
 
             try {
-                const formData = new URLSearchParams();
-                formData.append('username', username);
-                formData.append('password', password);
-
-                const response = await fetch('/api/auth/token', {
+                const response = await fetch('/api/v1/auth/token', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: formData
                 });
 
-                if (!response.ok) throw new Error('Falha no login');
+                if (!response.ok) throw new Error('Credenciais inválidas');
 
                 const data = await response.json();
                 localStorage.setItem('token', data.access_token);
-                window.location.href = '/';
+
+                // ── RBAC Portal Routing ──────────────────────────────────
+                // Decode JWT to determine which portal to show
+                let targetPortal = '/';  // default: lojista
+                try {
+                    const tokenParts = data.access_token.split('.');
+                    const payload = JSON.parse(atob(tokenParts[1]));
+                    const role = (payload.role || '').toLowerCase();
+                    const isMaster = (role === 'owner' || role === 'master_admin' || role === 'admin')
+                        && (!payload.tenant_id || payload.tenant_id === null);
+                    targetPortal = isMaster ? '/master.html' : '/';
+
+                    // Show redirect badge
+                    portalHint.style.display = 'flex';
+                    if (isMaster) {
+                        document.getElementById('masterBadge').style.display = 'block';
+                    } else {
+                        document.getElementById('lojistaBadge').style.display = 'block';
+                    }
+                } catch (_) {
+                    // JWT decode failed — go to lojista by default
+                }
+
+                // Short delay to show badge, then redirect
+                setTimeout(() => { window.location.href = targetPortal; }, 800);
+
             } catch (error) {
-                console.error(error);
-                errorMsg.style.display = 'block';
+                btn.disabled = false;
+                btnText.style.display = 'block';
+                spinner.style.display = 'none';
+                errorBanner.style.display = 'block';
+            }
+        });
+
+        // Press Enter on username → focus password
+        document.getElementById('username').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('password').focus();
             }
         });
     </script>
