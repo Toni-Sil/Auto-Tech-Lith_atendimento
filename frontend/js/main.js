@@ -1,4 +1,4 @@
-const API_BASE = '/api';
+const API_BASE = '/api/v1';
 const AUTH_URL = '/login.html';
 
 // Auth Check
@@ -46,8 +46,26 @@ async function loadUser() {
         const avatarDisplay = document.getElementById('userAvatar');
 
         if (nameDisplay) nameDisplay.textContent = user.name;
-        if (roleDisplay) roleDisplay.textContent = user.role === 'admin' ? 'Administrador' : 'Colaborador';
-        if (avatarDisplay) avatarDisplay.textContent = user.name.charAt(0).toUpperCase();
+        if (roleDisplay) roleDisplay.textContent = user.company_role || (user.role === 'admin' ? 'Administrador' : 'Colaborador');
+
+        if (avatarDisplay) {
+            if (user.avatar_url) {
+                avatarDisplay.innerHTML = `<img src="${user.avatar_url}" alt="Avatar" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+            } else {
+                avatarDisplay.textContent = user.name.charAt(0).toUpperCase();
+            }
+        }
+
+        // Fill Profile Form if exists
+        const pName = document.getElementById('myProfileName');
+        const pRole = document.getElementById('myProfileRole');
+        const pAvatar = document.getElementById('myProfileAvatarUrl');
+        const pBio = document.getElementById('myProfileBio');
+
+        if (pName) pName.value = user.name || '';
+        if (pRole) pRole.value = user.company_role || '';
+        if (pAvatar) pAvatar.value = user.avatar_url || '';
+        if (pBio) pBio.value = user.bio || '';
 
     } catch (error) {
         console.error('Erro ao carregar usuário:', error);
@@ -92,8 +110,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (targetId === 'tickets') loadTickets();
                 if (targetId === 'conversations') loadConversations();
                 if (targetId === 'analytics') loadAnalytics();
-                if (targetId === 'settings') loadSettings();
                 if (targetId === 'dashboard') loadStats();
+                if (targetId === 'profiles') loadProfiles();
+                if (targetId === 'webhooks') loadWebhooks();
+                if (targetId === 'automations') loadAutomations();
+                if (targetId === 'prompt-wizard') initWizard();
             }
         });
     });
@@ -104,6 +125,19 @@ document.addEventListener('DOMContentLoaded', () => {
     loadCustomers(); // Pre-load
     // Refresh stats periodically
     setInterval(loadStats, 30000);
+
+    // Theme preferences
+    loadThemePreferences();
+
+    // File upload listeners
+    const avatarFile = document.getElementById('myProfileAvatarFile');
+    if (avatarFile) {
+        avatarFile.addEventListener('change', () => handleImageUpload('myProfileAvatarFile', 'myProfileAvatarUrl'));
+    }
+    const logoFile = document.getElementById('panelLogoFile');
+    if (logoFile) {
+        logoFile.addEventListener('change', () => handleImageUpload('panelLogoFile', 'panelLogoUrl'));
+    }
 });
 
 function showAlert(message, type = 'success') {
@@ -406,86 +440,7 @@ function viewTicket(id) {
 }
 
 // ... Settings & Tests ...
-async function testEvolutionAPI() {
-    const status = document.getElementById('evolutionStatus');
-    status.style.background = '#f59e0b';
-    document.getElementById('evolutionStatusText').textContent = 'Testando...';
-    try {
-        await authFetch(`${API_BASE}/health/evolution`);
-        status.style.background = '#10b981';
-        document.getElementById('evolutionStatusText').textContent = 'Conectado';
-        showAlert('Evolution API conectada com sucesso!', 'success');
-    } catch {
-        status.style.background = '#ef4444';
-        document.getElementById('evolutionStatusText').textContent = 'Erro na conexão';
-        showAlert('Erro ao conectar com Evolution API', 'error');
-    }
-}
 
-async function testDatabase() {
-    const status = document.getElementById('dbStatus');
-    status.style.background = '#f59e0b';
-    document.getElementById('dbStatusText').textContent = 'Testando...';
-    try {
-        await authFetch(`${API_BASE}/health/database`);
-        status.style.background = '#10b981';
-        document.getElementById('dbStatusText').textContent = 'Conectado';
-        showAlert('Banco de dados conectado com sucesso!', 'success');
-    } catch {
-        status.style.background = '#ef4444';
-        document.getElementById('dbStatusText').textContent = 'Erro na conexão';
-        showAlert('Erro ao conectar com banco de dados', 'error');
-    }
-}
-
-function copyNgrokUrl() {
-    const url = document.getElementById('ngrokUrl').value;
-    navigator.clipboard.writeText(url);
-    showAlert('URL ngrok copiada!', 'success');
-}
-
-async function loadSettings() {
-    try {
-        const response = await authFetch(`${API_BASE}/config?t=${Date.now()}`, { cache: 'no-store' });
-        if (!response) return;
-        const configs = await response.json();
-
-        const promptConfig = configs.find(c => c.key === 'system_prompt');
-        if (promptConfig && document.getElementById('systemPrompt')) {
-            document.getElementById('systemPrompt').value = promptConfig.value;
-        }
-
-        const openaiConfig = configs.find(c => c.key === 'openai_api_key');
-        if (openaiConfig) {
-            document.getElementById('openaiKey').value = openaiConfig.value;
-        }
-    } catch (error) {
-        console.error('Error loading settings:', error);
-    }
-}
-
-async function saveSettings() {
-    const payload = {};
-    const openAiKey = document.getElementById('openaiKey').value;
-    if (openAiKey && openAiKey !== '********') {
-        payload['openai_api_key'] = openAiKey;
-    }
-    const prompt = document.getElementById('systemPrompt')?.value;
-    if (prompt) {
-        payload['system_prompt'] = prompt;
-    }
-
-    try {
-        await authFetch(`${API_BASE}/config`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        showAlert('Configurações salvas com sucesso!', 'success');
-    } catch (error) {
-        showAlert('Erro ao salvar configurações', 'error');
-    }
-}
 
 // --- NEW FEATURES: Conversations & Chat Test ---
 
@@ -643,5 +598,311 @@ async function loadAnalytics() {
 
     } catch (error) {
         console.error("Error loading analytics:", error);
+    }
+}
+
+// ══════════════════════════════════════════════════
+// PERSONALIZAÇÃO DE TEMA
+// ══════════════════════════════════════════════════
+const PRESET_COLORS = [
+    { color: '#6366f1', label: 'Índigo (padrão)' },
+    { color: '#8b5cf6', label: 'Violeta' },
+    { color: '#ec4899', label: 'Rosa' },
+    { color: '#f59e0b', label: 'Âmbar' },
+    { color: '#10b981', label: 'Esmeralda' },
+    { color: '#0ea5e9', label: 'Céu' },
+    { color: '#ef4444', label: 'Vermelho' },
+    { color: '#0f172a', label: 'Slate Dark' },
+];
+
+function renderColorSwatches() {
+    const container = document.getElementById('colorSwatches');
+    if (!container) return;
+    const current = localStorage.getItem('accentColor') || '#6366f1';
+    container.innerHTML = PRESET_COLORS.map(p => `
+        <div class="color-swatch${p.color === current ? ' selected' : ''}"
+             style="background:${p.color};"
+             title="${p.label}"
+             onclick="applyAccentColor('${p.color}', this)">
+        </div>`).join('');
+}
+
+function applyAccentColor(color, swatchEl = null) {
+    document.documentElement.style.setProperty('--accent', color);
+
+    // Gerar luz e sombra auto
+    document.documentElement.style.setProperty('--accent-glow', color + '40');
+    document.documentElement.style.setProperty('--accent-subtle', color + '14');
+
+    // Atualizar picker
+    const picker = document.getElementById('customAccent');
+    if (picker) picker.value = color;
+
+    // Atualizar swatches selecionados
+    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+    if (swatchEl) swatchEl.classList.add('selected');
+
+    localStorage.setItem('accentColor', color);
+}
+
+async function saveThemePreferences() {
+    const prefs = {
+        accentColor: document.documentElement.style.getPropertyValue('--accent') || '#6366f1',
+        panelName: document.getElementById('panelName')?.value || 'Auto Tech Lith',
+        panelEmoji: document.getElementById('panelEmoji')?.value || '🤖',
+        panelLogoUrl: document.getElementById('panelLogoUrl')?.value || ''
+    };
+
+    try {
+        const configs = Object.keys(prefs).map(k => ({ key: k, value: prefs[k] }));
+        await authFetch('/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ configs })
+        });
+        showAlert('🎨 Marca global salva com sucesso!', 'success');
+    } catch (e) {
+        console.error('Erro ao salvar tema:', e);
+        showAlert('Erro ao salvar personalização', 'error');
+    }
+}
+
+async function loadThemePreferences() {
+    try {
+        const response = await fetch('/api/config'); // public or auth? It's currently authFetch in routes, but lets use authFetch
+        if (response && response.ok) {
+            const prefs = await response.json();
+            if (prefs.accentColor) applyAccentColor(prefs.accentColor);
+
+            if (prefs.panelName) {
+                const sidebarName = document.getElementById('sidebarName');
+                const panelNameInput = document.getElementById('panelName');
+                if (sidebarName) sidebarName.textContent = prefs.panelName;
+                if (panelNameInput) panelNameInput.value = prefs.panelName;
+            }
+
+            if (prefs.panelEmoji) {
+                const sidebarEmoji = document.getElementById('sidebarEmoji');
+                const panelEmojiInput = document.getElementById('panelEmoji');
+                if (sidebarEmoji) sidebarEmoji.textContent = prefs.panelEmoji;
+                if (panelEmojiInput) panelEmojiInput.value = prefs.panelEmoji;
+            }
+
+            if (prefs.panelLogoUrl) {
+                const panelLogoUrlInput = document.getElementById('panelLogoUrl');
+                if (panelLogoUrlInput) panelLogoUrlInput.value = prefs.panelLogoUrl;
+                updateSidebarLogo(); // apply logo to sidebar
+            }
+        }
+    } catch (e) {
+        console.warn('Erro ao carregar configurações globais:', e);
+    }
+    renderColorSwatches();
+}
+
+async function resetTheme() {
+    if (!confirm("Tem certeza que deseja apagar a personalização global?")) return;
+
+    // Default values
+    document.getElementById('panelName').value = 'Auto Tech Lith';
+    document.getElementById('panelEmoji').value = '🤖';
+    document.getElementById('panelLogoUrl').value = '';
+    applyAccentColor('#6366f1');
+    renderColorSwatches();
+
+    await saveThemePreferences();
+    showAlert('↩ Tema restaurado ao padrão e salvo.', 'success');
+}
+
+// GUI Helpers for Settings
+function switchSettingsTab(tabName) {
+    document.querySelectorAll('.inner-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('settingsProfilePanel').style.display = 'none';
+    document.getElementById('settingsBrandingPanel').style.display = 'none';
+
+    if (tabName === 'profile') {
+        document.getElementById('tabMyProfile').classList.add('active');
+        document.getElementById('settingsProfilePanel').style.display = 'block';
+    } else if (tabName === 'branding') {
+        document.getElementById('tabBranding').classList.add('active');
+        document.getElementById('settingsBrandingPanel').style.display = 'block';
+    }
+}
+
+function updateSidebarLogo() {
+    const url = document.getElementById('panelLogoUrl')?.value;
+    const header = document.querySelector('.sidebar-header h2');
+    if (header) {
+        if (url) {
+            header.innerHTML = `<img src="${url}" alt="Logo" style="max-height: 28px; width: auto; vertical-align: middle; margin-right: 8px;"> <span id="sidebarName">${document.getElementById('panelName').value || 'Auto Tech Lith'}</span><span id="sidebarEmoji" style="display:none;"></span>`;
+        } else {
+            const emoji = document.getElementById('panelEmoji')?.value || '🤖';
+            const name = document.getElementById('panelName')?.value || 'Auto Tech Lith';
+            header.innerHTML = `<span id="sidebarEmoji">${emoji}</span> <span id="sidebarName">${name}</span>`;
+        }
+    }
+}
+
+async function saveMyProfile(e) {
+    e.preventDefault();
+    const data = {
+        name: document.getElementById('myProfileName').value,
+        company_role: document.getElementById('myProfileRole').value,
+        avatar_url: document.getElementById('myProfileAvatarUrl').value,
+        bio: document.getElementById('myProfileBio').value
+    };
+
+    try {
+        const response = await authFetch('/api/v1/auth/me', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        if (response && response.ok) {
+            showAlert('👤 Perfil atualizado com sucesso!', 'success');
+            loadUser(); // refresh UI sidebar
+        }
+    } catch (error) {
+        console.error(error);
+        showAlert('Erro ao salvar perfil', 'error');
+    }
+}
+
+// ══════════════════════════════════════════════════
+// ÉPICO 4: AUTOMAÇÕES E RELATÓRIOS
+// ══════════════════════════════════════════════════
+
+async function loadAutomations() {
+    try {
+        const response = await authFetch(`${API_BASE}/automations`);
+        if (!response) return;
+        const automations = await response.json();
+        const tbody = document.getElementById('automationsBody');
+
+        if (automations.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:1rem;">Nenhuma regra configurada</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = automations.map(a => `
+            <tr>
+                <td>${a.is_active ? '✅' : '❌'}</td>
+                <td><strong>${a.name}</strong></td>
+                <td><span class="badge" style="background:#6366f1;color:white">${a.trigger_event}</span></td>
+                <td><span class="badge" style="background:#10b981;color:white">${a.action_type}</span></td>
+                <td>
+                    <button class="btn-danger btn-sm" onclick="deleteAutomation(${a.id})">Remover</button>
+                </td>
+            </tr>
+        `).join('');
+    } catch (e) {
+        console.error('Erro ao carregar automações:', e);
+    }
+}
+
+function openAutomationModal() {
+    document.getElementById('automationModal').classList.add('active');
+}
+
+function closeAutomationModal() {
+    document.getElementById('automationModal').classList.remove('active');
+}
+
+async function saveAutomation(e) {
+    e.preventDefault();
+    const payloadStr = document.getElementById('autoPayload').value || "{}";
+    let payload = {};
+    try {
+        payload = JSON.parse(payloadStr);
+    } catch (err) {
+        showAlert('JSON de payload inválido', 'error');
+        return;
+    }
+
+    const data = {
+        name: document.getElementById('autoName').value,
+        trigger_event: document.getElementById('autoTrigger').value,
+        action_type: document.getElementById('autoAction').value,
+        action_payload: payload,
+        is_active: document.getElementById('autoActive').checked
+    };
+
+    try {
+        const res = await authFetch(`${API_BASE}/automations`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        if (res && res.ok) {
+            showAlert('⚡ Regra de automação salva!', 'success');
+            closeAutomationModal();
+            loadAutomations();
+        }
+    } catch (err) {
+        console.error(err);
+        showAlert('Erro ao salvar automação', 'error');
+    }
+}
+
+async function deleteAutomation(id) {
+    if (!confirm('Excluir esta regra?')) return;
+    try {
+        await authFetch(`${API_BASE}/automations/${id}`, { method: 'DELETE' });
+        loadAutomations();
+    } catch (e) {
+        console.error(e);
+        showAlert('Erro ao remover automação', 'error');
+    }
+}
+
+async function exportCustomersCSV() {
+    try {
+        const response = await authFetch(`${API_BASE}/reports/customers/csv`);
+        if (!response) return;
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `clientes_export_${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        showAlert('📥 Relatório CSV gerado com sucesso!', 'success');
+    } catch (e) {
+        console.error(e);
+        showAlert('Erro ao exportar CSV', 'error');
+    }
+}
+
+async function handleImageUpload(fileInputId, urlInputId) {
+    const fileInput = document.getElementById(fileInputId);
+    const urlInput = document.getElementById(urlInputId);
+
+    if (!fileInput.files || fileInput.files.length === 0) return;
+
+    const file = fileInput.files[0];
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const response = await fetch(`${API_BASE}/upload`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.status === 'success') {
+            urlInput.value = result.url;
+            showAlert('Arquivo enviado com sucesso! Clique em Salvar para aplicar.', 'success');
+            urlInput.dispatchEvent(new Event('input', { bubbles: true }));
+        } else {
+            showAlert('Erro: ' + (result.detail || 'Falha ao enviar arquivo'), 'error');
+        }
+    } catch (err) {
+        showAlert('Erro de conexão ao enviar arquivo', 'error');
     }
 }

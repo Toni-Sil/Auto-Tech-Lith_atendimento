@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Admin · Auto Tech Lith</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/master.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+    <script>
+        // Immediate auth guard before any render
+        (function () {
+            const t = localStorage.getItem('token');
+            if (!t) { window.location.href = '/login.html'; return; }
+            try {
+                const p = JSON.parse(atob(t.split('.')[1]));
+                const ok = (p.role === 'owner' || p.role === 'master_admin') && !p.tenant_id;
+                if (!ok) window.location.href = '/';
+            } catch (_) { window.location.href = '/login.html'; }
+        })();
+    </script>
+
+    <!-- ═══════════════════ SIDEBAR ═══════════════════════════════ -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-brand">
+                <div class="sidebar-brand-icon">🛡️</div>
+                <div class="sidebar-brand-name">Auto Tech Lith</div>
+            </div>
+            <div class="sidebar-badge">🌍 Master Admin</div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-group-label">Visão Global</div>
+            <a class="nav-item active" data-target="dashboard">
+                <span class="nav-icon">📊</span> Dashboard Global
+            </a>
+            <a class="nav-item" data-target="tenants">
+                <span class="nav-icon">🏢</span> Gestão de Tenants
+            </a>
+
+            <div class="sidebar-divider"></div>
+            <div class="nav-group-label">Operação Interna</div>
+            <a class="nav-item" data-target="internal-ai">
+                <span class="nav-icon">🤖</span> IA Interna (Max)
+            </a>
+            <a class="nav-item" data-target="leads">
+                <span class="nav-icon">👥</span> Leads / CRM
+                <span class="nav-badge" id="leadsCount">0</span>
+            </a>
+            <a class="nav-item" data-target="internal-finance">
+                <span class="nav-icon">💸</span> Financeiro Interno
+            </a>
+
+            <div class="sidebar-divider"></div>
+            <div class="nav-group-label">Controle de Lojistas</div>
+            <a class="nav-item" data-target="quotas">
+                <span class="nav-icon">📊</span> Cotas & Rate Limit
+            </a>
+            <a class="nav-item" data-target="abuse">
+                <span class="nav-icon">🚨</span> Monitoramento de Abuso
+                <span class="nav-badge" id="abuseCount" style="background:var(--yellow)">0</span>
+            </a>
+
+            <div class="sidebar-divider"></div>
+            <div class="nav-group-label">🤵 Mordomo Digital</div>
+            <a class="nav-item" data-target="butler-status">
+                <span class="nav-icon">🖥️</span> Status & Infraestrutura
+            </a>
+            <a class="nav-item" data-target="butler-logs">
+                <span class="nav-icon">📋</span> Logs de Decisão
+            </a>
+            <a class="nav-item" data-target="butler-churn">
+                <span class="nav-icon">📉</span> Risco de Churn
+            </a>
+            <a class="nav-item" data-target="butler-billing">
+                <span class="nav-icon">💳</span> Relatório Billing
+            </a>
+            <a class="nav-item" data-target="butler-scheduler">
+                <span class="nav-icon">⏰</span> Agendador
+            </a>
+
+            <div class="sidebar-divider"></div>
+            <div class="nav-group-label">Suporte</div>
+            <a class="nav-item" data-target="tickets">
+                <span class="nav-icon">🎫</span> Tickets
+                <span class="nav-badge" id="ticketCount">0</span>
+            </a>
+            <a class="nav-item" data-target="logs">
+                <span class="nav-icon">📋</span> Logs & Auditoria
+            </a>
+
+            <div class="sidebar-divider"></div>
+            <div class="nav-group-label">Plataforma</div>
+            <a class="nav-item" data-target="faturamento">
+                <span class="nav-icon">💰</span> Faturamento
+            </a>
+            <a class="nav-item" data-target="infra">
+                <span class="nav-icon">⚙️</span> Infraestrutura
+            </a>
+            <a class="nav-item" data-target="kb">
+                <span class="nav-icon">📚</span> Base de Conhecimento
+            </a>
+            <a class="nav-item" data-target="configuracao">
+                <span class="nav-icon">⚙️</span> Configuração
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar" id="userAvatar">M</div>
+                <div class="user-details">
+                    <div class="user-name" id="userNameDisplay">Carregando...</div>
+                    <div class="user-role" id="userRoleDisplay">Master Admin</div>
+                </div>
+                <button onclick="logout()" class="btn-logout" title="Sair">🚪</button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ═══════════════════ MAIN CONTENT ══════════════════════════ -->
+    <main class="main-content">
+        <header class="top-bar">
+            <h1 class="page-title" id="pageTitle">Dashboard Global</h1>
+            <div class="top-actions">
+                <div class="live-clock" id="liveClock">--:--:--</div>
+                <button class="btn btn-ghost btn-sm" onclick="loadDashboard()">🔄 Atualizar</button>
+            </div>
+        </header>
+
+        <div class="content-wrapper">
+
+            <!-- ─────────── DASHBOARD GLOBAL ─────────────────── -->
+            <section id="dashboard" class="view-section active">
+                <!-- System status strip -->
+                <div
+                    style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1.5rem;
+                    background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:0.65rem 1rem;font-size:0.8rem;">
+                    <span class="text-muted">Status:</span>
+                    <span id="statusDb" class="badge active"><span class="status-dot online"></span>PostgreSQL</span>
+                    <span id="statusApi" class="badge active"><span class="status-dot online"></span>FastAPI</span>
+                    <span id="statusWorker" class="badge active"><span class="status-dot online"></span>Workers</span>
+                    <span style="margin-left:auto;" class="text-muted text-sm">Última sync: <span
+                            id="lastSync">—</span></span>
+                </div>
+
+                <!-- KPI row -->
+                <div class="grid-4 mb-3">
+                    <div class="stat-card">
+                        <h3>Total Tenants</h3>
+                        <div class="value" id="kpiTotalTenants">—</div>
+                        <div class="trend">Clientes na plataforma</div>
+                    </div>
+                    <div class="stat-card green">
+                        <h3>Tenants Ativos</h3>
+                        <div class="value" id="kpiActiveTenants">—</div>
+                        <div class="trend">Ativos nos últimos 30d</div>
+                    </div>
+                    <div class="stat-card purple">
+                        <h3>Interações (30d)</h3>
+                        <div class="value" id="kpiInteractions">—</div>
+                        <div class="trend">Mensagens processadas</div>
+                    </div>
+                    <div class="stat-card red">
+                        <h3>Alertas de Churn</h3>
+                        <div class="value" id="kpiChurnAlerts">—</div>
+                        <div class="trend">Queda >40% esta semana</div>
+                    </div>
+                </div>
+                <div class="grid-3 mb-3">
+                    <div class="stat-card yellow">
+                        <h3>Custo Total (30d)</h3>
+                        <div class="value" id="kpiTotalCost">—</div>
+                        <div class="trend">USD · todos os tenants</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Tokens Médios/Tenant</h3>
+                        <div class="value" id="kpiAvgTokens">—</div>
+                        <div class="trend">Média últimos 30 dias</div>
+                    </div>
+                    <div class="stat-card green">
+                        <h3>Uptime da Plataforma</h3>
+                        <div class="value">99.9%</div>
+                        <div class="trend">Últimas 30 dias</div>
+                    </div>
+                </div>
+
+                <!-- Bottom row: Churn Alerts + Top Tenants -->
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>⚠️ Alertas de Churn</h3>
+                            <span class="badge warn">Esta semana</span>
+                        </div>
+                        <div class="card-body" id="dashChurnAlerts" style="padding:0 1.5rem;">
+                            <p class="text-muted text-sm" style="text-align:center;padding:2rem;">Carregando...</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>🏆 Top Tenants por Uso</h3>
+                            <span class="badge info">Últimos 30d</span>
+                        </div>
+                        <div class="card-body" id="dashTopTenants" style="padding:0 1.5rem;">
+                            <p class="text-muted text-sm" style="text-align:center;padding:2rem;">Carregando...</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ─────────── TENANTS ────────────────────────────── -->
+            <section id="tenants" class="view-section">
+                <div class="flex-between mb-3">
+                    <div>
+                        <h2 style="font-size:1.05rem;font-weight:700;">🏢 Gestão de Tenants</h2>
+                        <p class="text-muted text-sm mt-1">Todos os lojistas cadastrados na plataforma.</p>
+                    </div>
+                    <div class="flex-center gap-1">
+                        <input type="text" id="tenantSearch" placeholder="🔍  Buscar tenant..."
+                            oninput="filterTenants(this.value)"
+                            style="width:220px;padding:0.5rem 0.85rem;font-size:0.82rem;">
+                        <button class="btn btn-ghost btn-sm" onclick="loadTenants()">🔄</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nome</th>
+                                    <th>Subdomínio</th>
+                                    <th>Status</th>
+                                    <th>Msgs (30d)</th>
+                                    <th>Tokens (30d)</th>
+                                    <th>Custo USD</th>
+                                    <th>Última Atividade</th>
+                                    <th>Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tenantsBody">
+                                <tr>
+                                    <td colspan="8" style="text-align:center;color:var(--text-muted);padding:2rem;">
+                                        Carregando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ─────────── TICKETS ────────────────────────────── -->
+            <section id="tickets" class="view-section">
+                <div class="flex-between mb-3">
+                    <div>
+                        <h2 style="font-size:1.05rem;font-weight:700;">🎫 Central de Suporte</h2>
+                        <p class="text-muted text-sm mt-1">Tickets de suporte técnico e operacional.</p>
+                    </div>
+                    <div class="flex-center gap-1">
+                        <span class="badge warn" id="openTicketsCount">0 abertos</span>
+                    </div>
+                </div>
+
+                <!-- SLA summary -->
+                <div class="grid-3 mb-3">
+                    <div class="stat-card green">
+                        <h3>Resolvidos</h3>
+                        <div class="value" id="ticketsResolved">—</div>
+                    </div>
+                    <div class="stat-card yellow">
+                        <h3>Pendentes</h3>
+                        <div class="value" id="ticketsPending">—</div>
+                    </div>
+                    <div class="stat-card red">
+                        <h3>Alta Prioridade</h3>
+                        <div class="value" id="ticketsHigh">—</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Cliente</th>
+                                    <th>Assunto</th>
+                                    <th>Prioridade</th>
+                                    <th>Status</th>
+                                    <th>Data</th>
+                                    <th>Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ticketsBody">
+                                <tr>
+                                    <td colspan="7" style="text-align:center;color:var(--text-muted);padding:2rem;">
+                                        Carregando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ─────────── LOGS & AUDITORIA ──────────────────── -->
+            <section id="logs" class="view-section">
+                <div class="flex-between mb-3">
+                    <div>
+                        <h2 style="font-size:1.05rem;font-weight:700;">📋 Logs & Auditoria</h2>
+                        <p class="text-muted text-sm mt-1">Registros estruturados e auditáveis de todas as ações
+                            críticas.</p>
+                    </div>
+                    <div class="flex-center gap-1">
+                        <select id="logTenant" style="width:160px;font-size:0.82rem;" onchange="loadAuditLogs()">
+                            <option value="">Todos Tenants</option>
+                        </select>
+                        <select id="logLevel" style="width:130px;font-size:0.82rem;" onchange="loadAuditLogs()">
+                            <option value="">Todos Níveis</option>
+                            <option value="info">INFO</option>
+                            <option value="warning">WARNING</option>
+                            <option value="error">ERROR</option>
+                            <option value="critical">CRITICAL</option>
+                        </select>
+                        <button class="btn btn-ghost btn-sm" onclick="loadAuditLogs()">🔄</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Tenant</th>
+                                    <th>Usuário</th>
+                                    <th>Ação</th>
+                                    <th>Nível</th>
+                                    <th>IP</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logsBody">
+                                <tr>
+                                    <td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem;">
+                                        Carregando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ─────────── FATURAMENTO ────────────────────────── -->
+            <section id="faturamento" class="view-section">
+                <div class="flex-between mb-3">
+                    <div>
+                        <h2 style="font-size:1.05rem;font-weight:700;">💰 Faturamento</h2>
+                        <p class="text-muted text-sm mt-1">Consumo e estimativa de receita por tenant — últimos 30 dias.
+                        </p>
+                    </div>
+                    <div style="background:linear-gradient(135deg,#064e3b,#065f46);border:1px solid #10b981;
+                        border-radius:12px;padding:0.75rem 1.25rem;text-align:right;">
+                        <div class="text-sm text-muted">Total Plataforma (30d)</div>
+                        <div style="font-size:1.5rem;font-weight:800;color:var(--green);" id="billingTotal">$0.0000
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Tenant</th>
+                                    <th>Mensagens</th>
+                                    <th>Tokens</th>
+                                    <th>Custo USD (30d)</th>
+                                    <th>% do Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="billingBody">
+                                <tr>
+                                    <td colspan="5" style="text-align:center;color:var(--text-muted);padding:2rem;">
+                                        Carregando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ─────────── INFRAESTRUTURA ─────────────────────── -->
+            <section id="infra" class="view-section">
+                <div class="flex-between mb-3">
+                    <div>
+                        <h2 style="font-size:1.05rem;font-weight:700;">⚙️ Infraestrutura</h2>
+                        <p class="text-muted text-sm mt-1">Status dos serviços e containers Docker em tempo real.</p>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="loadInfra()">🔄 Atualizar</button>
+                </div>
+
+                <div class="infra-grid" id="infraGrid">
+                    <!-- Filled by JS -->
+                    <div class="infra-card"
+                        style="grid-column:1/-1;text-align:center;padding:2rem;color:var(--text-muted);">Carregando...
+                    </div>
+                </div>
+            </section>
+
+            <!-- ─────────── BASE DE CONHECIMENTO ──────────────── -->
+            <section id="kb" class="view-section">
+                <div class="mb-3">
+                    <h2 style="font-size:1.05rem;font-weight:700;">📚 Base de Conhecimento Interna</h2>
+                    <p class="text-muted text-sm mt-1">Tutoriais e guias operacionais para a equipe de suporte.</p>
+                </div>
+                <div class="card">
+                    <div class="card-body" style="padding:0;">
+                        <div class="kb-accordion" id="kbList">
+                            <!-- Filled by JS -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+
+            <!-- ─────────── IA INTERNA ──────────────────────────── -->
+            <section id="internal-ai" class="view-section">
+                <div class="flex-between mb-3">
+                    <div>
+                        <h2 style="font-size:1.05rem;font-weight:700;">🤖 IA Interna — Agente Max</h2>
+                        <p class="text-muted text-sm mt-1">Configure a personalidade e prompts do agente interno da Auto
+                            Tech Lith.</p>
+                    </div>
+                    <button class="btn btn-primary btn-sm" onclick="saveInternalAI()">💾 Salvar</button>
+                </div>
+                <div class="ai-config-panel">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>⚙️ Configurações do Agente</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group"><label>Nome do Agente</label><input id="aiAgentName" type="text"
+                                    value="Max" oninput="updateAIPreview()"></div>
+                            <div class="form-group"><label>Tom de Voz</label>
+                                <select id="aiTone" onchange="updateAIPreview()">
+                                    <option value="professional">Profissional</option>
+                                    <option value="friendly">Amigável</option>
+                                    <option value="formal">Formal</option>
+                                    <option value="casual">Casual</option>
+                                    <option value="technical">Técnico</option>
+                                </select>
+                            </div>
+                            <div class="form-group"><label>Persona / Personalidade</label><textarea id="aiPersona"
+                                    rows="3" placeholder="Ex: Especialista em automação, direto e eficiente..."
+                                    oninput="updateAIPreview()"></textarea></div>
+                            <div class="form-group"><label>Prompt Base do Sistema</label><textarea id="aiBasePrompt"
+                                    rows="5"
+                                    placeholder="Você é Max, assistente interno da Auto Tech Lith..."></textarea></div>
+                        </div>
+                    </div>
+                    <div class="ai-preview-box">
+                        <div class="ai-avatar-ring">🤖</div>
+                        <div class="ai-name-display" id="aiPreviewName">Max</div>
+                        <div class="ai-tone-display" id="aiPreviewTone">Tom: Profissional</div>
+                        <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid rgba(255,255,255,0.1)">
+                            <div
+                                style="font-size:0.72rem;color:#a5b4fc;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.75rem">
+                                Preview — Persona</div>
+                            <div id="aiPreviewPersona"
+                                style="font-size:0.82rem;color:var(--text-secondary);line-height:1.6">Preencha os campos
+                                ao lado...</div>
+                        </div>
+                        <div style="margin-top:1.25rem;display:flex;gap:0.5rem;flex-wrap:wrap">
+                            <span class="badge active">🔒 Tenant Interno</span>
+                            <span class="badge info">🔐 Isolado dos Clientes</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ─────────── LEADS / CRM ────────────────────────── -->
+            <section id="leads" class="view-section">
+                <div class="flex-between mb-3">
+                    <div>
+                        <h2 style="font-size:1.05rem;font-weight:700;">👥 Leads & Prospecção</h2>
+                        <p class="text-muted text-sm mt-1">Mini-CRM interno — funil comercial da Auto Tech Lith.</p>
+                    </div>
+                    <div class="flex-center gap-1">
+                        <div class="inner-tabs">
+                            <button class="inner-tab active" onclick="switchLeadView('kanban',this)">🗂️ Kanban</button>
+                            <button class="inner-tab" onclick="switchLeadView('list',this)">📋 Lista</button>
+                            <button class="inner-tab" onclick="switchLeadView('metrics',this)">📊 Métricas</button>
+                        </div>
+                        <button class="btn btn-primary btn-sm" onclick="openLeadModal()">+ Novo Lead</button>
+                        <button class="btn btn-ghost btn-sm" onclick="loadLeads()">🔄</button>
+                    </div>
+                </div>
+                <div id="leadsKanban" class="kanban-board">
+                    <div class="kanban-col col-contact">
+                        <div class="kanban-col-header">📞 Contato<span class="nav-badge" id="cCont">0</span></div>
+                        <div class="kanban-col-body" id="colContact"></div>
+                    </div>
+                    <div class="kanban-col col-briefing">
+                        <div class="kanban-col-header">📝 Briefing<span class="nav-badge" id="cBrief">0</span></div>
+                        <div class="kanban-col-body" id="colBriefing"></div>
+                    </div>
+                    <div class="kanban-col col-proposal">
+                        <div class="kanban-col-header">📄 Proposta<span class="nav-badge" id="cProp">0</span></div>
+                        <div class="kanban-col-body" id="colProposal"></div>
+                    </div>
+                    <div class="kanban-col col-nego">
+                        <div class="kanban-col-header">🤝 Negociação<span class="nav-badge" id="cNego">0</span></div>
+                        <div class="kanban-col-body" id="colNego"></div>
+                    </div>
+                    <div class="kanban-col col-won">
+                        <div class="kanban-col-header">✅ Ganho<span class="nav-badge" id="cWon">0</span></div>
+                        <div class="kanban-col-body" id="colWon"></div>
+                    </div>
+                    <div class="kanban-col col-lost">
+                        <div class="kanban-col-header">❌ Perdido<span class="nav-badge" id="cLost">0</span></div>
+                        <div class="kanban-col-body" id="colLost"></div>
+                    </div>
+                </div>
+                <div id="leadsListView" style="display:none">
+                    <div class="card">
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Nome</th>
+                                        <th>Empresa</th>
+                                        <th>Status</th>
+                                        <th>MRR Est.</th>
+                                        <th>Responsável</th>
+                                        <th>Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="leadsListBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div id="leadsMetricsView" style="display:none">
+                    <div class="grid-4 mb-3">
+                        <div class="stat-card blue">
+                            <h3>Contato</h3>
+                            <div class="value" id="mContact">—</div>
+                        </div>
+                        <div class="stat-card purple">
+                            <h3>Briefing</h3>
+                            <div class="value" id="mBriefing">—</div>
+                        </div>
+                        <div class="stat-card yellow">
+                            <h3>Proposta</h3>
+                            <div class="value" id="mProposal">—</div>
+                        </div>
+                        <div class="stat-card green">
+                            <h3>Conversão</h3>
+                            <div class="value" id="mConversion">—</div>
+                            <div class="trend">% Ganhos / Fechamentos</div>
+                        </div>
+                    </div>
+                    <div class="grid-2">
+                        <div class="stat-card green">
+                            <h3>✅ Ganhos</h3>
+                            <div class="value" id="mWon">—</div>
+                        </div>
+                        <div class="stat-card red">
+                            <h3>❌ Perdidos</h3>
+                            <div class="value" id="mLost">—</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ─────────── FINANCEIRO INTERNO ─────────────────── -->
+            <section id="internal-finance" class="view-section">
+                <div class="flex-between mb-3">
+                    <div>
+                        <h2 style="font-size:1.05rem;font-weight:700;">💸 Financeiro Interno</h2>
+                        <p class="text-muted text-sm mt-1">Rateio de custos de API/IA e CAC por tenant — últimos 30
+                            dias.</p>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="loadFinancial()">🔄 Atualizar</button>
+                </div>
+                <div class="grid-4 mb-3">
+                    <div class="stat-card yellow">
+                        <h3>Custo Total (30d)</h3>
+                        <div class="value" id="finTotalCost">—</div>
+                        <div class="trend">USD</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Interações</h3>
+                        <div class="value" id="finInteractions">—</div>
+                    </div>
+                    <div class="stat-card purple">
+                        <h3>Tokens</h3>
+                        <div class="value" id="finTokens">—</div>
+                    </div>
+                    <div class="stat-card green">
+                        <h3>CAC Estimado</h3>
+                        <div class="value" id="finCAC">—</div>
+                        <div class="trend">Por tenant pagante</div>
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>💰 Rateio por Tenant</h3>
+                        </div>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Tenant</th>
+                                        <th>Interações</th>
+                                        <th>Tokens</th>
+                                        <th>Custo USD</th>
+                                        <th>%</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="finBreakdownBody">
+                                    <tr>
+                                        <td colspan="5" style="text-align:center;color:var(--text-muted);padding:2rem">
+                                            Carregando...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>📋 Últimas Transações</h3>
+                        </div>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Tenant</th>
+                                        <th>Modelo</th>
+                                        <th>Tokens</th>
+                                        <th>Custo</th>
+                                        <th>Data</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="finTransBody">
+                                    <tr>
+                                        <td colspan="5" style="text-align:center;color:var(--text-muted);padding:2rem">
+                                            Carregando...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ─────────── COTAS & RATE LIMIT ─────────────────── -->
+            <section id="quotas" class="view-section">
+                <div class="flex-between mb-3">
+                    <div>
+                        <h2 style="font-size:1.05rem;font-weight:700;">📊 Cotas & Rate Limiting</h2>
+                        <p class="text-muted text-sm mt-1">Limites de instâncias WhatsApp e mensagens por lojista.</p>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="loadQuotas()">🔄 Atualizar</button>
+                </div>
+                <div class="card">
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Tenant</th>
+                                    <th>Plano</th>
+                                    <th>WhatsApp</th>
+                                    <th>Msgs/Dia</th>
+                                    <th>Msgs/Mês</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="quotasBody">
+                                <tr>
+                                    <td colspan="7" style="text-align:center;color:var(--text-muted);padding:2rem">
+                                        Carregando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ─────────── MONITORAMENTO DE ABUSO ─────────────── -->
+            <section id="abuse" class="view-section">
+                <div class="flex-between mb-3">
+                    <div>
+                        <h2 style="font-size:1.05rem;font-weight:700;">🚨 Monitoramento de Abuso</h2>
+                        <p class="text-muted text-sm mt-1">Tenants ≥80% das cotas. Alertas automáticos com sugestão de
+                            upgrade.</p>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="loadAbuseAlerts()">🔄 Atualizar</button>
+                </div>
+                <div class="grid-3 mb-3">
+                    <div class="stat-card yellow">
+                        <h3>⚠️ Warning</h3>
+                        <div class="value" id="abuseWarnCount">—</div>
+                        <div class="trend">≥80% da cota</div>
+                    </div>
+                    <div class="stat-card red">
+                        <h3>🔴 Crítico</h3>
+                        <div class="value" id="abuseCritCount">—</div>
+                        <div class="trend">≥90% da cota</div>
+                    </div>
+                    <div class="stat-card purple">
+                        <h3>🚫 Suspensos</h3>
+                        <div class="value" id="abuseSuspCount">—</div>
+                    </div>
+                </div>
+                <div class="abuse-grid" id="abuseGrid">
+                    <div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--text-muted)">Carregando
+                        alertas...</div>
+                </div>
+            </section>
+
+            <!-- ─────────── MORDOMO — STATUS & INFRA ────────────── -->
+            <section id="butler-status" class="view-section">
+                <div class="flex-between mb-3">
+                    <div>
+                        <h2 style="font-size:1.05rem;font-weight:700;">🖥️ Status & Infraestrutura</h2>
+                        <p class="text-muted text-sm mt-1">Snapshot em tempo real de containers, banco de dados e API.
+                        </p>
+                    </div>
+                    <button class="btn btn-primary btn-sm" onclick="loadButlerStatus()">🔄 Verificar Agora</button>
+                </div>
+                <div class="grid-3 mb-3">
+                    <div class="stat-card" id="bsSummary">
+                        <h3>Status Global</h3>
+                        <div class="value" id="bsOverall">—</div>
+                    </div>
+                    <div class="stat-card green">
+                        <h3>Serviços OK</h3>
+                        <div class="value" id="bsOkCount">—</div>
+                    </div>
+                    <div class="stat-card red">
+                        <h3>Degradados/Down</h3>
+                        <div class="value" id="bsBadCount">—</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Serviço</th>
+                                    <th>Status</th>
+                                    <th>Latência</th>
+                                    <th>Detalhe</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bsServicesBody">
+                                <tr>
+                                    <td colspan="4" style="text-align:center;color:var(--text-muted);padding:2rem">
+                                        Clique em "Verificar Agora" para iniciar o diagnóstico.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ─────────── MORDOMO — LOGS DE DECISÃO ─────────────── -->
+            <section id="butler-logs" class="view-section">
+                <div class="flex-between mb-3">
+                    <div>
+                        <h2 style="font-size:1.05rem;font-weight:700;">📋 Logs de Decisão</h2>
+                        <p class="text-muted text-sm mt-1">Trilha imutável de todas as ações autônomas do Mordomo.</p>
+                    </div>
+                    <div style="display:flex;gap:0.5rem;align-items:center">
+                        <select id="blSeverityFilter" class="btn btn-ghost btn-sm" onchange="loadButlerLogs()">
+                            <option value="">Todos</option>
+                            <option value="critical">🔴 Critical</option>
+                            <option value="high">🟠 High</option>
+                            <option value="medium">🟡 Medium</option>
+                            <option value="low">🟢 Low</option>
+                        </select>
+                        <button class="btn btn-ghost btn-sm" onclick="loadButlerLogs()">🔄 Atualizar</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Data/Hora</th>
+                                    <th>Ação</th>
+                                    <th>Severidade</th>
+                                    <th>Tenant</th>
+                                    <th>Resultado</th>
+                                    <th>Descrição</th>
+                                </tr>
+                            </thead>
+                            <tbody id="blBody">
+                                <tr>
+                                    <td colspan="7" style="text-align:center;color:var(--text-muted);padding:2rem">
+                                        Carregando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ─────────── MORDOMO — RISCO DE CHURN ──────────────── -->
+            <section id="butler-churn" class="view-section">
+                <div class="flex-between mb-3">
+                    <div>
+                        <h2 style="font-size:1.05rem;font-weight:700;">📉 Risco de Churn</h2>
+                        <p class="text-muted text-sm mt-1">Tenants com queda de uso ≥40% na última semana.</p>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="loadButlerChurn()">🔄 Atualizar</button>
+                </div>
+                <div class="grid-3 mb-3">
+                    <div class="stat-card red">
+                        <h3>🔴 Crítico</h3>
+                        <div class="value" id="bChurnCritical">—</div>
+                    </div>
+                    <div class="stat-card yellow">
+                        <h3>🟠 Alto</h3>
+                        <div class="value" id="bChurnHigh">—</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>📊 Médio/Baixo</h3>
+                        <div class="value" id="bChurnMedLow">—</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Tenant</th>
+                                    <th>Risco</th>
+                                    <th>Queda</th>
+                                    <th>Semana Passada</th>
+                                    <th>Esta Semana</th>
+                                    <th>Ação Recomendada</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bChurnBody">
+                                <tr>
+                                    <td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem">
+                                        Carregando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ─────────── MORDOMO — RELATÓRIO BILLING ───────────── -->
+            <section id="butler-billing" class="view-section">
+                <div class="flex-between mb-3">
+                    <div>
+                        <h2 style="font-size:1.05rem;font-weight:700;">💳 Relatório de Billing</h2>
+                        <p class="text-muted text-sm mt-1">Alertas de cota e ranking de consumo dos últimos 30 dias.</p>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="loadButlerBilling()">🔄 Atualizar</button>
+                </div>
+                <div class="grid-3 mb-3">
+                    <div class="stat-card red">
+                        <h3>🔴 Críticos</h3>
+                        <div class="value" id="bBillCritical">—</div>
+                    </div>
+                    <div class="stat-card yellow">
+                        <h3>⚠️ Warnings</h3>
+                        <div class="value" id="bBillWarning">—</div>
+                    </div>
+                    <div class="stat-card purple">
+                        <h3>🚫 Suspensos</h3>
+                        <div class="value" id="bBillSuspended">—</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3>📊 Alertas de Cota</h3>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Tenant</th>
+                                    <th>Nível</th>
+                                    <th>Dia %</th>
+                                    <th>Mês %</th>
+                                    <th>Upgrade Sugerido</th>
+                                    <th>Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bBillBody">
+                                <tr>
+                                    <td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem">
+                                        Carregando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h3>🏆 Top Consumidores (30d)</h3>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Tenant</th>
+                                    <th>Interações</th>
+                                    <th>Tokens</th>
+                                    <th>Custo USD</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bTopBody">
+                                <tr>
+                                    <td colspan="4" style="text-align:center;color:var(--text-muted);padding:2rem">
+                                        Carregando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ─────────── MORDOMO — AGENDADOR ───────────────────── -->
+            <section id="butler-scheduler" class="view-section">
+                <div class="flex-between mb-3">
+                    <div>
+                        <h2 style="font-size:1.05rem;font-weight:700;">⏰ Agendador do Mordomo</h2>
+                        <p class="text-muted text-sm mt-1">Jobs automáticos: infra (5min), cotas (15min),
+                            churn/relatório (diário).</p>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="loadSchedulerJobs()">🔄 Atualizar</button>
+                </div>
+                <div class="card">
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Job</th>
+                                    <th>Nome</th>
+                                    <th>Trigger</th>
+                                    <th>Próxima Execução</th>
+                                    <th>Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bJobsBody">
+                                <tr>
+                                    <td colspan="5" style="text-align:center;color:var(--text-muted);padding:2rem">
+                                        Carregando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ─────────── CONFIGURAÇÃO ────────────────────────── -->
+            <section id="configuracao" class="view-section">
+                <div class="flex-between mb-3">
+                    <div>
+                        <h2 style="font-size:1.05rem;font-weight:700;">⚙️ Configuração da Conta</h2>
+                        <p class="text-muted text-sm mt-1">Gerencie seu perfil de acesso e credenciais Master Admin.</p>
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <!-- Profile -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>👤 Perfil do Operador</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group"><label>Nome</label><input id="cfgName" type="text"
+                                    placeholder="Seu nome"></div>
+                            <div class="form-group"><label>E-mail</label><input id="cfgEmail" type="email"
+                                    placeholder="email@empresa.com"></div>
+                            <div class="form-group"><label>Telefone</label><input id="cfgPhone" type="text"
+                                    placeholder="+55 11 99999-9999"></div>
+                            <button class="btn btn-primary" onclick="saveAccountProfile()">💾 Salvar Perfil</button>
+                        </div>
+                    </div>
+
+                    <!-- Password -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>🔐 Alterar Senha</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group"><label>Senha Atual</label><input id="cfgOldPass" type="password"
+                                    placeholder="••••••••"></div>
+                            <div class="form-group"><label>Nova Senha</label><input id="cfgNewPass" type="password"
+                                    placeholder="••••••••"></div>
+                            <div class="form-group"><label>Confirmar Nova Senha</label><input id="cfgConfirmPass"
+                                    type="password" placeholder="••••••••"></div>
+                            <button class="btn btn-primary" onclick="changeAccountPassword()">🔑 Alterar Senha</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Webhooks & APIs -->
+                <div class="card mt-3">
+                    <div class="card-header flex-between">
+                        <h3>🔗 Webhooks e APIs do Sistema</h3>
+                        <button class="btn btn-primary btn-sm" onclick="openWebhookModal()">+ Registrar
+                            Integração</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Nome</th>
+                                        <th>Tipo</th>
+                                        <th>URL / Endpoint</th>
+                                        <th>Status</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="webhooksBody">
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted py-3">Carregando...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </div><!-- /content-wrapper -->
+    </main>
+
+    <!-- ─────────── CONFIGURAÇÃO ────────────────────── -->
+    <!-- This section is appended via JS when needed, but we add the DOM here -->
+
+    <!-- ═══ TENANT DETAIL DRAWER ══════════════════════════════════ -->
+    <div class="drawer-backdrop" id="drawerBackdrop" onclick="closeTenantDrawer()"></div>
+    <div class="drawer" id="tenantDrawer">
+        <div class="drawer-header">
+            <div>
+                <div style="font-weight:800;font-size:1rem;" id="drawerTenantName">Tenant</div>
+                <div class="text-muted text-sm" id="drawerTenantId">#—</div>
+            </div>
+            <button class="btn-close-drawer" onclick="closeTenantDrawer()">✕</button>
+        </div>
+        <div class="drawer-body">
+            <div class="grid-2 mb-3" style="gap:0.75rem;">
+                <div class="stat-card" style="padding:1rem;">
+                    <h3>Msgs (30d)</h3>
+                    <div class="value" style="font-size:1.4rem;" id="dtInteractions">—</div>
+                </div>
+                <div class="stat-card green" style="padding:1rem;">
+                    <h3>Tokens (30d)</h3>
+                    <div class="value" style="font-size:1.4rem;" id="dtTokens">—</div>
+                </div>
+                <div class="stat-card yellow" style="padding:1rem;">
+                    <h3>Custo USD</h3>
+                    <div class="value" style="font-size:1.4rem;" id="dtCost">—</div>
+                </div>
+                <div
+                    style="padding:1rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);">
+                    <h3
+                        style="font-size:0.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.65rem;">
+                        Status</h3>
+                    <div id="dtStatus">—</div>
+                </div>
+            </div>
+            <div style="color:var(--text-muted);font-size:0.82rem;text-align:center;padding:1rem;
+                border:1px dashed var(--border);border-radius:10px;">
+                📊 Detalhes de uso por canal, logs e configuração de IA disponíveis em breve.
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast container -->
+    <div id="alertContainer"></div>
+
+    <!-- ═══ ADD LEAD MODAL ══════════════════════════════════════════ -->
+    <div class="modal-overlay" id="leadModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <span id="leadModalTitle">+ Novo Lead</span>
+                <button class="btn-close-drawer" onclick="closeLeadModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="leadEditId">
+                <div class="form-group"><label>Nome *</label><input id="leadName" type="text"
+                        placeholder="Nome do prospecto"></div>
+                <div class="form-group"><label>Empresa</label><input id="leadCompany" type="text"
+                        placeholder="Nome da empresa"></div>
+                <div class="form-group"><label>WhatsApp / Telefone</label><input id="leadPhone" type="text"
+                        placeholder="+55 11 99999-9999"></div>
+                <div class="form-group"><label>E-mail</label><input id="leadEmail" type="email"
+                        placeholder="contato@empresa.com"></div>
+                <div class="form-group"><label>Origem</label>
+                    <select id="leadSource">
+                        <option value="">Selecionar...</option>
+                        <option value="WhatsApp">WhatsApp</option>
+                        <option value="LinkedIn">LinkedIn</option>
+                        <option value="Indicação">Indicação</option>
+                        <option value="Site">Site</option>
+                        <option value="Evento">Evento</option>
+                        <option value="Cold outreach">Cold outreach</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Status do Funil</label>
+                    <select id="leadStatus">
+                        <option value="contact">📞 Contato Inicial</option>
+                        <option value="briefing">📝 Briefing</option>
+                        <option value="proposal">📄 Proposta</option>
+                        <option value="negotiation">🤝 Negociação</option>
+                        <option value="closed_won">✅ Fechado — Ganho</option>
+                        <option value="closed_lost">❌ Fechado — Perdido</option>
+                    </select>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                    <div class="form-group"><label>MRR Estimado (R$)</label><input id="leadMRR" type="number"
+                            step="0.01" placeholder="0.00"></div>
+                    <div class="form-group"><label>CAC Estimado (R$)</label><input id="leadCAC" type="number"
+                            step="0.01" placeholder="0.00"></div>
+                </div>
+                <div class="form-group"><label>Responsável</label><input id="leadAssigned" type="text"
+                        placeholder="Username do operador"></div>
+                <div class="form-group"><label>Notas</label><textarea id="leadNotes" rows="3"
+                        placeholder="Observações iniciais..."></textarea></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeLeadModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="saveLead()">💾 Salvar Lead</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ QUOTA EDIT MODAL ════════════════════════════════════════ -->
+    <div class="modal-overlay" id="quotaModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <span id="quotaModalTitle">📊 Editar Cota</span>
+                <button class="btn-close-drawer" onclick="closeQuotaModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="quotaEditTenantId">
+                <div class="form-group"><label>Plano</label>
+                    <select id="quotaPlan">
+                        <option value="basic">Basic</option>
+                        <option value="pro">Pro</option>
+                        <option value="enterprise">Enterprise</option>
+                    </select>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                    <div class="form-group"><label>Máx. WhatsApp Instances</label><input id="quotaWA" type="number"
+                            min="0" placeholder="1"></div>
+                    <div class="form-group"><label>Máx. Msgs / Dia</label><input id="quotaDaily" type="number" min="0"
+                            placeholder="1000"></div>
+                </div>
+                <div class="form-group"><label>Máx. Msgs / Mês</label><input id="quotaMonthly" type="number" min="0"
+                        placeholder="20000"></div>
+                <div class="form-group"><label>Justificativa (opcional)</label><input id="quotaReason" type="text"
+                        placeholder="Ex: Upgrade de plano solicitado"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeQuotaModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="saveQuota()">💾 Salvar Cota</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ TENANT EDIT MODAL ════════════════════════════════════════ -->
+    <div class="modal-overlay" id="tenantModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <span id="tenantModalTitle">🏢 Editar Tenant</span>
+                <button class="btn-close-drawer" onclick="closeTenantModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editTenantId">
+                <div class="form-group"><label>Nome do Tenant</label>
+                    <input id="editTenantName" type="text" placeholder="Nome">
+                </div>
+                <div class="form-group"><label>Status</label>
+                    <select id="editTenantStatus">
+                        <option value="pending">Pendente</option>
+                        <option value="active">Ativo</option>
+                        <option value="suspended">Suspenso</option>
+                    </select>
+                </div>
+                <div class="form-group" style="display:flex; align-items:center; gap:0.5rem">
+                    <input type="checkbox" id="editTenantIsActive" style="width:auto">
+                    <label style="margin:0">Ativo (Permite Login)</label>
+                </div>
+
+                <hr style="border:0;border-top:1px solid var(--border);margin:1rem 0;">
+                <h4 style="margin-bottom:0.5rem;font-size:0.9rem">Limites e Cotas</h4>
+
+                <div class="form-group"><label>Plano</label>
+                    <select id="editTenantPlan">
+                        <option value="basic">Basic</option>
+                        <option value="pro">Pro</option>
+                        <option value="enterprise">Enterprise</option>
+                    </select>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                    <div class="form-group"><label>Instâncias WhatsApp</label>
+                        <input id="editTenantWA" type="number" min="0">
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                    <div class="form-group"><label>Msgs/Dia</label>
+                        <input id="editTenantDaily" type="number" min="0">
+                    </div>
+                    <div class="form-group"><label>Msgs/Mês</label>
+                        <input id="editTenantMonthly" type="number" min="0">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeTenantModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="saveTenantChanges()">💾 Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ WEBHOOK MODAL ════════════════════════════════════════════ -->
+    <div class="drawer-backdrop" id="webhookModalBackdrop" onclick="closeWebhookModal()"></div>
+    <div class="drawer" id="webhookModal" style="max-width:500px">
+        <div class="drawer-header">
+            <h2 id="webhookModalTitle">Registrar Integração</h2>
+            <button class="btn btn-ghost btn-sm" onclick="closeWebhookModal()">✕</button>
+        </div>
+        <div class="drawer-body">
+            <input type="hidden" id="webhookId">
+            <div class="form-group">
+                <label>Nome da Integração</label>
+                <input type="text" id="webhookName" placeholder="ex: Slack Notifications">
+            </div>
+            <div class="form-group">
+                <label>Tipo</label>
+                <select id="webhookType">
+                    <option value="webhook">Webhook (Saída - Notificações)</option>
+                    <option value="api">API (Entrada - Integração Externa)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>URL / Endpoint</label>
+                <input type="text" id="webhookUrl" placeholder="https://api.exemplo.com/webhook">
+            </div>
+            <div class="form-group">
+                <label>Método HTTP</label>
+                <select id="webhookMethod">
+                    <option value="POST">POST</option>
+                    <option value="GET">GET</option>
+                    <option value="PUT">PUT</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Token de Autenticação (Bearer)</label>
+                <input type="password" id="webhookToken" placeholder="••••••••••••">
+            </div>
+            <div class="form-group">
+                <label>Headers Extras (JSON)</label>
+                <textarea id="webhookHeaders" placeholder='{"X-Custom-Header": "value"}' rows="3"></textarea>
+            </div>
+            <div class="flex-row gap-2 mt-2">
+                <input type="checkbox" id="webhookActive" checked style="width:auto">
+                <label for="webhookActive">Ativa / Habilitada</label>
+            </div>
+        </div>
+        <div class="drawer-footer flex-end gap-2">
+            <button class="btn btn-ghost" onclick="closeWebhookModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="saveWebhook()">💾 Salvar Integração</button>
+        </div>
+    </div>
+
+    <script src="js/master.js?v=0.2.0"></script>
+</body>
+
+</html>

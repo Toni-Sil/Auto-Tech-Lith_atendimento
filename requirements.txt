@@ -1,11 +1,42 @@
-fastapi
-uvicorn
-sqlalchemy
-aiosqlite
-pydantic
-pydantic-settings
-openai
-python-dotenv
-httpx
-jinja2
-python-telegram-bot
+# Core framework
+fastapi==0.133.0
+uvicorn[standard]==0.41.0
+
+# Database
+sqlalchemy>=2.0.0,<2.1.0
+aiosqlite==0.22.1
+asyncpg>=0.29.0
+psycopg2-binary==2.9.11
+
+# Validation & Settings
+pydantic==2.12.5
+pydantic-settings==2.13.1
+
+# AI / LLM
+openai==2.23.0
+
+# HTTP & Templates
+httpx==0.28.1
+jinja2>=3.1.4
+python-multipart==0.0.22
+
+# Environment
+python-dotenv==1.2.1
+
+# Telegram
+python-telegram-bot==22.6
+
+# Security
+passlib[bcrypt]==1.7.4
+bcrypt>=3.2.0,<4.0.0
+python-jose[cryptography]==3.5.0
+cryptography==41.0.7
+
+# Scheduling (Butler Agent)
+APScheduler==3.11.2
+
+# Rate Limiting (Redis-backed sliding window)
+redis==5.2.1
+
+# Observability / Métricas (Prometheus)
+prometheus-client==0.21.1

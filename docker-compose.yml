@@ -1,1 +1,174 @@
-version: '3.9'\n\nservices:\n  # PostgreSQL Database\n  postgres:\n    image: postgres:15-alpine\n    container_name: auto_tech_lith_db\n    environment:\n      POSTGRES_USER: ${DB_USER:-admin}\n      POSTGRES_PASSWORD: ${DB_PASSWORD:-admin123}\n      POSTGRES_DB: ${DB_NAME:-auto_tech_lith}\n      TZ: America/Sao_Paulo\n    ports:\n      - \"${DB_PORT:-5432}:5432\"\n    volumes:\n      - postgres_data:/var/lib/postgresql/data\n    healthcheck:\n      test: [\"CMD-SHELL\", \"pg_isready -U ${DB_USER:-admin}\"]\n      interval: 10s\n      timeout: 5s\n      retries: 5\n    networks:\n      - auto_tech_network\n\n  # FastAPI Backend\n  backend:\n    build:\n      context: .\n      dockerfile: Dockerfile\n    container_name: auto_tech_lith_api\n    depends_on:\n      postgres:\n        condition: service_healthy\n    environment:\n      - DATABASE_URL=postgresql://${DB_USER:-admin}:${DB_PASSWORD:-admin123}@postgres:5432/${DB_NAME:-auto_tech_lith}\n      - ENV=${ENV:-development}\n      - DEBUG=${DEBUG:-True}\n      - OPENAI_API_KEY=${OPENAI_API_KEY}\n      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}\n      - EVOLUTION_API_URL=${EVOLUTION_API_URL:-http://localhost:8080}\n      - NGROK_AUTH_TOKEN=${NGROK_AUTH_TOKEN}\n    ports:\n      - \"${API_PORT:-8000}:8000\"\n    volumes:\n      - ./src:/app/src\n      - ./logs:/app/logs\n    healthcheck:\n      test: [\"CMD\", \"curl\", \"-f\", \"http://localhost:8000/health\"]\n      interval: 30s\n      timeout: 10s\n      retries: 3\n    networks:\n      - auto_tech_network\n    command: python -m src.main\n\n  # pgAdmin (Optional - Database Management)\n  pgadmin:\n    image: dpage/pgadmin4:latest\n    container_name: auto_tech_lith_pgadmin\n    environment:\n      PGADMIN_DEFAULT_EMAIL: admin@autotechlith.com\n      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}\n    ports:\n      - \"5050:80\"\n    depends_on:\n      - postgres\n    networks:\n      - auto_tech_network\n    profiles:\n      - dev\n\n  # Redis Cache (Optional)\n  redis:\n    image: redis:7-alpine\n    container_name: auto_tech_lith_redis\n    ports:\n      - \"6379:6379\"\n    networks:\n      - auto_tech_network\n    profiles:\n      - cache\n    healthcheck:\n      test: [\"CMD\", \"redis-cli\", \"ping\"]\n      interval: 10s\n      timeout: 5s\n      retries: 5\n\nvolumes:\n  postgres_data:\n    driver: local\n\nnetworks:\n  auto_tech_network:\n    driver: bridge
+services:
+
+  # ─── PostgreSQL Database ─────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: auto_tech_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-admin123}
+      POSTGRES_DB: ${DB_NAME:-auto_tech_lith}
+      TZ: America/Sao_Paulo
+    # SECURITY: do NOT expose port 5432 publicly on VPS — internal only
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-admin}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - auto_tech_network
+
+  # ─── Redis Cache ─────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: auto_tech_redis
+    restart: always
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redis2026}
+    # SECURITY: do NOT expose port 6379 publicly on VPS — internal only
+    volumes:
+      - redis_data:/data
+    networks:
+      - auto_tech_network
+    healthcheck:
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis2026}", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Evolution API (WhatsApp) ─────────────────────────────────────────────────
+  evolution_api:
+    image: evoapicloud/evolution-api:v2.3.7
+    container_name: auto_tech_evolution
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      # Servidor — OBRIGATÓRIO: defina a URL pública da VPS no .env
+      SERVER_URL: ${EVOLUTION_SERVER_URL}
+      # Autenticação
+      AUTHENTICATION_TYPE: apikey
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:-8571bc192fc944648da72a68273099d87c4713fc930c41cb82494a00e41224a2}
+      AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: "true"
+      # Banco de dados
+      DATABASE_ENABLED: "true"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://${DB_USER:-admin}:${DB_PASSWORD:-admin123}@postgres:5432/${EVOLUTION_DB_NAME:-evolution}
+      DATABASE_CONNECTION_CLIENT_NAME: evolution_api
+      DATABASE_SAVE_DATA_INSTANCE: "true"
+      DATABASE_SAVE_DATA_NEW_MESSAGE: "true"
+      DATABASE_SAVE_MESSAGE_UPDATE: "true"
+      DATABASE_SAVE_DATA_CONTACTS: "true"
+      DATABASE_SAVE_DATA_CHATS: "true"
+      DATABASE_SAVE_DATA_LABELS: "true"
+      DATABASE_SAVE_DATA_HISTORIC: "true"
+      # Redis
+      CACHE_REDIS_ENABLED: "true"
+      CACHE_REDIS_URI: redis://:${REDIS_PASSWORD:-redis2026}@redis:6379/6
+      CACHE_REDIS_PREFIX_KEY: evolution
+      CACHE_REDIS_SAVE_INSTANCES: "false"
+      CACHE_LOCAL_ENABLED: "false"
+      # WhatsApp
+      CONFIG_SESSION_PHONE_VERSION: ${CONFIG_SESSION_PHONE_VERSION:-2.3000.1028401180-stable}
+      CONFIG_PHONE_VERSION: ${CONFIG_PHONE_VERSION:-2.3000.1028401180}
+      WA_BUSINESS_TOKEN_WEBHOOK: ${EVOLUTION_WEBHOOK_TOKEN:-MEU_TOKEN_SECRETO}
+      WA_BUSINESS_URL: ${EVOLUTION_WA_BUSINESS_URL:-https://graph.facebook.com}
+      WA_BUSINESS_VERSION: v20.0
+      WA_BUSINESS_LANGUAGE: pt_BR
+      # QRCode
+      QRCODE_LIMIT: 30
+      QRCODE_COLOR: "#198754"
+      # Instâncias
+      DEL_INSTANCE: "false"
+      DEL_TEMP_INSTANCES: "true"
+      # Webhook Global
+      WEBHOOK_GLOBAL_ENABLED: "false"
+      WEBHOOK_GLOBAL_URL: ""
+      WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS: "false"
+      # Configurações de log
+      LOG_LEVEL: INFO
+      LOG_COLOR: "true"
+      LOG_BAILEYS: error
+      # Timezone
+      TZ: America/Sao_Paulo
+    volumes:
+      - evolution_instances:/evolution/instances
+      - ./logs:/app/logs
+    networks:
+      - auto_tech_network
+
+  # ─── Backend Application ──────────────────────────────────────────────────────
+  backend:
+    build: .
+    container_name: auto_tech_backend
+    restart: always
+    environment:
+      - ENV=production
+      - DEBUG=False
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DATABASE_URL=postgresql+asyncpg://${DB_USER:-admin}:${DB_PASSWORD:-admin123}@postgres:5432/${DB_NAME:-auto_tech_lith}
+      - EVOLUTION_API_URL=http://evolution_api:8080
+      - EVOLUTION_SERVER_URL=${EVOLUTION_SERVER_URL}
+      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
+      - EVOLUTION_INSTANCE_NAME=${EVOLUTION_INSTANCE_NAME:-default}
+      - SECRET_KEY=${SECRET_KEY}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - VERIFY_TOKEN=${VERIFY_TOKEN}
+      - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS:-["http://localhost"]}
+      - PUBLIC_URL=${PUBLIC_URL}
+      - METRICS_TOKEN=${METRICS_TOKEN}
+      - RATE_LIMIT_WHITELIST=${RATE_LIMIT_WHITELIST:-127.0.0.1}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-redis2026}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      evolution_api:
+        condition: service_started
+    volumes:
+      - ./logs:/app/logs
+      - ./frontend/assets/uploads:/app/frontend/assets/uploads
+    networks:
+      - auto_tech_network
+
+  # ─── pgAdmin (Gerenciador visual do banco) ────────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: auto_tech_pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@autotechlith.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
+      TZ: America/Sao_Paulo
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - auto_tech_network
+    profiles:
+      - dev
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  evolution_instances:
+    driver: local
+
+networks:
+  auto_tech_network:
+    driver: bridge

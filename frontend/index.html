@@ -7,13 +7,10 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Auto Tech Lith - Admin</title>
-    <!-- Use admin.css for new layout -->
-    <link rel="stylesheet" href="css/admin.css?v=2.0">
-    <!-- Keep original style for some components if needed, or migrate fully. For now, we use admin.css as primary -->
+    <title id="pageTabTitle">Admin · Auto Tech Lith · Antigravity</title>
+    <link rel="stylesheet" href="css/admin.css?v=3.0">
     <link rel="stylesheet" href="css/style.css?v=1.5">
     <style>
-        /* Overrides to ensure style.css doesn't break admin layout */
         body {
             display: flex;
             flex-direction: row;
@@ -30,19 +27,26 @@
 
 <body>
     <script>
-        // Security Check
-        if (!localStorage.getItem('token')) {
-            window.location.href = '/login.html';
-        }
+        // Redirect to login if not authenticated
+        if (!localStorage.getItem('token')) { window.location.href = '/login.html'; }
+        // Redirect Master Admin (no tenant_id) to their portal
+        try {
+            const p = JSON.parse(atob(localStorage.getItem('token').split('.')[1]));
+            if ((p.role === 'owner' || p.role === 'master_admin') && !p.tenant_id) {
+                window.location.href = '/master.html';
+            }
+        } catch (_) { }
     </script>
 
-    <!-- Sidebar -->
+    <!-- ═══════════════════════════ SIDEBAR ═══════════════════════════ -->
     <aside class="sidebar">
         <div class="sidebar-header">
-            <h2>🤖 Auto Tech Lith</h2>
+            <h2><span id="sidebarEmoji">🤖</span> <span id="sidebarName">Auto Tech Lith</span></h2>
+            <div class="sidebar-version">Antigravity Admin v3.0</div>
         </div>
 
         <nav class="sidebar-nav">
+            <div class="nav-group-label">Soluções</div>
             <a class="nav-item active" data-target="dashboard">
                 <span class="nav-icon">📊</span> Dashboard
             </a>
@@ -58,14 +62,56 @@
             <a class="nav-item" data-target="conversations">
                 <span class="nav-icon">💬</span> Conversas
             </a>
+
+            <div class="sidebar-divider"></div>
+            <div class="nav-group-label">Canais</div>
+            <a class="nav-item" data-target="canais">
+                <span class="nav-icon">📡</span> Status de Canais
+            </a>
+            <a class="nav-item" data-target="profiles">
+                <span class="nav-icon">🤖</span> Agentes &amp; Perfis
+            </a>
             <a class="nav-item" data-target="chat-test">
                 <span class="nav-icon">🧪</span> Testar Agente
             </a>
+
+            <div class="sidebar-divider"></div>
+            <div class="nav-group-label">Analytics</div>
             <a class="nav-item" data-target="analytics">
                 <span class="nav-icon">📈</span> Analytics
             </a>
+            <a class="nav-item" data-target="automations">
+                <span class="nav-icon">⚡</span> Automações
+            </a>
+
+            <div class="sidebar-divider" id="saasDivider"></div>
+            <div class="nav-group-label" id="saasGroupLabel">IA &amp; Funil</div>
+            <a class="nav-item" data-target="ai-config" id="navAiConfig">
+                <span class="nav-icon">🔐</span> Configuração de IA
+            </a>
+            <a class="nav-item" data-target="workflow" id="navWorkflow">
+                <span class="nav-icon">🔄</span> Funil de Vendas
+            </a>
+
+            <div class="sidebar-divider"></div>
+            <div class="nav-group-label">Faturamento</div>
+            <a class="nav-item" data-target="usage" id="navUsage">
+                <span class="nav-icon">💳</span> Uso &amp; Faturamento
+            </a>
+
+            <div class="sidebar-divider"></div>
+            <div class="nav-group-label">Configurações</div>
+            <a class="nav-item" data-target="webhooks">
+                <span class="nav-icon">🔗</span> Webhooks &amp; APIs
+            </a>
+            <a class="nav-item" data-target="prompt-wizard">
+                <span class="nav-icon">✨</span> Gerador de Prompts
+            </a>
             <a class="nav-item" data-target="settings">
                 <span class="nav-icon">⚙️</span> Configurações
+            </a>
+            <a class="nav-item" data-target="ajuda">
+                <span class="nav-icon">📚</span> Ajuda
             </a>
         </nav>
 
@@ -81,21 +127,20 @@
         </div>
     </aside>
 
-    <!-- Main Content -->
+    <!-- ═══════════════════════════ MAIN ═══════════════════════════ -->
     <main class="main-content">
         <header class="top-bar">
             <h1 class="page-title" id="pageTitle">Dashboard</h1>
             <div class="top-actions">
-                <button class="btn-primary" onclick="loadStats()">🔄 Atualizar</button>
+                <button class="btn-secondary btn-sm" onclick="loadStats()">🔄 Atualizar</button>
             </div>
         </header>
 
         <div class="content-wrapper">
 
-            <!-- VIEW: DASHBOARD -->
+            <!-- ─────────────── DASHBOARD ─────────────── -->
             <section id="dashboard" class="view-section active">
-                <div class="stats"
-                    style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-bottom: 2rem;">
+                <div class="grid-4" style="margin-bottom:1.75rem;">
                     <div class="stat-card">
                         <h3>Clientes Ativos</h3>
                         <div class="value" id="activeCustomers">0</div>
@@ -113,16 +158,22 @@
                         <div class="value" id="todayConversations">0</div>
                     </div>
                 </div>
-                <!-- Future: Charts or Recent Activity -->
             </section>
 
-            <!-- VIEW: CUSTOMERS -->
+            <!-- ─────────────── CLIENTES ─────────────── -->
             <section id="customers" class="view-section">
-                <div style="margin-bottom: 20px;">
-                    <button class="btn-primary" onclick="openCustomerModal()">+ Novo Cliente</button>
+                <div class="flex-between mb-2">
+                    <div>
+                        <h2 style="margin:0;font-size:1.1rem;font-weight:700;">Clientes</h2>
+                        <p class="text-muted mt-1">Gerencie seus clientes cadastrados no sistema.</p>
+                    </div>
+                    <div style="display: flex; gap: 0.75rem;">
+                        <button class="btn-secondary" onclick="exportCustomersCSV()">📥 Exportar CSV</button>
+                        <button class="btn-primary" onclick="openCustomerModal()">+ Novo Cliente</button>
+                    </div>
                 </div>
                 <div class="table-responsive">
-                    <table id="customersTable" style="width: 100%; border-collapse: collapse;">
+                    <table id="customersTable">
                         <thead>
                             <tr>
                                 <th>ID</th>
@@ -139,13 +190,17 @@
                 </div>
             </section>
 
-            <!-- VIEW: MEETINGS -->
+            <!-- ─────────────── REUNIÕES ─────────────── -->
             <section id="meetings" class="view-section">
-                <div style="margin-bottom: 20px;">
+                <div class="flex-between mb-2">
+                    <div>
+                        <h2 style="margin:0;font-size:1.1rem;font-weight:700;">Reuniões</h2>
+                        <p class="text-muted mt-1">Gerencie as reuniões agendadas pelo agente.</p>
+                    </div>
                     <button class="btn-primary" onclick="openMeetingModal()">+ Agendar Reunião</button>
                 </div>
                 <div class="table-responsive">
-                    <table id="meetingsTable" style="width: 100%; border-collapse: collapse;">
+                    <table id="meetingsTable">
                         <thead>
                             <tr>
                                 <th>Cliente</th>
@@ -161,10 +216,13 @@
                 </div>
             </section>
 
-            <!-- VIEW: TICKETS -->
+            <!-- ─────────────── TICKETS ─────────────── -->
             <section id="tickets" class="view-section">
+                <div class="flex-between mb-2">
+                    <h2 style="margin:0;font-size:1.1rem;font-weight:700;">Tickets</h2>
+                </div>
                 <div class="table-responsive">
-                    <table id="ticketsTable" style="width: 100%; border-collapse: collapse;">
+                    <table id="ticketsTable">
                         <thead>
                             <tr>
                                 <th>ID</th>
@@ -181,131 +239,885 @@
                 </div>
             </section>
 
-            <!-- VIEW: CONVERSATIONS (NEW) -->
+            <!-- ─────────────── CONVERSAS ─────────────── -->
             <section id="conversations" class="view-section">
                 <div id="conversationsList">
-                    <p style="text-align: center; color: #6b7280; margin-top: 2rem;">Carregando conversas...</p>
+                    <p class="text-muted" style="text-align:center;margin-top:3rem;">Carregando conversas...</p>
                 </div>
             </section>
 
-            <!-- VIEW: TEST AGENT (NEW) -->
+            <!-- ─────────────── TESTAR AGENTE ─────────────── -->
             <section id="chat-test" class="view-section">
                 <div class="chat-container">
                     <div class="chat-messages" id="chatTestMessages">
                         <div class="message agent">
-                            Olá! Sou o Auto Tech Lith. Como posso ajudar você hoje? de um teste
+                            Olá! Sou o agente de atendimento. Como posso ajudar você hoje? Faça um teste aqui!
                         </div>
                     </div>
                     <div class="chat-input-area">
                         <input type="text" class="chat-input" id="chatTestInput"
-                            placeholder="Digite sua mensagem para testar o agente...">
+                            placeholder="Digite sua mensagem para testar o agente..."
+                            onkeydown="if(event.key==='Enter') sendTestMessage()">
                         <button class="btn-primary" onclick="sendTestMessage()">Enviar</button>
                     </div>
                 </div>
             </section>
 
-            <!-- VIEW: ANALYTICS -->
+            <!-- ─────────────── ANALYTICS ─────────────── -->
             <section id="analytics" class="view-section">
-                <div class="container-fluid">
-                    <div class="row" style="display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap;">
-                        <!-- Overview Cards -->
-                        <div class="stat-card" style="flex: 1; min-width: 200px; background: #e0f2fe; color: #0284c7;">
-                            <h3>Taxa de Automação</h3>
-                            <div class="value" id="stat-automation-rate">0%</div>
-                            <i class="fas fa-robot" style="float: right; opacity: 0.5;"></i>
+                <div class="grid-4" style="margin-bottom:1.5rem;">
+                    <div class="stat-card">
+                        <h3>Taxa de Automação</h3>
+                        <div class="value" id="stat-automation-rate">0%</div>
+                    </div>
+                    <div class="stat-card success">
+                        <h3>CSAT Médio</h3>
+                        <div class="value" id="stat-csat">0.0</div>
+                    </div>
+                    <div class="stat-card warning">
+                        <h3>Novos Leads (30d)</h3>
+                        <div class="value" id="stat-leads">0</div>
+                    </div>
+                    <div class="stat-card danger">
+                        <h3>Tickets Hoje</h3>
+                        <div class="value" id="stat-tickets-today">0</div>
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div class="panel-card">
+                        <div class="panel-card-header">
+                            <h3>Canais de Atendimento</h3>
                         </div>
-                        <div class="stat-card" style="flex: 1; min-width: 200px; background: #dcfce7; color: #16a34a;">
-                            <h3>CSAT Médio</h3>
-                            <div class="value" id="stat-csat">0.0</div>
-                            <i class="fas fa-star" style="float: right; opacity: 0.5;"></i>
-                        </div>
-                        <div class="stat-card" style="flex: 1; min-width: 200px; background: #fef3c7; color: #d97706;">
-                            <h3>Novos Leads (30d)</h3>
-                            <div class="value" id="stat-leads">0</div>
-                            <i class="fas fa-user-plus" style="float: right; opacity: 0.5;"></i>
-                        </div>
-                        <div class="stat-card" style="flex: 1; min-width: 200px; background: #fee2e2; color: #dc2626;">
-                            <h3>Tickets Hoje</h3>
-                            <div class="value" id="stat-tickets-today">0</div>
-                            <i class="fas fa-ticket-alt" style="float: right; opacity: 0.5;"></i>
+                        <div class="panel-card-body">
+                            <div style="position:relative;height:280px;"><canvas id="channelsChart"></canvas></div>
                         </div>
                     </div>
-
-                    <div class="row" style="display: flex; gap: 2rem; flex-wrap: wrap;">
-                        <div class="card"
-                            style="flex: 1; min-width: 300px; padding: 1rem; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                            <h3 style="margin-bottom: 1rem;">Canais de Atendimento</h3>
-                            <div style="position: relative; height: 300px;">
-                                <canvas id="channelsChart"></canvas>
-                            </div>
+                    <div class="panel-card">
+                        <div class="panel-card-header">
+                            <h3>Funil de Vendas</h3>
                         </div>
-                        <div class="card"
-                            style="flex: 1; min-width: 300px; padding: 1rem; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                            <h3 style="margin-bottom: 1rem;">Funil de Vendas</h3>
-                            <div style="position: relative; height: 300px;">
-                                <canvas id="funnelChart"></canvas>
-                            </div>
+                        <div class="panel-card-body">
+                            <div style="position:relative;height:280px;"><canvas id="funnelChart"></canvas></div>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <!-- VIEW: SETTINGS -->
+            <!-- ─────────────── AUTOMAÇÕES ─────────────── -->
+            <section id="automations" class="view-section">
+                <div class="flex-between mb-2">
+                    <div>
+                        <h2 style="margin:0;font-size:1.1rem;font-weight:700;">⚡ Automações</h2>
+                        <p class="text-muted mt-1">Configure regras de "Se isso acontecer, então faça aquilo".</p>
+                    </div>
+                    <button class="btn-primary" onclick="openAutomationModal()">+ Nova Regra</button>
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ativo</th>
+                                <th>Nome</th>
+                                <th>Gatilho (Evento)</th>
+                                <th>Ação</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="automationsBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ═══════════════════════════════════════════════════════
+                 AGENTES & PERFIS
+            ══════════════════════════════════════════════════════════ -->
+            <section id="profiles" class="view-section">
+                <div class="flex-between mb-3">
+                    <div>
+                        <h2 style="margin:0;font-size:1.1rem;font-weight:700;">🤖 Agentes & Perfis</h2>
+                        <p class="text-muted mt-1">Cada perfil é um agente independente com personalidade, canal e
+                            prompt próprios. Ative o que deve responder agora.</p>
+                    </div>
+                    <button class="btn-primary" onclick="openProfileModal()">+ Novo Agente</button>
+                </div>
+                <div id="profilesList"
+                    style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.25rem;">
+                </div>
+            </section>
+
+            <!-- ═══════════════════════════════════════════════════════
+                 WEBHOOKS & APIs
+            ══════════════════════════════════════════════════════════ -->
+            <section id="webhooks" class="view-section">
+                <div class="flex-between mb-2">
+                    <div>
+                        <h2 style="margin:0;font-size:1.1rem;font-weight:700;">🔗 Webhooks & APIs</h2>
+                        <p class="text-muted mt-1">Configure notificações de saída e integrações de entrada com sistemas
+                            externos.</p>
+                    </div>
+                    <button class="btn-primary" id="btnNewWebhook" onclick="openWebhookModal()">+ Novo Webhook</button>
+                </div>
+
+                <!-- Abas -->
+                <div class="inner-tabs">
+                    <button class="inner-tab active" id="tabWebhooks" onclick="switchWebhookTab('webhooks')">
+                        🔔 Webhooks <span style="font-size:0.7rem;opacity:0.7;">(Saída)</span>
+                    </button>
+                    <button class="inner-tab" id="tabApis" onclick="switchWebhookTab('apis')">
+                        🔌 APIs & Integrações <span style="font-size:0.7rem;opacity:0.7;">(Entrada)</span>
+                    </button>
+                </div>
+
+                <!-- Painel: WEBHOOK -->
+                <div id="webhookPanel">
+                    <div class="info-banner blue">
+                        <div class="info-banner-icon">🔔</div>
+                        <div>
+                            <div class="info-banner-title">O que é um Webhook?</div>
+                            <div class="info-banner-desc">
+                                Um <strong>Webhook (Saída)</strong> é uma notificação automática que <strong>este
+                                    sistema envia para você</strong> quando algo acontece — como uma nova mensagem,
+                                reunião agendada ou ticket aberto. Você configura a URL do seu sistema e nós chamamos
+                                ela com os dados do evento.
+                                <br><br>
+                                <strong>Exemplo:</strong> "Quando um lead novo entrar, avise meu CRM em
+                                <em>https://meucrm.com/webhook</em>"
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>URL de Destino</th>
+                                    <th>Método</th>
+                                    <th>Status</th>
+                                    <th>Último Teste</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="webhooksBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Painel: API -->
+                <div id="apiPanel" style="display:none;">
+                    <div class="info-banner purple">
+                        <div class="info-banner-icon">🔌</div>
+                        <div>
+                            <div class="info-banner-title">O que é uma API de Integração?</div>
+                            <div class="info-banner-desc">
+                                Uma <strong>API (Entrada)</strong> é um endpoint que <strong>sistemas externos chamam
+                                    para enviar dados a este agente</strong>. Ao registrar uma integração aqui, você
+                                documenta de onde vêm os dados — como um CRM, formulário do site, ou plataforma de
+                                e-commerce.
+                                <br><br>
+                                <strong>Exemplo:</strong> "Meu formulário do site envia o lead para
+                                <em>https://meuagente.com/api/webhook</em> — registre aqui para controlar esse fluxo."
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>URL de Origem/Destino</th>
+                                    <th>Método</th>
+                                    <th>Status</th>
+                                    <th>Último Teste</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="apisBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ─────────────── GERADOR DE PROMPTS ─────────────── -->
+            <section id="prompt-wizard" class="view-section">
+                <h2 style="margin-bottom:0.5rem;font-size:1.1rem;font-weight:700;">✨ Gerador Inteligente de Prompts</h2>
+                <p class="text-muted mb-3">Responda as perguntas para gerar automaticamente o prompt ideal para o seu
+                    nicho.</p>
+                <div id="wizardContainer" style="max-width:700px;margin:0 auto;">
+                    <div id="wizardProgress"
+                        style="background:#e5e7eb;border-radius:99px;height:6px;margin-bottom:1.5rem;">
+                        <div id="wizardProgressBar"
+                            style="background:linear-gradient(90deg,#6366f1,#8b5cf6);height:6px;border-radius:99px;width:12.5%;transition:width 0.4s;">
+                        </div>
+                    </div>
+                    <div id="wizardStep"
+                        style="background:white;border-radius:var(--radius-lg);padding:2rem;box-shadow:var(--card-shadow);border:1px solid var(--card-border);">
+                    </div>
+                    <div style="display:flex;gap:1rem;margin-top:1.2rem;justify-content:space-between;">
+                        <button class="btn-secondary" id="wizardBack" onclick="wizardBack()" style="display:none;">←
+                            Anterior</button>
+                        <div style="flex:1"></div>
+                        <button class="btn-primary" id="wizardNext" onclick="wizardNext()">Próximo →</button>
+                    </div>
+                    <div id="wizardPreview"
+                        style="display:none;margin-top:1.5rem;background:#1e293b;border-radius:var(--radius-lg);padding:1.5rem;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+                            <h3 style="margin:0;color:#e2e8f0;font-size:1rem;">Prompt Gerado</h3>
+                            <div style="display:flex;gap:0.5rem;">
+                                <button class="btn-secondary btn-sm" onclick="copyWizardPrompt()">📋 Copiar</button>
+                                <button class="btn-primary btn-sm" onclick="saveWizardAsProfile()">💾 Salvar como
+                                    Agente</button>
+                            </div>
+                        </div>
+                        <pre id="wizardPromptOutput"
+                            style="white-space:pre-wrap;color:#94a3b8;font-size:0.83rem;line-height:1.7;margin:0;"></pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══════════════════════════════════════════════════════
+                 CONFIGURAÇÕES
+            ══════════════════════════════════════════════════════════ -->
             <section id="settings" class="view-section">
-                <h2 style="margin-bottom: 20px;">Configurações do Sistema</h2>
+                <h2 style="margin-bottom:1.5rem;font-size:1.1rem;font-weight:700;">⚙️ Configurações</h2>
 
-                <div class="form-group">
-                    <label>Status da API Evolution</label>
-                    <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
-                        <div id="evolutionStatus"
-                            style="width: 12px; height: 12px; border-radius: 50%; background: #ef4444;"></div>
-                        <span id="evolutionStatusText">Desconectado</span>
-                        <button class="btn-primary" style="margin-left: auto;" onclick="testEvolutionAPI()">Testar
-                            Conexão</button>
-                    </div>
+                <!-- Abas -->
+                <div class="inner-tabs mb-3">
+                    <button class="inner-tab active" id="tabMyProfile" onclick="switchSettingsTab('profile')">
+                        👤 Meu Perfil
+                    </button>
+                    <button class="inner-tab" id="tabBranding" onclick="switchSettingsTab('branding')">
+                        🎨 Marca & Tema
+                    </button>
                 </div>
 
-                <div class="form-group">
-                    <label>Status do PostgreSQL</label>
-                    <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
-                        <div id="dbStatus" style="width: 12px; height: 12px; border-radius: 50%; background: #ef4444;">
+                <!-- Painel: MEU PERFIL -->
+                <div id="settingsProfilePanel">
+                    <div class="panel-card mb-3">
+                        <div class="panel-card-header">
+                            <h3>👤 Informações do Perfil</h3>
                         </div>
-                        <span id="dbStatusText">Desconectado</span>
-                        <button class="btn-primary" style="margin-left: auto;" onclick="testDatabase()">Testar
-                            Conexão</button>
+                        <div class="panel-card-body">
+                            <form onsubmit="saveMyProfile(event)">
+                                <div class="grid-2">
+                                    <div class="form-group">
+                                        <label>Nome</label>
+                                        <input type="text" id="myProfileName" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Cargo / Função</label>
+                                        <input type="text" id="myProfileRole" placeholder="Ex: Diretor(a), Atendimento">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Avatar (URL ou Upload)</label>
+                                    <div class="upload-group" style="display: flex; gap: 10px;">
+                                        <input type="text" id="myProfileAvatarUrl"
+                                            placeholder="https://exemplo.com/avatar.png ou /static/assets/..."
+                                            style="flex: 1;">
+                                        <input type="file" id="myProfileAvatarFile" accept="image/*,application/pdf"
+                                            style="width: auto;">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Bio / Descrição</label>
+                                    <textarea id="myProfileBio" rows="3"
+                                        placeholder="Fale um pouco sobre você..."></textarea>
+                                </div>
+                                <button type="submit" class="btn-primary">💾 Salvar Perfil</button>
+                            </form>
+                        </div>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label>Prompt do Sistema (Agente)</label>
-                    <textarea id="systemPrompt" rows="10" placeholder="Instruções do agente..."
-                        style="width: 100%; border: 1px solid #d1d5db; padding: 0.5rem;"></textarea>
+                <!-- Painel: PERSONALIZAÇÃO -->
+                <div id="settingsBrandingPanel" style="display:none;">
+                    <div class="panel-card mb-3">
+                        <div class="panel-card-header">
+                            <h3>🎨 Personalização da Marca (White-label)</h3>
+                        </div>
+                        <div class="panel-card-body">
+                            <p class="text-muted text-sm mb-3">Defina a aparência global do seu sistema administrativo.
+                                Todos os usuários verão esta configuração.</p>
+
+                            <div class="settings-section-title">Cor de Destaque</div>
+                            <div class="color-swatch-row" id="colorSwatches">
+                                <!-- preenchido por JS -->
+                            </div>
+                            <div class="flex-center mt-2 mb-3" style="gap:0.75rem;">
+                                <label style="margin:0;font-size:0.8rem;">Cor personalizada:</label>
+                                <input type="color" id="customAccent" value="#6366f1"
+                                    style="width:40px;height:32px;padding:2px;cursor:pointer;border-radius:6px;"
+                                    oninput="applyAccentColor(this.value)">
+                            </div>
+
+                            <div class="settings-section-title">Identidade do Sistema</div>
+                            <div class="form-group">
+                                <label>Logotipo (URL ou Upload)</label>
+                                <div class="upload-group" style="display: flex; gap: 10px;">
+                                    <input type="text" id="panelLogoUrl"
+                                        placeholder="https://exemplo.com/logo.png ou /static/..." style="flex: 1;"
+                                        oninput="updateSidebarLogo()">
+                                    <input type="file" id="panelLogoFile" accept="image/*,application/pdf"
+                                        style="width: auto;">
+                                </div>
+                            </div>
+                            <div class="settings-grid">
+                                <div class="form-group">
+                                    <label>Nome do Sistema</label>
+                                    <input type="text" id="panelName" placeholder="Auto Tech Lith"
+                                        oninput="document.getElementById('sidebarName').textContent = this.value || 'Auto Tech Lith'">
+                                </div>
+                                <div class="form-group">
+                                    <label>Emoji/Ícone Secundário</label>
+                                    <input type="text" id="panelEmoji" placeholder="🤖" maxlength="4"
+                                        oninput="document.getElementById('sidebarEmoji').textContent = this.value || '🤖'">
+                                </div>
+                            </div>
+
+                            <hr style="margin:1.5rem 0; border:0; border-top:1px solid #e5e7eb;">
+
+                            <button class="btn-primary" onclick="saveThemePreferences()">🎨 Salvar Marca Glocal</button>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label>Chave OpenAI GPT-4</label>
-                    <input type="password" id="openaiKey" placeholder="sk-..."
-                        style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db;">
-                </div>
-
-                <div class="form-group">
-                    <label>URL ngrok</label>
-                    <input type="text" id="ngrokUrl" placeholder="https://xxxx-xxxx.ngrok.io" readonly
-                        style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db;">
-                    <button class="btn-secondary" style="margin-top: 10px;" onclick="copyNgrokUrl()">Copiar URL</button>
-                </div>
-
-                <button class="btn-primary" onclick="saveSettings()">💾 Salvar Configurações</button>
             </section>
 
-        </div>
+            <!-- ─────────────── AI CONFIG (Client Portal) ─────────────── -->
+            <section id="ai-config" class="view-section">
+                <div class="flex-between mb-3">
+                    <div>
+                        <h2 style="margin:0;font-size:1.1rem;font-weight:700;">🔐 Configuração de IA</h2>
+                        <p class="text-muted mt-1">Conecte seu próprio modelo de IA. As chaves são criptografadas e
+                            nunca expostas.</p>
+                    </div>
+                    <button class="btn-primary" onclick="openAIConfigModal()">+ Adicionar Provedor</button>
+                </div>
+
+                <!-- MFA Warning Banner -->
+                <div id="mfaWarning"
+                    style="display:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;
+                    border-radius:12px;padding:1rem 1.25rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:0.75rem;">
+                    <span style="font-size:1.5rem;">⚠️</span>
+                    <div>
+                        <strong>MFA não habilitado!</strong> Por segurança, ative a autenticação em dois fatores antes
+                        de configurar chaves de API.
+                        <a href="#" onclick="switchTab('settings')"
+                            style="color:white;text-decoration:underline;margin-left:0.5rem;">Ativar agora →</a>
+                    </div>
+                </div>
+
+                <div id="aiConfigList" style="display:grid;gap:1rem;"></div>
+
+                <div id="aiConfigEmpty" style="text-align:center;padding:3rem;color:#6b7280;display:none;">
+                    <div style="font-size:3rem;margin-bottom:1rem;">🤖</div>
+                    <h3>Nenhum provedor configurado</h3>
+                    <p>Adicione sua chave da OpenAI, Anthropic ou outro provedor para usar modelos customizados.</p>
+                </div>
+            </section>
+
+            <!-- ─────────────── FUNIL DE VENDAS (Workflow Editor) ─────────────── -->
+            <section id="workflow" class="view-section">
+                <div class="flex-between mb-3">
+                    <div>
+                        <h2 style="margin:0;font-size:1.1rem;font-weight:700;">🔄 Funil de Vendas</h2>
+                        <p class="text-muted mt-1">Defina as etapas do seu processo de vendas. O agente usará estas
+                            etapas para guiar conversas.</p>
+                    </div>
+                    <button class="btn-primary" onclick="openWorkflowModal()">+ Nova Etapa</button>
+                </div>
+                <div id="workflowList" style="display:flex;flex-direction:column;gap:0.75rem;"></div>
+                <div id="workflowEmpty" style="text-align:center;padding:3rem;color:#6b7280;display:none;">
+                    <div style="font-size:3rem;margin-bottom:1rem;">🔄</div>
+                    <h3>Funil não configurado</h3>
+                    <p>Crie suas etapas de vendas para estruturar as conversas do agente.</p>
+                    <button class="btn-primary mt-2" onclick="createDefaultWorkflow()">🚀 Criar Funil Padrão</button>
+                </div>
+            </section>
+
+            <!-- ─────────────── USO & FATURAMENTO ─────────────── -->
+            <section id="usage" class="view-section">
+                <h2 style="margin-bottom:1.5rem;font-size:1.1rem;font-weight:700;">📊 Uso & Faturamento</h2>
+
+                <!-- KPI cards -->
+                <div class="grid-4" style="margin-bottom:1.75rem;">
+                    <div class="stat-card">
+                        <h3>Mensagens (30d)</h3>
+                        <div class="value" id="kpiMessages">—</div>
+                    </div>
+                    <div class="stat-card success">
+                        <h3>Conversas (30d)</h3>
+                        <div class="value" id="kpiConversations">—</div>
+                    </div>
+                    <div class="stat-card warning">
+                        <h3>Tokens Totais</h3>
+                        <div class="value" id="kpiTokens">—</div>
+                    </div>
+                    <div class="stat-card danger">
+                        <h3>Custo Estimado (USD)</h3>
+                        <div class="value" id="kpiCost">—</div>
+                    </div>
+                </div>
+
+                <!-- Projected cost banner -->
+                <div id="costProjection"
+                    style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;
+                    border-radius:12px;padding:1rem 1.5rem;margin-bottom:1.75rem;display:flex;align-items:center;justify-content:space-between;">
+                    <div>
+                        <div style="font-size:0.85rem;opacity:0.85;">Projeção Mensal (baseado nos últimos 30 dias)</div>
+                        <div style="font-size:1.75rem;font-weight:700;" id="kpiMonthlyProjection">USD $0.00</div>
+                    </div>
+                    <span style="font-size:2.5rem;">💡</span>
+                </div>
+
+                <!-- Daily usage chart -->
+                <div class="panel-card">
+                    <div class="panel-card-header">
+                        <h3>Tokens por Dia (últimos 30 dias)</h3>
+                    </div>
+                    <div class="panel-card-body">
+                        <div style="position:relative;height:240px;"><canvas id="usageChart"></canvas></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══════════════════════════════════════════════════════
+                 MASTER ADMIN — PAINEL GLOBAL (platform-level only)
+            ══════════════════════════════════════════════════════════ -->
+            <section id="master-admin" class="view-section">
+                <div style="background:linear-gradient(135deg,#1e1b4b,#312e81);color:white;border-radius:16px;
+                    padding:1.5rem 2rem;margin-bottom:1.75rem;display:flex;align-items:center;gap:1rem;">
+                    <span style="font-size:2rem;">🛡</span>
+                    <div>
+                        <h2 style="margin:0;font-size:1.2rem;font-weight:700;">Master Admin — Painel Global</h2>
+                        <p style="margin:0;opacity:0.75;font-size:0.85rem;">Visão consolidada de todos os tenants.
+                            Acesso restrito à administração da plataforma.</p>
+                    </div>
+                </div>
+
+                <!-- Global KPI cards -->
+                <div class="grid-4" style="margin-bottom:1.75rem;">
+                    <div class="stat-card">
+                        <h3>Total Tenants</h3>
+                        <div class="value" id="masterTotalTenants">—</div>
+                    </div>
+                    <div class="stat-card success">
+                        <h3>Tenants Ativos</h3>
+                        <div class="value" id="masterActiveTenants">—</div>
+                    </div>
+                    <div class="stat-card warning">
+                        <h3>Interações (30d)</h3>
+                        <div class="value" id="masterInteractions">—</div>
+                    </div>
+                    <div class="stat-card danger">
+                        <h3>Alertas de Churn</h3>
+                        <div class="value" id="masterChurnAlerts">—</div>
+                    </div>
+                </div>
+
+                <!-- Charts row -->
+                <div class="grid-2" style="margin-bottom:1.75rem;">
+                    <div class="panel-card">
+                        <div class="panel-card-header">
+                            <h3>🏆 Ranking por Uso (tokens 30d)</h3>
+                        </div>
+                        <div class="panel-card-body">
+                            <div style="position:relative;height:260px;"><canvas id="masterRankingChart"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="panel-card">
+                        <div class="panel-card-header">
+                            <h3>⚠️ Alertas de Churn</h3>
+                        </div>
+                        <div class="panel-card-body" id="masterChurnList">
+                            <p class="text-muted" style="text-align:center;padding:2rem;">Carregando...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- All tenants table -->
+                <div class="panel-card">
+                    <div class="panel-card-header">
+                        <h3>📋 Todos os Tenants</h3>
+                    </div>
+                    <div class="panel-card-body" style="padding:0;">
+                        <div class="table-responsive">
+                            <table id="masterTenantsTable">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Nome</th>
+                                        <th>Subdomínio</th>
+                                        <th>Status</th>
+                                        <th>Interações (30d)</th>
+                                        <th>Tokens (30d)</th>
+                                        <th>Custo USD</th>
+                                        <th>Última Atividade</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="masterTenantsBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══════════ STATUS DE CANAIS ═══════════════════ -->
+            <section id="canais" class="view-section">
+                <div style="margin-bottom:1.5rem;">
+                    <h2 style="font-size:1.05rem;font-weight:700;">📡 Status de Canais</h2>
+                    <p style="color:var(--text-muted);font-size:0.85rem;margin-top:0.25rem;">Conexões de canais de
+                        atendimento em tempo real.</p>
+                </div>
+
+                <div class="grid-2" style="margin-bottom:1.5rem;">
+                    <!-- WhatsApp Card -->
+                    <div class="panel-card">
+                        <div class="panel-card-header">
+                            <h3>📱 WhatsApp (Evolution API)</h3>
+                            <span class="badge" id="waStatus"
+                                style="background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3);">Verificando...</span>
+                        </div>
+                        <div class="panel-card-body">
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+                                <div>
+                                    <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">
+                                        Instância</div>
+                                    <div style="font-weight:700;" id="waInstance">—</div>
+                                </div>
+                                <div>
+                                    <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">Número
+                                    </div>
+                                    <div style="font-weight:700;" id="waNumber">—</div>
+                                </div>
+                                <div>
+                                    <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">Uptime
+                                    </div>
+                                    <div style="font-weight:700;" id="waUptime">—</div>
+                                </div>
+                                <div>
+                                    <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">Msgs
+                                        Hoje</div>
+                                    <div style="font-weight:700;" id="waMsgsToday">—</div>
+                                </div>
+                            </div>
+                            <button class="btn-secondary" onclick="checkWhatsAppStatus()"
+                                style="width:100%;padding:0.6rem;">
+                                🔍 Verificar Conexão
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Telegram Card -->
+                    <div class="panel-card">
+                        <div class="panel-card-header">
+                            <h3>✈️ Telegram Bot</h3>
+                            <span class="badge" id="tgStatus"
+                                style="background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3);">Verificando...</span>
+                        </div>
+                        <div class="panel-card-body">
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+                                <div>
+                                    <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">Bot
+                                        Name</div>
+                                    <div style="font-weight:700;" id="tgBotName">—</div>
+                                </div>
+                                <div>
+                                    <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">
+                                        @Username</div>
+                                    <div style="font-weight:700;" id="tgUsername">—</div>
+                                </div>
+                                <div>
+                                    <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">Chat
+                                        ID</div>
+                                    <div style="font-weight:700;" id="tgChatId">—</div>
+                                </div>
+                                <div>
+                                    <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">
+                                        Updates</div>
+                                    <div style="font-weight:700;" id="tgUpdates">—</div>
+                                </div>
+                            </div>
+                            <button class="btn-secondary" onclick="checkTelegramStatus()"
+                                style="width:100%;padding:0.6rem;">
+                                🔍 Verificar Conexão
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Channel Performance Metrics -->
+                <div class="panel-card">
+                    <div class="panel-card-header">
+                        <h3>📊 Métricas de Desempenho</h3>
+                        <span style="font-size:0.78rem;color:var(--text-muted);">Últimos 30 dias</span>
+                    </div>
+                    <div class="panel-card-body">
+                        <div class="grid-4">
+                            <div class="stat-card">
+                                <h3>TMA</h3>
+                                <div class="value" id="metricTMA">—</div>
+                                <div class="stat-label">Tempo Médio de Atendimento</div>
+                            </div>
+                            <div class="stat-card success">
+                                <h3>CSAT (IA)</h3>
+                                <div class="value" id="metricCSAT">—</div>
+                                <div class="stat-label">Score de Satisfação</div>
+                            </div>
+                            <div class="stat-card warning">
+                                <h3>Agendamentos</h3>
+                                <div class="value" id="metricScheduled">—</div>
+                                <div class="stat-label">Automáticos (30d)</div>
+                            </div>
+                            <div class="stat-card">
+                                <h3>Conversões</h3>
+                                <div class="value" id="metricConversions">—</div>
+                                <div class="stat-label">Por etapa do funil</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══════════ AJUDA ════════════════════════════════ -->
+            <section id="ajuda" class="view-section">
+                <div style="margin-bottom:1.5rem;">
+                    <h2 style="font-size:1.05rem;font-weight:700;">📚 Ajuda & Base de Conhecimento</h2>
+                    <p style="color:var(--text-muted);font-size:0.85rem;margin-top:0.25rem;">Guias rápidos de
+                        configuração e uso da plataforma.</p>
+                </div>
+
+                <!-- Quick Links -->
+                <div class="grid-3" style="margin-bottom:1.5rem;">
+                    <div class="panel-card" style="cursor:pointer;" onclick="openAjudaTopic('whatsapp')">
+                        <div class="panel-card-body" style="text-align:center;padding:1.5rem;">
+                            <div style="font-size:2rem;margin-bottom:0.75rem;">📱</div>
+                            <div style="font-weight:700;margin-bottom:0.35rem;">WhatsApp</div>
+                            <div style="font-size:0.8rem;color:var(--text-muted);">Conectar QR Code e configurar
+                                instância</div>
+                        </div>
+                    </div>
+                    <div class="panel-card" style="cursor:pointer;" onclick="openAjudaTopic('ia')">
+                        <div class="panel-card-body" style="text-align:center;padding:1.5rem;">
+                            <div style="font-size:2rem;margin-bottom:0.75rem;">🤖</div>
+                            <div style="font-weight:700;margin-bottom:0.35rem;">Configuração de IA</div>
+                            <div style="font-size:0.8rem;color:var(--text-muted);">Adicionar chaves e escolher modelo
+                            </div>
+                        </div>
+                    </div>
+                    <div class="panel-card" style="cursor:pointer;" onclick="openAjudaTopic('funil')">
+                        <div class="panel-card-body" style="text-align:center;padding:1.5rem;">
+                            <div style="font-size:2rem;margin-bottom:0.75rem;">🔄</div>
+                            <div style="font-weight:700;margin-bottom:0.35rem;">Funil de Vendas</div>
+                            <div style="font-size:0.8rem;color:var(--text-muted);">Criar e ordenar etapas do processo
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FAQ Accordion -->
+                <div class="panel-card">
+                    <div class="panel-card-header">
+                        <h3>❓ Perguntas Frequentes</h3>
+                    </div>
+                    <div class="panel-card-body" style="padding:0;">
+                        <div id="faqAccordion">
+                            <!-- Filled by JS -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+
+            <!-- Canais section -->
+
+            <!-- Ajuda section -->
+
+        </div><!-- /content-wrapper -->
     </main>
 
-    <div id="alertContainer" style="position: fixed; top: 20px; right: 20px; z-index: 999; max-width: 400px;"></div>
+    <!-- Toast container -->
+    <div id="alertContainer"
+        style="position:fixed;top:20px;right:20px;z-index:9999;max-width:400px;display:flex;flex-direction:column;gap:0.5rem;">
+    </div>
 
-    <!-- MODALS (Keep existing) -->
-    <!-- ... Copied from previous index.html via functionality preservation... -->
-    <!-- Reuse existing modals for Customer and Meeting -->
+    <!-- ═══════════════════════════ MODAIS ═══════════════════════════ -->
+
+    <!-- MODAL: AGENTE/PERFIL -->
+    <div class="modal" id="profileModal">
+        <div class="modal-content" style="max-width:620px;">
+            <div class="modal-header">
+                <span style="font-size:1.5rem;" id="profileModalEmoji">🤖</span>
+                <h2 id="profileModalTitle">Novo Agente</h2>
+            </div>
+            <form onsubmit="saveProfile(event)">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Emoji / Avatar do Agente</label>
+                        <input type="text" id="profileAvatar" placeholder="🤖" maxlength="4" value="🤖"
+                            oninput="document.getElementById('profileModalEmoji').textContent = this.value || '🤖'">
+                    </div>
+                    <div class="form-group">
+                        <label>Nome do Agente *</label>
+                        <input type="text" id="profileAgentName" required placeholder="Ex: Max, Sofia, Luna">
+                    </div>
+                    <div class="form-group">
+                        <label>Nome do Perfil / Nicho *</label>
+                        <input type="text" id="profileName" required placeholder="Ex: Agente Imobiliário">
+                    </div>
+                    <div class="form-group">
+                        <label>Canal de Atendimento</label>
+                        <select id="profileChannel">
+                            <option value="whatsapp">📱 WhatsApp</option>
+                            <option value="telegram">✈️ Telegram</option>
+                            <option value="web">🌐 Web Chat</option>
+                            <option value="instagram">📸 Instagram</option>
+                            <option value="email">📧 E-mail</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Nicho de Atuação *</label>
+                        <select id="profileNiche">
+                            <option value="geral">Geral</option>
+                            <option value="imobiliario">🏠 Imobiliário</option>
+                            <option value="saude">⚕️ Saúde e Bem-estar</option>
+                            <option value="educacao">📚 Educação e Cursos</option>
+                            <option value="ecommerce">🛒 E-commerce e Varejo</option>
+                            <option value="tecnologia">💻 Tecnologia / SaaS</option>
+                            <option value="financeiro">💰 Financeiro e Seguros</option>
+                            <option value="juridico">⚖️ Jurídico / Advocacia</option>
+                            <option value="restaurante">🍽️ Restaurante / Food</option>
+                            <option value="automacao">🤖 Automação e IA</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Tom de Comunicação</label>
+                        <select id="profileTone">
+                            <option value="neutro">Neutro</option>
+                            <option value="formal">Formal</option>
+                            <option value="semi-formal">Semi-formal</option>
+                            <option value="amigavel">Amigável</option>
+                            <option value="jovem">Jovem / Informal</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Formalidade</label>
+                        <select id="profileFormality">
+                            <option value="muito_informal">Muito Informal (Gírias, emojis, descontraído)</option>
+                            <option value="informal">Informal (Casual, próximo, coloquial)</option>
+                            <option value="equilibrado" selected>Equilibrado (Profissional mas acessível)</option>
+                            <option value="formal">Formal (Respeitoso, vocabulário culto, sem gírias)</option>
+                            <option value="muito_formal">Muito Formal (Estritamente corporativo/corporativo tradicional)
+                            </option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Autonomia do Agente</label>
+                        <select id="profileAutonomy">
+                            <option value="estrita">Estrita (Apenas responde o que foi perguntado, não sai do script)
+                            </option>
+                            <option value="orientada">Orientada (Pode fazer pequenas sugestões dentro do tema)</option>
+                            <option value="equilibrada" selected>Equilibrada (Resolve problemas comuns e guia a
+                                conversa)</option>
+                            <option value="proativa">Proativa (Toma iniciativa para resolver problemas e oferecer
+                                soluções)</option>
+                            <option value="independente">Independente (Toma decisões complexas, negocia e improvisa com
+                                alta liberdade)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Objetivo Principal</label>
+                    <input type="text" id="profileObjective"
+                        placeholder="Ex: Qualificar leads e agendar reuniões de briefing">
+                </div>
+                <div class="form-group">
+                    <label>Público-alvo</label>
+                    <input type="text" id="profileAudience" placeholder="Ex: Donos de pequenas e médias empresas">
+                </div>
+                <div class="form-group">
+                    <label>Dados a Coletar (separados por vírgula)</label>
+                    <input type="text" id="profileDataCollect" placeholder="Ex: Nome, E-mail, Empresa, Demanda">
+                </div>
+                <div class="form-group">
+                    <label>Restrições / Temas Proibidos</label>
+                    <textarea id="profileConstraints" rows="2"
+                        placeholder="Ex: Não discutir preços sem confirmar interesse"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Prompt Base do Agente</label>
+                    <textarea id="profilePrompt" rows="6"
+                        placeholder="Deixe em branco para usar o gerador automático, ou cole um prompt aqui..."></textarea>
+                </div>
+                <div class="modal-footer" style="justify-content:space-between;">
+                    <button type="button" id="btnDeleteProfile" class="btn-danger" style="display:none;"
+                        onclick="deleteProfileFromModal()">🗑️ Excluir</button>
+                    <div class="flex" style="gap:0.5rem;">
+                        <button type="button" class="btn-secondary" onclick="closeProfileModal()">Cancelar</button>
+                        <button type="submit" class="btn-primary" id="btnSaveProfile">💾 Salvar Agente</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: WEBHOOK / API -->
+    <div class="modal" id="webhookModal">
+        <div class="modal-content" style="max-width:560px;">
+            <div class="modal-header">
+                <span id="webhookModalIcon">🔔</span>
+                <h2 id="webhookModalTitle">Novo Webhook</h2>
+            </div>
+            <form onsubmit="saveWebhook(event)">
+                <div class="form-group">
+                    <label>Tipo de Integração</label>
+                    <select id="webhookType" onchange="updateWebhookModalType()">
+                        <option value="webhook">🔔 Webhook (Saída — enviar notificações)</option>
+                        <option value="api">🔌 API / Integração (Entrada — documentar origem)</option>
+                    </select>
+                </div>
+                <div id="webhookTypeHint" class="info-banner blue"
+                    style="padding:0.75rem 1rem;font-size:0.82rem;margin-bottom:1rem;"></div>
+                <div class="form-group"><label>Nome *</label><input type="text" id="webhookName" required
+                        placeholder="Ex: Notificação de Lead para CRM"></div>
+                <div class="form-group"><label>URL *</label><input type="url" id="webhookUrl" required
+                        placeholder="https://api.exemplo.com/webhook"></div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Método HTTP</label>
+                        <select id="webhookMethod">
+                            <option value="POST">POST</option>
+                            <option value="GET">GET</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Token Bearer (Autenticação)</label><input type="password"
+                            id="webhookToken" placeholder="Opcional"></div>
+                </div>
+                <div class="form-group"><label>Eventos (separados por vírgula)</label><input type="text"
+                        id="webhookEvents" placeholder="Ex: message.new, meeting.scheduled"></div>
+                <div class="form-group flex-center" style="gap:0.5rem;">
+                    <input type="checkbox" id="webhookActive" checked style="width:auto;">
+                    <label for="webhookActive" style="margin:0;">Ativo</label>
+                </div>
+                <div id="webhookTestResult"
+                    style="display:none;margin-top:0.5rem;padding:0.75rem;border-radius:8px;font-size:0.85rem;"></div>
+                <div class="modal-footer" style="justify-content:space-between;">
+                    <div class="flex" style="gap:0.5rem;">
+                        <button type="button" id="btnDeleteWebhook" class="btn-danger" style="display:none;"
+                            onclick="deleteWebhookFromModal()">🗑️ Excluir</button>
+                        <button type="button" class="btn-secondary" onclick="testCurrentWebhook()"
+                            id="btnTestWebhook">🔌 Testar</button>
+                    </div>
+                    <div class="flex" style="gap:0.5rem;">
+                        <button type="button" class="btn-secondary" onclick="closeWebhookModal()">Cancelar</button>
+                        <button type="submit" class="btn-primary">💾 Salvar</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: CLIENTE -->
     <div class="modal" id="customerModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -320,7 +1132,8 @@
                 <div class="form-group"><label>Empresa</label><input type="text" id="customerCompany"></div>
                 <div class="form-group"><label>Descrição da Demanda</label><textarea id="customerDemand"></textarea>
                 </div>
-                <div class="form-group"><label>Status</label>
+                <div class="form-group">
+                    <label>Status</label>
                     <select id="customerStatus">
                         <option value="em_processo">Em Processo</option>
                         <option value="briefing">Briefing</option>
@@ -329,11 +1142,10 @@
                         <option value="completed">Finalizado</option>
                     </select>
                 </div>
-                <div class="modal-footer" style="display: flex; justify-content: space-between;">
-                    <button type="button" id="btnDeleteCustomer" class="btn-secondary"
-                        style="background: #ef4444; color: white; display: none;"
-                        onclick="deleteCustomerFromModal()">Excluir</button>
-                    <div style="display: flex; gap: 10px;">
+                <div class="modal-footer" style="justify-content:space-between;">
+                    <button type="button" id="btnDeleteCustomer" class="btn-danger" style="display:none;"
+                        onclick="deleteCustomerFromModal()">🗑️ Excluir</button>
+                    <div class="flex" style="gap:0.5rem;">
                         <button type="button" class="btn-secondary" onclick="closeCustomerModal()">Cancelar</button>
                         <button type="submit" class="btn-primary" id="btnSaveCustomer">Salvar</button>
                     </div>
@@ -342,6 +1154,7 @@
         </div>
     </div>
 
+    <!-- MODAL: REUNIÃO -->
     <div class="modal" id="meetingModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -351,19 +1164,20 @@
                 <div class="form-group"><label>Cliente *</label><select id="meetingCustomer" required>
                         <option value="">Selecione...</option>
                     </select></div>
-                <div class="form-group"><label>Tipo *</label><select id="meetingType" required>
+                <div class="form-group"><label>Tipo *</label>
+                    <select id="meetingType" required>
                         <option value="briefing">Briefing</option>
                         <option value="proposal">Proposta</option>
                         <option value="follow-up">Follow-up</option>
-                    </select></div>
+                    </select>
+                </div>
                 <div class="form-group"><label>Data *</label><input type="date" id="meetingDate" required></div>
                 <div class="form-group"><label>Hora *</label><input type="time" id="meetingTime" required></div>
                 <div class="form-group"><label>Notas</label><textarea id="meetingNotes"></textarea></div>
-                <div class="modal-footer" style="display: flex; justify-content: space-between;">
-                    <button type="button" id="btnDeleteMeeting" class="btn-secondary"
-                        style="background: #ef4444; color: white; display: none;"
-                        onclick="deleteMeetingFromModal()">Excluir</button>
-                    <div style="display: flex; gap: 10px;">
+                <div class="modal-footer" style="justify-content:space-between;">
+                    <button type="button" id="btnDeleteMeeting" class="btn-danger" style="display:none;"
+                        onclick="deleteMeetingFromModal()">🗑️ Excluir</button>
+                    <div class="flex" style="gap:0.5rem;">
                         <button type="button" class="btn-secondary" onclick="closeMeetingModal()">Cancelar</button>
                         <button type="submit" class="btn-primary" id="btnSaveMeeting">Agendar</button>
                     </div>
@@ -372,11 +1186,511 @@
         </div>
     </div>
 
-    <!-- MAIN JS -->
-    <!-- Chart.js -->
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- MAIN JS -->
-    <script src="js/main.js?v=2.1"></script>
+    <script src="js/main.js?v=3.2"></script>
+    <script src="js/profiles_webhooks.js?v=2.2"></script>
+
+    <!-- MODAL: AUTOMAÇÃO -->
+    <div class="modal" id="automationModal">
+        <div class="modal-content" style="max-width:500px;">
+            <div class="modal-header">
+                <h2>Nova Regra de Automação</h2>
+            </div>
+            <form onsubmit="saveAutomation(event)">
+                <div class="form-group">
+                    <label>Nome da Regra *</label>
+                    <input type="text" id="autoName" required placeholder="Ex: Boas-vindas">
+                </div>
+                <div class="form-group">
+                    <label>Gatilho (Trigger Event) *</label>
+                    <select id="autoTrigger" required>
+                        <option value="customer_added">👥 Cliente Adicionado</option>
+                        <option value="ticket_created">🎫 Ticket Criado</option>
+                        <option value="meeting_scheduled">📅 Reunião Agendada</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Ação (Action) *</label>
+                    <select id="autoAction" required>
+                        <option value="send_email">📧 Enviar E-mail</option>
+                        <option value="send_sms">📱 Enviar SMS (Interno)</option>
+                        <option value="webhook">🔗 Chamar Webhook</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Payload (JSON configuration)</label>
+                    <textarea id="autoPayload" rows="4"
+                        placeholder='{"subject": "Bem-vindo!", "body": "..."}'></textarea>
+                </div>
+                <div class="form-group flex-center" style="gap:0.5rem;">
+                    <input type="checkbox" id="autoActive" checked style="width:auto;">
+                    <label for="autoActive" style="margin:0;">Ativa</label>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeAutomationModal()">Cancelar</button>
+                    <button type="submit" class="btn-primary">Salvar Regra</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </body>
+
+<!-- ═══════════════ SaaS ARCHITECTURE SCRIPTS ═══════════════ -->
+<script>
+    // ── Role-based Nav Reveal ──────────────────────────────────────────────────
+    // Called by the existing auth flow after decoding the JWT/user profile.
+    // Exposes sidebar items based on role and tenant context.
+    function revealSaasNav(user) {
+        const isMaster = user.role === 'owner' && !user.tenant_id;
+        const isOwner = user.role === 'owner' && !!user.tenant_id;
+        const isAdmin = ['owner', 'admin'].includes(user.role);
+
+        // SaaS nav items (visible to all tenant users incl. owner)
+        const showSaas = !isMaster;
+        document.getElementById('saasDivider').style.display = showSaas ? '' : 'none';
+        document.getElementById('saasGroupLabel').style.display = showSaas ? '' : 'none';
+        document.getElementById('navAiConfig').style.display = isOwner ? '' : 'none';
+        document.getElementById('navWorkflow').style.display = isAdmin ? '' : 'none';
+        document.getElementById('navUsage').style.display = showSaas ? '' : 'none';
+
+        // Master Admin nav (only platform-level admins with no tenant)
+        document.getElementById('masterDivider').style.display = isMaster ? '' : 'none';
+        document.getElementById('masterGroupLabel').style.display = isMaster ? '' : 'none';
+        document.getElementById('navMaster').style.display = isMaster ? '' : 'none';
+
+        // Check MFA status for AI config warning
+        if (showSaas) checkMFAWarning(user);
+    }
+
+    function checkMFAWarning(user) {
+        const banner = document.getElementById('mfaWarning');
+        if (banner) {
+            banner.style.display = user.mfa_enabled ? 'none' : 'flex';
+        }
+    }
+
+    // Hook into the existing onLoad / auth flow — look for where 'userRoleDisplay' is set
+    // and call revealSaasNav(userData) there. As a fallback, we poll for it:
+    (function pollForUser() {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            // Build minimal user object from JWT claims
+            const user = {
+                role: payload.role || payload.sub_role || 'viewer',
+                tenant_id: payload.tenant_id || null,
+                mfa_enabled: payload.mfa_enabled || false,
+            };
+            revealSaasNav(user);
+        } catch (e) {
+            // JWT decode failed — wait for the existing loadUserInfo to populate userRoleDisplay
+            const observer = new MutationObserver(() => {
+                const roleEl = document.getElementById('userRoleDisplay');
+                if (roleEl && roleEl.textContent !== '...') {
+                    observer.disconnect();
+                    // Re-read from API
+                    fetch('/api/v1/auth/me', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+                        .then(r => r.json())
+                        .then(u => revealSaasNav(u))
+                        .catch(() => { });
+                }
+            });
+            observer.observe(document.getElementById('userRoleDisplay'), { childList: true, characterData: true, subtree: true });
+        }
+    })();
+
+    // ── Lazy section loaders ───────────────────────────────────────────────────
+    // Hook into the existing nav click handler to trigger data loads
+    const _origNavClick = window.__navClick;  // preserve if exists
+    document.querySelectorAll('.nav-item[data-target]').forEach(el => {
+        el.addEventListener('click', () => {
+            const target = el.getAttribute('data-target');
+            if (target === 'ai-config') loadAIConfigs();
+            if (target === 'workflow') loadWorkflow();
+            if (target === 'usage') loadUsage();
+            if (target === 'master-admin') loadMasterAdmin();
+        });
+    });
+
+    // ── Common helpers ─────────────────────────────────────────────────────────
+    function authHeader() {
+        return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` };
+    }
+    async function apiFetch(path, opts = {}) {
+        opts.headers = { ...authHeader(), ...(opts.headers || {}) };
+        const r = await fetch('/api/v1' + path, opts);
+        if (!r.ok) throw new Error(`API ${r.status}: ${await r.text()}`);
+        return r.json();
+    }
+    function fmt(n) { return Number(n).toLocaleString('pt-BR'); }
+
+    // ── AI CONFIG ──────────────────────────────────────────────────────────────
+    let _aiConfigModalMode = 'create', _aiConfigEditId = null;
+
+    async function loadAIConfigs() {
+        try {
+            const configs = await apiFetch('/ai-config');
+            const list = document.getElementById('aiConfigList');
+            const empty = document.getElementById('aiConfigEmpty');
+            list.innerHTML = '';
+            if (!configs.length) { empty.style.display = 'block'; list.style.display = 'none'; return; }
+            empty.style.display = 'none'; list.style.display = 'grid';
+            configs.forEach(c => {
+                list.innerHTML += `
+            <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+                <div style="display:flex;align-items:center;gap:1rem;">
+                    <div style="font-size:2rem;">${providerIcon(c.provider)}</div>
+                    <div>
+                        <div style="font-weight:700;">${c.provider.toUpperCase()} — ${c.model_name}</div>
+                        <div style="font-size:0.82rem;color:#6b7280;">Chave: <code>${c.masked_key}</code> ${c.base_url ? '· ' + c.base_url : ''}</div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:0.5rem;align-items:center;">
+                    <span style="background:${c.is_active ? '#dcfce7' : '#fee2e2'};color:${c.is_active ? '#166534' : '#991b1b'};
+                        padding:2px 10px;border-radius:99px;font-size:0.78rem;">${c.is_active ? 'Ativo' : 'Inativo'}</span>
+                    <button onclick="editAIConfig(${c.id})" class="btn-secondary btn-sm">✏️ Editar</button>
+                    <button onclick="deleteAIConfig(${c.id})" class="btn-danger btn-sm">🗑️</button>
+                </div>
+            </div>`;
+            });
+        } catch (e) { console.error('loadAIConfigs', e); showAlert('Erro ao carregar configurações de IA', 'error'); }
+    }
+
+    function providerIcon(p) {
+        return { openai: '🟢', anthropic: '🟣', groq: '🔵', google: '🔴', mistral: '🟡', custom: '⚙️' }[p] || '🤖';
+    }
+
+    function openAIConfigModal(prefill = {}) {
+        const providers = ['openai', 'anthropic', 'groq', 'google', 'mistral', 'custom'];
+        const models = {
+            openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+            anthropic: ['claude-3-5-sonnet-20241022', 'claude-3-opus-20240229', 'claude-3-haiku-20240307'],
+            groq: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'],
+            google: ['gemini-1.5-flash', 'gemini-1.5-pro'],
+            mistral: ['mistral-large-latest', 'mistral-small-latest'],
+            custom: ['custom-model'],
+        };
+        const modal = document.createElement('div');
+        modal.className = 'modal'; modal.style.display = 'flex'; modal.id = 'aiConfigModal';
+        modal.innerHTML = `<div class="modal-content" style="max-width:500px;">
+        <div class="modal-header"><h2>🔐 Provedor de IA</h2></div>
+        <form onsubmit="saveAIConfig(event)">
+            <div class="form-group"><label>Provedor *</label>
+                <select id="aiProvider" onchange="updateModelList()" required>
+                    ${providers.map(p => `<option value="${p}" ${prefill.provider === p ? 'selected' : ''}>${p.toUpperCase()}</option>`).join('')}
+                </select></div>
+            <div class="form-group"><label>Modelo *</label>
+                <select id="aiModel" required>${(models[prefill.provider || 'openai'] || []).map(m => `<option value="${m}" ${prefill.model_name === m ? 'selected' : ''}>${m}</option>`).join('')}</select></div>
+            <div class="form-group"><label>Chave de API *<span style="font-size:0.75rem;color:#6b7280;margin-left:0.5rem;">Nunca será exibida após salvar</span></label>
+                <input type="password" id="aiKey" placeholder="sk-..." required autocomplete="off"></div>
+            <div class="form-group"><label>URL Base (opcional)</label>
+                <input type="url" id="aiBaseUrl" placeholder="https://api.openai.com/v1" value="${prefill.base_url || ''}"></div>
+            <div class="modal-footer"><button type="button" class="btn-secondary" onclick="document.getElementById('aiConfigModal').remove()">Cancelar</button>
+                <button type="submit" class="btn-primary">💾 Salvar Chave</button></div>
+        </form></div>`;
+        document.body.appendChild(modal);
+        window._aiModelMap = models;
+    }
+
+    function updateModelList() {
+        const prov = document.getElementById('aiProvider').value;
+        const opts = (window._aiModelMap || {})[prov] || ['custom-model'];
+        document.getElementById('aiModel').innerHTML = opts.map(m => `<option value="${m}">${m}</option>`).join('');
+    }
+
+    async function saveAIConfig(e) {
+        e.preventDefault();
+        try {
+            const body = {
+                provider: document.getElementById('aiProvider').value,
+                model_name: document.getElementById('aiModel').value,
+                api_key: document.getElementById('aiKey').value,
+                base_url: document.getElementById('aiBaseUrl').value || null,
+            };
+            await apiFetch('/ai-config', { method: 'POST', body: JSON.stringify(body) });
+            document.getElementById('aiConfigModal').remove();
+            showAlert('✅ Provedor de IA configurado com sucesso!', 'success');
+            loadAIConfigs();
+        } catch (e) { showAlert('Erro ao salvar: ' + e.message, 'error'); }
+    }
+
+    async function deleteAIConfig(id) {
+        if (!confirm('Remover esta configuração de IA?')) return;
+        try {
+            await fetch('/api/v1/ai-config/' + id, { method: 'DELETE', headers: authHeader() });
+            showAlert('Configuração removida.', 'success');
+            loadAIConfigs();
+        } catch (e) { showAlert('Erro: ' + e.message, 'error'); }
+    }
+
+    function editAIConfig(id) { /* Future: patch endpoint */ showAlert('Edição disponível em breve.', 'info'); }
+
+    // ── WORKFLOW EDITOR ────────────────────────────────────────────────────────
+    async function loadWorkflow() {
+        try {
+            const stages = await apiFetch('/workflow');
+            const list = document.getElementById('workflowList');
+            const empty = document.getElementById('workflowEmpty');
+            list.innerHTML = '';
+            if (!stages.length) { empty.style.display = 'block'; return; }
+            empty.style.display = 'none';
+            stages.forEach((s, i) => {
+                list.innerHTML += `
+            <div style="background:white;border:1px solid #e5e7eb;border-radius:10px;padding:1rem 1.25rem;
+                display:flex;align-items:center;gap:1rem;cursor:grab;" draggable="true">
+                <span style="font-size:1.25rem;color:#9ca3af;">⠿</span>
+                <div style="background:#6366f1;color:white;width:28px;height:28px;border-radius:50%;display:flex;
+                    align-items:center;justify-content:center;font-size:0.85rem;font-weight:700;">${s.stage_order + 1}</div>
+                <div style="flex:1;">
+                    <div style="font-weight:700;">${s.stage_name}</div>
+                    ${s.description ? `<div style="font-size:0.82rem;color:#6b7280;">${s.description}</div>` : ''}
+                </div>
+                <div style="display:flex;gap:0.5rem;">
+                    <span style="background:${s.is_active ? '#dcfce7' : '#f3f4f6'};color:${s.is_active ? '#166534' : '#6b7280'};
+                        padding:2px 10px;border-radius:99px;font-size:0.78rem;">${s.is_active ? '✓ Ativa' : 'Inativa'}</span>
+                    <button onclick="deleteWorkflowStage(${s.id})" class="btn-danger btn-sm">🗑️</button>
+                </div>
+            </div>`;
+            });
+        } catch (e) { console.error('loadWorkflow', e); }
+    }
+
+    function openWorkflowModal() {
+        const modal = document.createElement('div');
+        modal.className = 'modal'; modal.style.display = 'flex'; modal.id = 'wfModal';
+        modal.innerHTML = `<div class="modal-content" style="max-width:480px;">
+        <div class="modal-header"><h2>🔄 Nova Etapa do Funil</h2></div>
+        <form onsubmit="saveWorkflowStage(event)">
+            <div class="form-group"><label>Nome da Etapa *</label><input type="text" id="wfName" required placeholder="Ex: Qualificação"></div>
+            <div class="form-group"><label>Ordem</label><input type="number" id="wfOrder" min="0" value="0"></div>
+            <div class="form-group"><label>Descrição (para o agente)</label>
+                <textarea id="wfDesc" rows="3" placeholder="Ex: Confirmar interesse e entender a dor do cliente"></textarea></div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="document.getElementById('wfModal').remove()">Cancelar</button>
+                <button type="submit" class="btn-primary">💾 Salvar Etapa</button>
+            </div>
+        </form></div>`;
+        document.body.appendChild(modal);
+    }
+
+    async function saveWorkflowStage(e) {
+        e.preventDefault();
+        try {
+            await apiFetch('/workflow', {
+                method: 'POST', body: JSON.stringify({
+                    stage_name: document.getElementById('wfName').value,
+                    stage_order: parseInt(document.getElementById('wfOrder').value) || 0,
+                    description: document.getElementById('wfDesc').value || null,
+                })
+            });
+            document.getElementById('wfModal').remove();
+            showAlert('✅ Etapa criada!', 'success');
+            loadWorkflow();
+        } catch (e) { showAlert('Erro: ' + e.message, 'error'); }
+    }
+
+    async function deleteWorkflowStage(id) {
+        if (!confirm('Remover esta etapa?')) return;
+        try {
+            await fetch('/api/v1/workflow/' + id, { method: 'DELETE', headers: authHeader() });
+            showAlert('Etapa removida.', 'success'); loadWorkflow();
+        } catch (e) { showAlert('Erro: ' + e.message, 'error'); }
+    }
+
+    async function createDefaultWorkflow() {
+        const defaults = [
+            { stage_name: 'Lead', stage_order: 0, description: 'Primeiro contato — coletar nome e interesse.' },
+            { stage_name: 'Qualificação', stage_order: 1, description: 'Entender a dor e o orçamento do lead.' },
+            { stage_name: 'Proposta', stage_order: 2, description: 'Apresentar solução e valor.' },
+            { stage_name: 'Negociação', stage_order: 3, description: 'Contornar objeções e acertar condições.' },
+            { stage_name: 'Fechamento', stage_order: 4, description: 'Confirmar compra e onboarding.' },
+        ];
+        try {
+            for (const s of defaults) { await apiFetch('/workflow', { method: 'POST', body: JSON.stringify(s) }); }
+            showAlert('🚀 Funil padrão criado!', 'success'); loadWorkflow();
+        } catch (e) { showAlert('Erro: ' + e.message, 'error'); }
+    }
+
+    // ── USAGE & BILLING ────────────────────────────────────────────────────────
+    let _usageChart = null;
+
+    async function loadUsage() {
+        try {
+            const [kpi, daily] = await Promise.all([
+                apiFetch('/billing/kpis?days=30'),
+                apiFetch('/usage/daily?days=30'),
+            ]);
+            document.getElementById('kpiMessages').textContent = fmt(kpi.total_messages);
+            document.getElementById('kpiConversations').textContent = fmt(kpi.total_conversations);
+            document.getElementById('kpiTokens').textContent = fmt(kpi.total_tokens);
+            document.getElementById('kpiCost').textContent = 'USD $' + kpi.total_cost_usd.toFixed(4);
+            document.getElementById('kpiMonthlyProjection').textContent = 'USD $' + kpi.projected_monthly_cost_usd.toFixed(4);
+
+            // Daily chart
+            const ctx = document.getElementById('usageChart');
+            if (!ctx) return;
+            if (_usageChart) _usageChart.destroy();
+            if (typeof Chart === 'undefined') return; // Chart.js not loaded
+            _usageChart = new Chart(ctx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: daily.map(d => d.date.slice(5)), // MM-DD
+                    datasets: [{
+                        label: 'Tokens',
+                        data: daily.map(d => d.tokens),
+                        backgroundColor: 'rgba(99,102,241,0.7)',
+                        borderRadius: 4,
+                    }],
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } },
+            });
+        } catch (e) {
+            // New installation — no usage yet, show zeros gracefully
+            ['kpiMessages', 'kpiConversations', 'kpiTokens'].forEach(id => document.getElementById(id).textContent = '0');
+            document.getElementById('kpiCost').textContent = 'USD $0.00';
+            document.getElementById('kpiMonthlyProjection').textContent = 'USD $0.00';
+        }
+    }
+
+    // ── MASTER ADMIN ───────────────────────────────────────────────────────────
+    let _masterRankChart = null;
+
+    async function loadMasterAdmin() {
+        try {
+            const [kpis, tenants, churn] = await Promise.all([
+                apiFetch('/master/kpis'),
+                apiFetch('/master/tenants'),
+                apiFetch('/master/churn-alerts'),
+            ]);
+            document.getElementById('masterTotalTenants').textContent = kpis.total_tenants;
+            document.getElementById('masterActiveTenants').textContent = kpis.active_tenants;
+            document.getElementById('masterInteractions').textContent = fmt(kpis.total_interactions_30d);
+            document.getElementById('masterChurnAlerts').textContent = kpis.churn_alert_count;
+
+            // Ranking chart
+            const topN = tenants.slice().sort((a, b) => b.tokens_30d - a.tokens_30d).slice(0, 10);
+            const ctx = document.getElementById('masterRankingChart');
+            if (ctx && typeof Chart !== 'undefined') {
+                if (_masterRankChart) _masterRankChart.destroy();
+                _masterRankChart = new Chart(ctx.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: topN.map(t => t.name),
+                        datasets: [{
+                            label: 'Tokens (30d)', data: topN.map(t => t.tokens_30d),
+                            backgroundColor: 'rgba(99,102,241,0.75)', borderRadius: 5
+                        }],
+                    },
+                    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } },
+                });
+            }
+
+            // Churn alerts
+            const churnList = document.getElementById('masterChurnList');
+            churnList.innerHTML = churn.length ? churn.map(c => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:0.75rem 0;
+                border-bottom:1px solid #f3f4f6;">
+                <div><strong>Tenant #${c.tenant_id}</strong>
+                    <span style="font-size:0.8rem;color:#6b7280;margin-left:0.5rem;">
+                        ${c.last_week_interactions} → ${c.this_week_interactions} interações</span></div>
+                <span style="background:#fee2e2;color:#991b1b;padding:2px 10px;border-radius:99px;
+                    font-size:0.82rem;font-weight:700;">-${c.drop_percent}%</span>
+            </div>`).join('') :
+                '<p style="text-align:center;color:#6b7280;padding:2rem;">✅ Nenhum alerta de churn esta semana!</p>';
+
+            // Tenants table
+            const tbody = document.getElementById('masterTenantsBody');
+            tbody.innerHTML = tenants.map(t => `
+            <tr>
+                <td>${t.id}</td>
+                <td><strong>${t.name}</strong></td>
+                <td>${t.subdomain || '—'}</td>
+                <td><span style="background:${t.is_active ? '#dcfce7' : '#fee2e2'};color:${t.is_active ? '#166534' : '#991b1b'};
+                    padding:2px 8px;border-radius:99px;font-size:0.78rem;">${t.is_active ? 'Ativo' : 'Inativo'}</span></td>
+                <td>${fmt(t.interactions_30d)}</td>
+                <td>${fmt(t.tokens_30d)}</td>
+                <td>$${t.cost_usd_30d.toFixed(4)}</td>
+                <td style="font-size:0.8rem;">${t.last_active ? t.last_active.slice(0, 16) : '—'}</td>
+            </tr>`).join('');
+        } catch (e) {
+            console.error('loadMasterAdmin', e);
+            if (e.message.includes('403')) {
+                showAlert('⛔ Acesso negado — apenas Master Admin pode visualizar este painel.', 'error');
+            }
+        }
+    }
+
+    // ── Channel Status (Canais section) ─────────────────────────────
+    async function checkWhatsAppStatus() {
+        const statusEl = document.getElementById('waStatus');
+        try {
+            const r = await authFetch('/api/v1/webhooks/evolution/status');
+            if (r && r.ok) {
+                const d = await r.json();
+                if (statusEl) statusEl.innerHTML = '<span style="color:#10b981;">&#x2713; Conectado</span>';
+                const setText = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+                setText('waInstance', d.instance || '—');
+                setText('waNumber', d.number || '—');
+                setText('waUptime', d.uptime || '—');
+                setText('waMsgsToday', d.msgs_today || '—');
+            } else {
+                if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">&#x2717; Desconectado</span>';
+            }
+        } catch (e) {
+            if (statusEl) statusEl.innerHTML = '<span style="color:#f59e0b;">API indispon&#237;vel</span>';
+        }
+    }
+
+    async function checkTelegramStatus() {
+        const statusEl = document.getElementById('tgStatus');
+        try {
+            const r = await authFetch('/api/webhooks/telegram/status');
+            if (r && r.ok) {
+                const d = await r.json();
+                if (statusEl) statusEl.innerHTML = '<span style="color:#10b981;">&#x2713; Ativo</span>';
+                const setText = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+                setText('tgBotName', d.bot_name || '—');
+                setText('tgUsername', d.username || '—');
+                setText('tgChatId', d.chat_id || '—');
+                setText('tgUpdates', d.update_count || '—');
+            } else {
+                if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">&#x2717; Inativo</span>';
+            }
+        } catch (e) {
+            if (statusEl) statusEl.innerHTML = '<span style="color:#f59e0b;">API indispon&#237;vel</span>';
+        }
+    }
+
+    async function loadChannelMetrics() {
+        try {
+            const r = await authFetch('/api/analytics/dashboard');
+            if (!r || !r.ok) return;
+            const d = await r.json();
+            if (d.performance) {
+                const setText = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+                setText('metricTMA', d.performance.avg_response_time || d.performance.tma || '—');
+                setText('metricCSAT', d.performance.csat || '—');
+                setText('metricScheduled', d.performance.scheduled_meetings_30d || d.business?.new_leads_30d || '—');
+                setText('metricConversions', d.business?.funnel_conversions || '—');
+            }
+        } catch (e) { console.error('loadChannelMetrics', e); }
+    }
+
+
+    // Patch canais nav item to load metrics
+    document.addEventListener('DOMContentLoaded', () => {
+        const canaisItem = document.querySelector('[data-target="canais"]');
+        if (canaisItem) {
+            canaisItem.addEventListener('click', () => {
+                checkWhatsAppStatus();
+                checkTelegramStatus();
+                loadChannelMetrics();
+            });
+        }
+    });
+
+</script>
 
 </html>

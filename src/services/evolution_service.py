@@ -11,14 +11,139 @@ class EvolutionService:
     def __init__(self):
         self.base_url = settings.EVOLUTION_API_URL
         self.api_key = settings.EVOLUTION_API_KEY
-        self.instance = settings.EVOLUTION_INSTANCE_NAME
+        self.default_instance = settings.EVOLUTION_INSTANCE_NAME
         self.headers = {
             "apikey": self.api_key,
             "Content-Type": "application/json"
         }
+    def _get_instance(self, instance_name: Optional[str] = None) -> str:
+        return instance_name if instance_name else self.default_instance
 
-    async def send_message(self, phone: str, text: str, delay: int = 1200) -> Optional[Dict[str, Any]]:
-        url = f"{self.base_url}/message/sendText/{self.instance}"
+    def _get_url_and_headers(self, custom_url: Optional[str] = None, custom_key: Optional[str] = None) -> tuple[str, dict]:
+        url = custom_url.rstrip("/") if custom_url else self.base_url.rstrip("/")
+        headers = {
+            "apikey": custom_key if custom_key else self.api_key,
+            "Content-Type": "application/json"
+        }
+        return url, headers
+
+    async def create_instance(self, instance_name: str, token: Optional[str] = None, custom_url: Optional[str] = None, custom_key: Optional[str] = None) -> Dict[str, Any]:
+        """Creates a new instance in the Evolution API."""
+        base_url, headers = self._get_url_and_headers(custom_url, custom_key)
+        url = f"{base_url}/instance/create"
+        payload = {
+            "instanceName": instance_name,
+            "token": token or instance_name,
+            "qrcode": False,
+            "integration": "WHATSAPP-BAILEYS"
+        }
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, json=payload, headers=headers, timeout=10.0)
+                if response.status_code in [200, 201]:
+                    return response.json()
+                logger.error(f"Failed to create instance {instance_name}: {response.text}")
+                return {"error": response.text, "status_code": response.status_code}
+        except Exception as e:
+            logger.error(f"Exception creating instance {instance_name}: {e}")
+            return {"error": str(e)}
+
+    async def get_qr_code(self, instance_name: str) -> Dict[str, Any]:
+        """Gets the connection QR Code for an instance."""
+        url = f"{self.base_url}/instance/connect/{instance_name}"
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url, headers=self.headers, timeout=10.0)
+                if response.status_code == 200:
+                    return response.json()
+                return {"error": response.text, "status_code": response.status_code}
+        except Exception as e:
+            logger.error(f"Exception getting QR for instance {instance_name}: {e}")
+            return {"error": str(e)}
+
+    async def delete_instance(self, instance_name: str, custom_url: Optional[str] = None, custom_key: Optional[str] = None) -> Dict[str, Any]:
+        """Deletes/logs out a WhatsApp instance from Evolution API"""
+        base_url, headers = self._get_url_and_headers(custom_url, custom_key)
+        url = f"{base_url}/instance/delete/{instance_name}"
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.delete(url, headers=headers, timeout=10.0)
+                if response.status_code in [200, 201, 404]:
+                    return {"success": True}
+                return {"error": response.text, "status_code": response.status_code}
+        except Exception as e:
+            logger.error(f"Exception deleting instance {instance_name}: {e}")
+            return {"error": str(e)}
+
+    async def set_webhook(self, instance_name: str, webhook_url: str, custom_url: Optional[str] = None, custom_key: Optional[str] = None) -> Dict[str, Any]:
+        """Configures the webhook for a specific instance."""
+        base_url, headers = self._get_url_and_headers(custom_url, custom_key)
+        url = f"{base_url}/webhook/set/{instance_name}"
+        payload = {
+            "webhook": {
+                "enabled": True,
+                "url": webhook_url,
+                "headers": {
+                    "Bypass-Tunnel-Reminder": "true",
+                    "Verification-Token": getattr(settings, "VERIFY_TOKEN", "")
+                },
+                "webhookByEvents": False,
+                "webhookBase64": False,
+                "events": [
+                    "MESSAGES_UPSERT",
+                    "MESSAGES_UPDATE",
+                    "MESSAGES_DELETE",
+                    "SEND_MESSAGE",
+                    "CONNECTION_UPDATE",
+                    "TYPEBOT_START",
+                    "CALL"
+                ]
+            }
+        }
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, json=payload, headers=headers, timeout=10.0)
+                return response.json()
+        except Exception as e:
+            logger.error(f"Error setting webhook for {instance_name}: {e}")
+            return {"error": str(e)}
+
+    async def set_settings(self, instance_name: str, custom_url: Optional[str] = None, custom_key: Optional[str] = None) -> Dict[str, Any]:
+        """Configures instance settings for better performance/behavior."""
+        base_url, headers = self._get_url_and_headers(custom_url, custom_key)
+        url = f"{base_url}/settings/set/{instance_name}"
+        payload = {
+            "rejectCall": True,
+            "msgCall": "Desculpe, este número não recebe chamadas.",
+            "groupsIgnore": True,
+            "alwaysOnline": True,
+            "readProtocol": "read",
+            "readChatPresence": True
+        }
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, json=payload, headers=headers, timeout=10.0)
+                return response.json()
+        except Exception as e:
+            logger.error(f"Error setting settings for {instance_name}: {e}")
+            return {"error": str(e)}
+            
+    async def get_pairing_code(self, instance_name: str, phone: str, custom_url: Optional[str] = None, custom_key: Optional[str] = None) -> Dict[str, Any]:
+        """Gets a pairing code to connect without QR code."""
+        base_url, headers = self._get_url_and_headers(custom_url, custom_key)
+        url = f"{base_url}/instance/connect/{instance_name}"
+        params = {"number": phone}
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url, params=params, headers=headers, timeout=10.0)
+                return response.json()
+        except Exception as e:
+            logger.error(f"Error getting pairing code for {instance_name}: {e}")
+            return {"error": str(e)}
+
+    async def send_message(self, phone: str, text: str, delay: int = 1200, instance_name: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        target_instance = self._get_instance(instance_name)
+        url = f"{self.base_url}/message/sendText/{target_instance}"
         payload = {
             "number": phone,
             "options": {
@@ -35,7 +160,7 @@ class EvolutionService:
         for attempt in range(retries):
             try:
                 async with httpx.AsyncClient() as client:
-                    logger.info(f"Sending WhatsApp message to {phone} (Attempt {attempt+1}/{retries})")
+                    logger.info(f"Sending WhatsApp message to {phone} via {target_instance} (Attempt {attempt+1}/{retries})")
                     response = await client.post(url, json=payload, headers=self.headers, timeout=10.0)
                     
                     if response.status_code in [200, 201]:
@@ -53,11 +178,32 @@ class EvolutionService:
                     return None
         return None
 
-    async def mark_message_as_read(self, remote_jid: str, message_id: str):
+    async def send_composing(self, phone: str, duration_ms: int = 12000, instance_name: Optional[str] = None):
+        """
+        Envia presença 'composing' (digitando) imediatamente para o número do cliente.
+        """
+        target_instance = self._get_instance(instance_name)
+        url = f"{self.base_url}/chat/sendPresence/{target_instance}"
+        payload = {
+            "number": phone,
+            "options": {
+                "delay": duration_ms,
+                "presence": "composing"
+            }
+        }
+        try:
+            async with httpx.AsyncClient() as client:
+                await client.post(url, json=payload, headers=self.headers, timeout=5.0)
+                logger.info(f"Composing presence sent to {phone} for {duration_ms}ms via {target_instance}")
+        except Exception as e:
+            logger.warning(f"Failed to send composing presence to {phone}: {e}")
+
+    async def mark_message_as_read(self, remote_jid: str, message_id: str, instance_name: Optional[str] = None):
         """
         Marks a message as read (blue ticks).
         """
-        url = f"{self.base_url}/chat/markMessageAsRead/{self.instance}"
+        target_instance = self._get_instance(instance_name)
+        url = f"{self.base_url}/chat/markMessageAsRead/{target_instance}"
         payload = {
             "readMessages": [
                 {
@@ -70,38 +216,37 @@ class EvolutionService:
         
         try:
             async with httpx.AsyncClient() as client:
-                # Fire and forget mostly, but good to log errors
                 response = await client.post(url, json=payload, headers=self.headers, timeout=5.0)
                 if response.status_code not in [200, 201]:
                     logger.warning(f"Failed to mark message {message_id} as read: {response.status_code} - {response.text}")
         except Exception as e:
             logger.error(f"Error marking message {message_id} as read: {e}")
 
-    async def check_instance_status(self) -> Dict[str, Any]:
-        url = f"{self.base_url}/instance/connectionState/{self.instance}"
+    async def check_instance_status(self, instance_name: Optional[str] = None) -> Dict[str, Any]:
+        target_instance = self._get_instance(instance_name)
+        url = f"{self.base_url}/instance/connectionState/{target_instance}"
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(url, headers=self.headers, timeout=5.0)
-                return response.json()
+                if response.status_code == 200:
+                    return response.json()
+                return {"error": response.text}
         except Exception as e:
             logger.error(f"Error checking Evolution instance status: {e}")
             return {"error": str(e)}
 
-    async def get_media_base64(self, message_data: Dict[str, Any], convert_to_mp4: bool = False) -> Optional[str]:
+    async def get_media_base64(self, message_data: Dict[str, Any], convert_to_mp4: bool = False, instance_name: Optional[str] = None) -> Optional[str]:
         """
         Fetches the base64 content of a media message from Evolution API.
-        Tries multiple payload strategies (full message object vs key-id).
         """
-        url = f"{self.base_url}/chat/getBase64FromMediaMessage/{self.instance}"
+        target_instance = self._get_instance(instance_name)
+        url = f"{self.base_url}/chat/getBase64FromMediaMessage/{target_instance}"
         
-        # Estratégia 1: Enviar objeto message completo (padrão v2 mais recente)
         payload_full = {
             "message": message_data,
             "convertToMp4": convert_to_mp4
         }
         
-        # Estratégia 2: Construir objeto mínimo apenas com a Key (caso o full falhe)
-        # Tenta extrair ID da mensagem original
         msg_id = message_data.get("key", {}).get("id")
         payload_minimal = {
              "message": {
@@ -113,30 +258,22 @@ class EvolutionService:
         }
 
         async with httpx.AsyncClient() as client:
-            # Tentar Estratégia 1
             try:
-                logger.info(f"Fetching base64 with FULL payload strategy for msg {msg_id}...")
                 response = await client.post(url, json=payload_full, headers=self.headers, timeout=30.0)
                 if response.status_code in [200, 201]:
                     data = response.json()
                     if data.get("base64"):
                         return data.get("base64")
-                
-                logger.warning(f"Strategy 1 failed with status {response.status_code}: {response.text}")
             except Exception as e:
                 logger.error(f"Strategy 1 exception: {e}")
 
-            # Se falhar e tivermos ID, tentar Estratégia 2
             if msg_id:
                 try:
-                    logger.info(f"Fetching base64 with MINIMAL payload strategy for msg {msg_id}...")
                     response = await client.post(url, json=payload_minimal, headers=self.headers, timeout=30.0)
                     if response.status_code in [200, 201]:
                         data = response.json()
                         if data.get("base64"):
                             return data.get("base64")
-                    
-                    logger.warning(f"Strategy 2 failed with status {response.status_code}: {response.text}")
                 except Exception as e:
                     logger.error(f"Strategy 2 exception: {e}")
             
