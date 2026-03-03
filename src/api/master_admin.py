@@ -1086,7 +1086,7 @@ async def update_whatsapp_instance(
     # Re-apply webhook and settings to ensure changes propagate to Evolution API
     base_url = (settings.PUBLIC_URL or str(request.base_url)).rstrip("/")
     base_webhook_url = f"{base_url}{settings.API_V1_STR}/webhooks/whatsapp"
-    webhook_url = f"{base_webhook_url}/{instance.instance_name}?token={settings.VERIFY_TOKEN}"
+    webhook_url = f"{base_webhook_url}?token={settings.VERIFY_TOKEN}"
 
     # Ignore errors during these background updates since the main edit is DB level
     try:

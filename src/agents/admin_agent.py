@@ -1271,7 +1271,7 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                 
             # Calcular URL Pública Real (Tempo Real)
             base_url = (settings.PUBLIC_URL or "http://localhost:8000").rstrip("/")
-            webhook_url = f"{base_url}{settings.API_V1_STR}/webhooks/whatsapp/{instance_name}?token={settings.VERIFY_TOKEN}"
+            webhook_url = f"{base_url}{settings.API_V1_STR}/webhooks/whatsapp?token={settings.VERIFY_TOKEN}"
 
             # Setar Webhooks NA HORA
             await evolution_service.set_webhook(instance_name, webhook_url)
