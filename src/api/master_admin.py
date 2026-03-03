@@ -1011,7 +1011,7 @@ async def create_whatsapp_instance(
         # Check for 401 Unauthorized
         if evo_response.get("status_code") == 401:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
+                status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Chave Global (API Key) da Evolution API está incorreta ou não autorizada. Verifique as configurações."
             )
 
