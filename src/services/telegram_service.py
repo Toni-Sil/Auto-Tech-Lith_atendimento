@@ -11,6 +11,20 @@ class TelegramService:
         self.chat_id = settings.TELEGRAM_CHAT_ID
         self.base_url = f"https://api.telegram.org/bot{self.bot_token}" if self.bot_token else None
 
+    async def delete_webhook(self) -> bool:
+        """Remove any active webhook to allow long polling (getUpdates)."""
+        if not self.base_url:
+            return False
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(f"{self.base_url}/deleteWebhook")
+                response.raise_for_status()
+                logger.info("Telegram webhook deleted successfully.")
+                return True
+        except Exception as e:
+            logger.error(f"Failed to delete Telegram webhook: {e}")
+            return False
+
     async def send_message(self, message: str, chat_id: str = None):
         target_chat_id = chat_id or self.chat_id
         

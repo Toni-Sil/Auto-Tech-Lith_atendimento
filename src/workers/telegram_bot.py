@@ -130,7 +130,12 @@ async def telegram_bot_worker():
     Tarefa de background que faz long-polling no Telegram e despacha
     mensagens de texto e de voz para o AdminAgent.
     """
-    logger.info("🤖 Telegram Admin Bot worker started.")
+    logger.info("🤖 Telegram Admin Bot worker starting...")
+    
+    # CRITICAL: Delete any existing webhook to avoid 409 Conflict with getUpdates
+    await telegram_service.delete_webhook()
+    
+    logger.info("🤖 Telegram Admin Bot worker fully started.")
 
     offset = None
     processed_updates: set = set()
