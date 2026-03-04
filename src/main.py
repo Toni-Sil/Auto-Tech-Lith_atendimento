@@ -211,6 +211,22 @@ async def startup_event():
     async with engine.begin() as conn:
         logger.info("Database: Checking/creating tables...")
         await conn.run_sync(Base.metadata.create_all)
+        
+        # ─── Auto-migrations: add new columns safely (no Alembic needed) ──────
+        # Uses ADD COLUMN IF NOT EXISTS (PostgreSQL) to be idempotent and safe.
+        from sqlalchemy import text as sa_text
+        migrations = [
+            "ALTER TABLE evolution_instances ADD COLUMN IF NOT EXISTS evolution_ip VARCHAR",
+            "ALTER TABLE evolution_instances ADD COLUMN IF NOT EXISTS owner_email VARCHAR",
+        ]
+        for sql in migrations:
+            try:
+                await conn.execute(sa_text(sql))
+                logger.info(f"Migration OK: {sql}")
+            except Exception as e:
+                logger.warning(f"Migration skipped (may already exist): {e}")
+        # ─────────────────────────────────────────────────────────────────────
+        
     await engine.dispose()
     logger.info("Database: Initialization complete.")
 
