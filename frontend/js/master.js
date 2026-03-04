@@ -1401,35 +1401,32 @@ window.createWhatsAppInstance = async function () {
             })
         });
         if (res) {
-            showAlert('Instância criada com sucesso!', 'success');
+            const hasWarning = res.warning && res.warning.startsWith('⚠️');
+            showAlert(hasWarning ? res.warning : 'Instância criada com sucesso!', hasWarning ? 'warn' : 'success');
             closeWhatsAppCreateModal();
             loadWhatsAppInstances();
 
-            // Show new modal with instructions
+            // Show modal with webhook URL
             setTimeout(() => {
+                const webhookUrl = res.webhook_url || '';
+                const statusHtml = hasWarning
+                    ? `<div style="background:#422006;border:1px solid #92400e;padding:.75rem;border-radius:8px;margin-bottom:1rem;color:#fbbf24;">${res.warning}</div>`
+                    : `<div style="background:#052e16;border:1px solid #166534;padding:.75rem;border-radius:8px;margin-bottom:1rem;color:#4ade80;">✅ Instância <strong>${instanceName}</strong> registrada e configurada com sucesso!</div>`;
                 const instructions = `
                     <div style="text-align:left;">
-                        <p>A instância <strong>${instanceName}</strong> foi criada e <strong>configurada automaticamente</strong> (Webhook e Settings aplicados).</p>
-                        <p><strong>Configurações Aplicadas:</strong></p>
-                        <ul>
-                            <li>Webhook URL configurada com token de segurança.</li>
-                            <li>Auto-rejeição de chamadas habilitada.</li>
-                            <li>Ignorar grupos habilitado (melhor performance).</li>
-                        </ul>
-                        <p><strong>Próximos Passos:</strong></p>
-                        <ol>
-                            <li>Conecte o seu WhatsApp usando o <strong>Código de Pareamento</strong> na lista.</li>
-                            <li>Certifique-se que a Evolution API está acessível para o backend.</li>
-                        </ol>
-                        <div class="card bg-dark" style="padding:1rem; margin:1rem 0; word-break:break-all; background:#1e293b; color:#38bdf8; font-family:monospace; border-radius:8px;">
-                            ${res.webhook_url}
+                        ${statusHtml}
+                        <p><strong>Webhook Global (use esta URL na Evolution API):</strong></p>
+                        <div class="card bg-dark" style="padding:1rem; margin:.5rem 0; word-break:break-all; background:#0f172a; color:#38bdf8; font-family:monospace; border-radius:8px; font-size:.85rem;">
+                            ${webhookUrl}
                         </div>
-                        <button class="btn btn-primary w-100" onclick="copyToClipboard('${res.webhook_url}')">Copiar URL da Webhook</button>
+                        <button class="btn btn-primary w-100" onclick="copyToClipboard('${webhookUrl}')">📋 Copiar Webhook</button>
+                        <p style="margin-top:1rem;color:#94a3b8;font-size:.85rem;">Configure esta URL na aba <em>Webhook</em> da instância <strong>${instanceName}</strong> na Evolution API.</p>
                     </div>
                 `;
-                showGenericModal('Configuração Manual do WhatsApp', instructions);
+                showGenericModal('Instância do WhatsApp', instructions);
             }, 600);
         }
+
     } catch (e) {
         console.error(e);
         showAlert('Erro ao criar instância: ' + e.message, 'error');
