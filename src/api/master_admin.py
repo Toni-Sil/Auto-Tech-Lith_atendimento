@@ -921,6 +921,8 @@ class WhatsAppInstanceCreate(BaseModel):
     instance_token: Optional[str] = None
     evolution_api_url: Optional[str] = None
     evolution_api_key: Optional[str] = None
+    evolution_ip: Optional[str] = None
+    owner_email: Optional[str] = None
 
 class WhatsAppInstanceUpdate(BaseModel):
     display_name: Optional[str] = None
@@ -1001,34 +1003,8 @@ async def create_whatsapp_instance(
         raise HTTPException(status_code=400, detail="Instance name already in use.")
 
     logger.info(f"Master Admin: Creating instance '{body.instance_name}' at {body.evolution_api_url or settings.EVOLUTION_API_URL}")
-    
-    # Create in Evolution API
-    # Pass custom token if provided
-    evo_response = await evolution_service.create_instance(
-        body.instance_name, 
-        token=body.instance_token,
-        custom_url=body.evolution_api_url,
-        custom_key=body.evolution_api_key
-    )
-    if "error" in evo_response:
-        error_msg = evo_response.get("error", "")
-        # Check for Evolution API "already in use" error
-        if evo_response.get("status_code") in [403, 409] and "already in use" in error_msg.lower():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, 
-                detail=f"O nome '{body.instance_name}' já está em uso na Evolution API. Escolha outro nome ou remova a instância antiga."
-            )
-        
-        # Check for 401 Unauthorized
-        if evo_response.get("status_code") == 401:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Chave Global (API Key) da Evolution API está incorreta ou não autorizada. Verifique as configurações."
-            )
 
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Evolution API Error: {evo_response}")
-        
-    # Save to DB
+    # ── Save to DB first (always) ─────────────────────────────────────────────
     new_instance = EvolutionInstance(
         tenant_id=body.tenant_id,
         instance_name=body.instance_name,
@@ -1036,32 +1012,58 @@ async def create_whatsapp_instance(
         instance_token=body.instance_token,
         evolution_api_url=body.evolution_api_url,
         evolution_api_key=body.evolution_api_key,
-        evolution_ip=body.evolution_ip,
-        owner_email=body.owner_email,
+        evolution_ip=getattr(body, 'evolution_ip', None),
+        owner_email=getattr(body, 'owner_email', None),
         status="pending"
     )
     db.add(new_instance)
     await db.commit()
     await db.refresh(new_instance)
-    
+
     base_url = (settings.PUBLIC_URL or str(request.base_url)).rstrip("/")
     base_webhook_url = f"{base_url}{settings.API_V1_STR}/webhooks/whatsapp"
     webhook_url = f"{base_webhook_url}?token={settings.VERIFY_TOKEN}"
-    
-    # --- AUTOMATIC CONFIGURATION ---
-    # 1. Set Optimal Settings
-    await evolution_service.set_settings(
-        new_instance.instance_name,
-        custom_url=body.evolution_api_url,
-        custom_key=body.evolution_api_key
-    )
-    
+
+    # ── Try to register in Evolution API (non-blocking) ───────────────────────
+    evo_warning = None
+    if body.evolution_api_url and body.evolution_api_key:
+        try:
+            evo_response = await evolution_service.create_instance(
+                body.instance_name,
+                token=body.instance_token,
+                custom_url=body.evolution_api_url,
+                custom_key=body.evolution_api_key
+            )
+            if "error" in evo_response:
+                error_msg = str(evo_response.get("error", ""))
+                status_code = evo_response.get("status_code")
+                if status_code == 401:
+                    evo_warning = "⚠️ Instância salva, mas a chave da Evolution API está incorreta (401). Verifique a API Key no servidor Evolution."
+                elif status_code in [403, 409] and "already in use" in error_msg.lower():
+                    evo_warning = f"⚠️ Instância salva no banco, mas o nome '{body.instance_name}' já existe na Evolution API."
+                else:
+                    evo_warning = f"⚠️ Instância salva no banco, mas houve erro na Evolution API: {error_msg[:120]}"
+                logger.warning(f"Evolution API warning for '{body.instance_name}': {evo_response}")
+            else:
+                # Set Optimal Settings on success
+                await evolution_service.set_settings(
+                    new_instance.instance_name,
+                    custom_url=body.evolution_api_url,
+                    custom_key=body.evolution_api_key
+                )
+        except Exception as evo_exc:
+            evo_warning = f"⚠️ Instância salva, mas não foi possível conectar à Evolution API: {str(evo_exc)[:100]}"
+            logger.error(f"Evolution API exception for '{body.instance_name}': {evo_exc}")
+    else:
+        evo_warning = "ℹ️ Instância salva sem registro na Evolution API (URL/Key não informados)."
+
     return {
-        "status": "success", 
-        "instance_id": new_instance.id, 
+        "status": "success",
+        "instance_id": new_instance.id,
         "instance_name": new_instance.instance_name,
         "webhook_url": webhook_url,
-        "message": "Instância criada e configurada (Settings aplicados. Webhook deve ser Global)."
+        "warning": evo_warning,
+        "message": evo_warning or "Instância criada e configurada com sucesso!"
     }
 
 @master_router.put("/whatsapp/{instance_name}", response_model=WhatsAppInstanceResponse)
