@@ -954,27 +954,32 @@ async def list_whatsapp_instances(
     base_url = (settings.PUBLIC_URL or str(request.base_url)).rstrip("/")
     base_webhook_url = f"{base_url}{settings.API_V1_STR}/webhooks/whatsapp"
     
-    stmt = select(EvolutionInstance, Tenant.name).outerjoin(Tenant, Tenant.id == EvolutionInstance.tenant_id)
-    results = await db.execute(stmt)
-    
-    response = []
-    for instance, tenant_name in results:
-        response.append({
-            "id": instance.id,
-            "tenant_id": instance.tenant_id,
-            "tenant_name": tenant_name or "Interno (Max)",
-            "display_name": instance.display_name or instance.instance_name,
-            "instance_name": instance.instance_name,
-            "phone_number": instance.phone_number,
-            "status": instance.status,
-            "created_at": str(instance.created_at) if instance.created_at else None,
-            "webhook_url": f"{base_webhook_url}?token={settings.VERIFY_TOKEN}",
-            "evolution_api_url": instance.evolution_api_url,
-            "evolution_api_key": instance.evolution_api_key,
-            "evolution_ip": instance.evolution_ip,
-            "owner_email": instance.owner_email
-        })
-    return response
+    try:
+        stmt = select(EvolutionInstance, Tenant.name).outerjoin(Tenant, Tenant.id == EvolutionInstance.tenant_id)
+        results = await db.execute(stmt)
+        
+        response = []
+        for instance, tenant_name in results:
+            response.append({
+                "id": instance.id,
+                "tenant_id": instance.tenant_id,
+                "tenant_name": tenant_name or "Interno (Max)",
+                "display_name": instance.display_name or instance.instance_name,
+                "instance_name": instance.instance_name,
+                "phone_number": instance.phone_number,
+                "status": instance.status,
+                "created_at": str(instance.created_at) if instance.created_at else None,
+                "webhook_url": f"{base_webhook_url}?token={settings.VERIFY_TOKEN}",
+                "evolution_api_url": instance.evolution_api_url,
+                "evolution_api_key": instance.evolution_api_key,
+                "evolution_ip": getattr(instance, "evolution_ip", None),
+                "owner_email": getattr(instance, "owner_email", None),
+            })
+        return response
+    except Exception as e:
+        logger.error(f"Error listing WhatsApp instances: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro ao listar instâncias: {str(e)}")
+
 
 @master_router.post("/whatsapp", status_code=status.HTTP_201_CREATED)
 async def create_whatsapp_instance(
