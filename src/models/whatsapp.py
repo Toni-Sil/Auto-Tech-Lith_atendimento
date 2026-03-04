@@ -17,6 +17,8 @@ class EvolutionInstance(Base):
     instance_token = Column(String, nullable=True) # Custom token/apikey for this instance
     evolution_api_url = Column(String, nullable=True) # Evolution API server URL override
     evolution_api_key = Column(String, nullable=True) # Evolution API Key override
+    evolution_ip = Column(String, nullable=True) # Endereço IP do Webhook
+    owner_email = Column(String, nullable=True) # Email de identificação
     phone_number = Column(String, nullable=True) # E.g. 5511999999999
     
     status = Column(String, default="pending") # pending, connected, disconnected, expired

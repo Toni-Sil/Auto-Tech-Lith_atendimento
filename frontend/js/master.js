@@ -1324,12 +1324,10 @@ async function loadWhatsAppInstances() {
                     <div class="text-sm text-muted">${i.instance_name}</div>
                 </td>
                 <td>${i.phone_number || '<span class="text-muted text-sm">Não conectado</span>'}</td>
-                <td>
-                    <div style="display:flex; align-items:center; gap:0.5rem;">
-                        <input type="text" class="form-control text-sm" value="${i.webhook_url}" readonly style="width:120px; padding:0.2rem 0.5rem;">
-                        <button class="btn btn-ghost btn-sm" onclick="copyToClipboard('${i.webhook_url}')" title="Copiar Webhook">📋</button>
-                    </div>
-                </td>
+                <td style="max-width:200px">
+                <div style="font-size:0.85rem">${i.evolution_ip || '<span class="text-muted">N/A</span>'}</div>
+                <div style="font-size:0.75rem;color:var(--text-muted)">${i.owner_email || 'Sem E-mail'}</div>
+            </td>
                 <td><span class="badge ${i.status === 'open' || i.status === 'connected' ? 'active' : i.status === 'pending' || i.status === 'connecting' ? 'warn' : 'danger'}">${i.status || 'desconhecido'}</span></td>
                 <td>
                     ${i.status !== 'open' && i.status !== 'connected' ? `<button class="btn btn-ghost btn-sm" onclick="getWhatsAppPairingCode('${i.instance_name}')">🔗 Pareamento</button>` : ''}
@@ -1374,6 +1372,8 @@ window.createWhatsAppInstance = async function () {
     const instanceToken = document.getElementById('waInstanceToken').value.trim();
     const evolUrl = document.getElementById('waEvolUrl').value.trim();
     const evolKey = document.getElementById('waEvolKey').value.trim();
+    const evolIp = document.getElementById('waEvolIp').value.trim();
+    const ownerEmail = document.getElementById('waOwnerEmail').value.trim();
 
     if (!tenantId || !instanceName) {
         showAlert('Obrigatório: Selecione o tenant e defina o identificador da instância!', 'warn');
@@ -1395,7 +1395,9 @@ window.createWhatsAppInstance = async function () {
                 display_name: displayName || instanceName,
                 instance_token: instanceToken || null,
                 evolution_api_url: evolUrl || null,
-                evolution_api_key: evolKey || null
+                evolution_api_key: evolKey || null,
+                evolution_ip: evolIp || null,
+                owner_email: ownerEmail || null
             })
         });
         if (res) {
@@ -1447,6 +1449,8 @@ window.openWhatsAppEditModal = function (instanceName) {
     document.getElementById('waEditInstanceToken').value = ''; // Don't show existing token for security
     document.getElementById('waEditEvolUrl').value = inst.evolution_api_url || '';
     document.getElementById('waEditEvolKey').value = inst.evolution_api_key || ''; // Will update if provided
+    document.getElementById('waEditEvolIp').value = inst.evolution_ip || '';
+    document.getElementById('waEditOwnerEmail').value = inst.owner_email || '';
 
     document.getElementById('whatsappEditModal').classList.add('active');
 };
@@ -1461,6 +1465,8 @@ window.editWhatsAppInstance = async function () {
     const instanceToken = document.getElementById('waEditInstanceToken').value.trim();
     const evolUrl = document.getElementById('waEditEvolUrl').value.trim();
     const evolKey = document.getElementById('waEditEvolKey').value.trim();
+    const evolIp = document.getElementById('waEditEvolIp').value.trim();
+    const ownerEmail = document.getElementById('waEditOwnerEmail').value.trim();
 
     if (!instanceName) return;
 
@@ -1475,6 +1481,8 @@ window.editWhatsAppInstance = async function () {
         if (instanceToken) body.instance_token = instanceToken;
         if (evolUrl !== undefined) body.evolution_api_url = evolUrl || null;
         if (evolKey !== undefined && evolKey !== '') body.evolution_api_key = evolKey || null;
+        if (evolIp !== undefined) body.evolution_ip = evolIp || null;
+        if (ownerEmail !== undefined) body.owner_email = ownerEmail || null;
 
         const res = await apiFetch(`/master/whatsapp/${encodeURIComponent(instanceName)}`, {
             method: 'PUT',

@@ -156,7 +156,7 @@
                                     <th>Tenant</th>
                                     <th>Nome da Instância</th>
                                     <th>Telefone</th>
-                                    <th>Webhook</th>
+                                    <th>Identificação (IP/E-mail)</th>
                                     <th>Status</th>
                                     <th>Ações</th>
                                 </tr>
@@ -208,6 +208,16 @@
                                 <input type="password" id="waEvolKey" class="form-control"
                                     placeholder="Global API Key ou Instance API Key" style="width:100%">
                             </div>
+                            <div class="form-group pb-3">
+                                <label>IP do Servidor Webhook (Identificador)</label>
+                                <input type="text" id="waEvolIp" class="form-control"
+                                    placeholder="ex: 192.168.1.100 ou api.evolution.com" style="width:100%">
+                            </div>
+                            <div class="form-group pb-3">
+                                <label>E-mail Associado à Instância</label>
+                                <input type="email" id="waOwnerEmail" class="form-control"
+                                    placeholder="ex: contato@loja.com" style="width:100%">
+                            </div>
                         </div>
                         <div class="modal-footer"
                             style="padding:1rem; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:1rem;">
@@ -241,6 +251,14 @@
                             <div class="form-group pb-3">
                                 <label>API Key da Evolution API</label>
                                 <input type="password" id="waEditEvolKey" class="form-control" style="width:100%">
+                            </div>
+                            <div class="form-group pb-3">
+                                <label>IP do Servidor Webhook (Identificador)</label>
+                                <input type="text" id="waEditEvolIp" class="form-control" style="width:100%">
+                            </div>
+                            <div class="form-group pb-3">
+                                <label>E-mail Associado à Instância</label>
+                                <input type="email" id="waEditOwnerEmail" class="form-control" style="width:100%">
                             </div>
                         </div>
                         <div class="modal-footer"

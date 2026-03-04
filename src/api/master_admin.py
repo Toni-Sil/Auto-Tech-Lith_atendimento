@@ -927,6 +927,8 @@ class WhatsAppInstanceUpdate(BaseModel):
     instance_token: Optional[str] = None
     evolution_api_url: Optional[str] = None
     evolution_api_key: Optional[str] = None
+    evolution_ip: Optional[str] = None
+    owner_email: Optional[str] = None
 
 class WhatsAppInstanceResponse(BaseModel):
     id: int
@@ -940,6 +942,8 @@ class WhatsAppInstanceResponse(BaseModel):
     webhook_url: Optional[str] = None
     evolution_api_url: Optional[str] = None
     evolution_api_key: Optional[str] = None
+    evolution_ip: Optional[str] = None
+    owner_email: Optional[str] = None
 
 @master_router.get("/whatsapp", response_model=List[WhatsAppInstanceResponse])
 async def list_whatsapp_instances(
@@ -966,7 +970,9 @@ async def list_whatsapp_instances(
             "created_at": str(instance.created_at) if instance.created_at else None,
             "webhook_url": f"{base_webhook_url}?token={settings.VERIFY_TOKEN}",
             "evolution_api_url": instance.evolution_api_url,
-            "evolution_api_key": instance.evolution_api_key
+            "evolution_api_key": instance.evolution_api_key,
+            "evolution_ip": instance.evolution_ip,
+            "owner_email": instance.owner_email
         })
     return response
 
@@ -1025,6 +1031,8 @@ async def create_whatsapp_instance(
         instance_token=body.instance_token,
         evolution_api_url=body.evolution_api_url,
         evolution_api_key=body.evolution_api_key,
+        evolution_ip=body.evolution_ip,
+        owner_email=body.owner_email,
         status="pending"
     )
     db.add(new_instance)
@@ -1072,6 +1080,10 @@ async def update_whatsapp_instance(
         instance.evolution_api_url = body.evolution_api_url
     if body.evolution_api_key is not None:
         instance.evolution_api_key = body.evolution_api_key
+    if body.evolution_ip is not None:
+        instance.evolution_ip = body.evolution_ip
+    if body.owner_email is not None:
+        instance.owner_email = body.owner_email
 
     await db.commit()
     await db.refresh(instance)
