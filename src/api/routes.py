@@ -344,7 +344,6 @@ async def delete_meeting(
 # --- Webhooks ---
 from fastapi import Request
 @api_router.post("/webhooks/whatsapp")
-@api_router.post("/webhooks/whatsapp/{instance_name}")
 async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks, instance_name: Optional[str] = None):
     logger.info(f"--- WHATSAPP WEBHOOK HIT --- Instance: {instance_name}")
     try:

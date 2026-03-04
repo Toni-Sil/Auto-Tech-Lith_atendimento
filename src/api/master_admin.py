@@ -1036,14 +1036,7 @@ async def create_whatsapp_instance(
     webhook_url = f"{base_webhook_url}?token={settings.VERIFY_TOKEN}"
     
     # --- AUTOMATIC CONFIGURATION ---
-    # 1. Set Webhook in Evolution API
-    await evolution_service.set_webhook(
-        new_instance.instance_name, 
-        webhook_url,
-        custom_url=body.evolution_api_url,
-        custom_key=body.evolution_api_key
-    )
-    # 2. Set Optimal Settings
+    # 1. Set Optimal Settings
     await evolution_service.set_settings(
         new_instance.instance_name,
         custom_url=body.evolution_api_url,
@@ -1055,7 +1048,7 @@ async def create_whatsapp_instance(
         "instance_id": new_instance.id, 
         "instance_name": new_instance.instance_name,
         "webhook_url": webhook_url,
-        "message": "Instância criada e configurada (Webhook e Settings aplicados)."
+        "message": "Instância criada e configurada (Settings aplicados. Webhook deve ser Global)."
     }
 
 @master_router.put("/whatsapp/{instance_name}", response_model=WhatsAppInstanceResponse)
@@ -1083,19 +1076,13 @@ async def update_whatsapp_instance(
     await db.commit()
     await db.refresh(instance)
 
-    # Re-apply webhook and settings to ensure changes propagate to Evolution API
+    # Re-apply settings to ensure changes propagate to Evolution API
     base_url = (settings.PUBLIC_URL or str(request.base_url)).rstrip("/")
     base_webhook_url = f"{base_url}{settings.API_V1_STR}/webhooks/whatsapp"
     webhook_url = f"{base_webhook_url}?token={settings.VERIFY_TOKEN}"
 
     # Ignore errors during these background updates since the main edit is DB level
     try:
-        await evolution_service.set_webhook(
-            instance.instance_name,
-            webhook_url,
-            custom_url=instance.evolution_api_url,
-            custom_key=instance.evolution_api_key
-        )
         await evolution_service.set_settings(
             instance.instance_name,
             custom_url=instance.evolution_api_url,

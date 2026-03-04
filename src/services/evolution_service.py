@@ -75,38 +75,6 @@ class EvolutionService:
             logger.error(f"Exception deleting instance {instance_name}: {e}")
             return {"error": str(e)}
 
-    async def set_webhook(self, instance_name: str, webhook_url: str, custom_url: Optional[str] = None, custom_key: Optional[str] = None) -> Dict[str, Any]:
-        """Configures the webhook for a specific instance."""
-        base_url, headers = self._get_url_and_headers(custom_url, custom_key)
-        url = f"{base_url}/webhook/set/{instance_name}"
-        payload = {
-            "webhook": {
-                "enabled": True,
-                "url": webhook_url,
-                "headers": {
-                    "Bypass-Tunnel-Reminder": "true",
-                    "Verification-Token": getattr(settings, "VERIFY_TOKEN", "")
-                },
-                "webhookByEvents": False,
-                "webhookBase64": False,
-                "events": [
-                    "MESSAGES_UPSERT",
-                    "MESSAGES_UPDATE",
-                    "MESSAGES_DELETE",
-                    "SEND_MESSAGE",
-                    "CONNECTION_UPDATE",
-                    "TYPEBOT_START",
-                    "CALL"
-                ]
-            }
-        }
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(url, json=payload, headers=headers, timeout=10.0)
-                return response.json()
-        except Exception as e:
-            logger.error(f"Error setting webhook for {instance_name}: {e}")
-            return {"error": str(e)}
 
     async def set_settings(self, instance_name: str, custom_url: Optional[str] = None, custom_key: Optional[str] = None) -> Dict[str, Any]:
         """Configures instance settings for better performance/behavior."""
