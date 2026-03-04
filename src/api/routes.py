@@ -364,6 +364,23 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks, 
     # Identify instance from payload if not in URL
     if not instance_name:
         instance_name = payload.get("instance")
+        
+    event_type = payload.get("event")
+    
+    # Handle connection updates to keep UI synchronized
+    if event_type == "connection.update":
+        state = payload.get("data", {}).get("state")
+        if state and instance_name:
+            from src.models.database import async_session
+            from src.models.whatsapp import EvolutionInstance
+            from sqlalchemy import update
+            async with async_session() as session:
+                new_status = "connected" if state == 'open' else ("disconnected" if state == 'close' else "pending")
+                stmt = update(EvolutionInstance).where(EvolutionInstance.instance_name == instance_name).values(status=new_status)
+                await session.execute(stmt)
+                await session.commit()
+                logger.info(f"Updated connection status for {instance_name} to {new_status}")
+            return {"status": "success", "reason": "connection status updated to " + new_status}
     
     # Identificar mensagem de texto
     # Estrutura típica Evolution API v2:
