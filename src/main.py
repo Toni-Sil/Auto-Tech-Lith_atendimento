@@ -255,11 +255,17 @@ async def startup_event():
             )
     else:
         logger.info("✅ ENCRYPTION_KEY is set. AI Config key vault active.")
-    # Start Telegram Bot Worker in background
-    import asyncio
-    from src.workers.telegram_bot import telegram_bot_worker
-    asyncio.create_task(telegram_bot_worker())
-    logger.info("Startup: Telegram Worker launched.")
+    # Set Telegram Webhook
+    if settings.TELEGRAM_BOT_TOKEN and settings.PUBLIC_URL:
+        from src.services.telegram_service import telegram_service
+        webhook_url = f"{settings.PUBLIC_URL.rstrip('/')}{settings.API_V1_STR}/webhooks/telegram"
+        success = await telegram_service.set_webhook(webhook_url)
+        if success:
+            logger.info(f"Startup: Telegram Webhook successfully set to {webhook_url}")
+        else:
+            logger.error("Startup: Failed to set Telegram Webhook")
+    else:
+        logger.warning("Startup: TELEGRAM_BOT_TOKEN or PUBLIC_URL not set. Telegram Webhook not configured.")
     # Start Butler Agent APScheduler
     from src.workers.butler_worker import create_butler_scheduler
     butler_scheduler = create_butler_scheduler()

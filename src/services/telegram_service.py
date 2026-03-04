@@ -25,6 +25,28 @@ class TelegramService:
             logger.error(f"Failed to delete Telegram webhook: {e}")
             return False
 
+    async def set_webhook(self, url: str) -> bool:
+        """Set a webhook URL to receive updates directly."""
+        if not self.base_url:
+            return False
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{self.base_url}/setWebhook",
+                    json={"url": url, "allowed_updates": ["message", "callback_query"]}
+                )
+                response.raise_for_status()
+                data = response.json()
+                if data.get("ok"):
+                    logger.info(f"Telegram webhook set successfully to: {url}")
+                    return True
+                else:
+                    logger.error(f"Failed to set Telegram webhook: {data}")
+                    return False
+        except Exception as e:
+            logger.error(f"Failed to set Telegram webhook: {e}")
+            return False
+
     async def send_message(self, message: str, chat_id: str = None):
         target_chat_id = chat_id or self.chat_id
         

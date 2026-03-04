@@ -108,7 +108,6 @@ function initNav() {
             if (target === 'butler-churn') loadButlerChurn();
             if (target === 'butler-billing') loadButlerBilling();
             if (target === 'butler-scheduler') loadSchedulerJobs();
-            if (target === 'registrations') loadRegistrations();
 
             // Additional Master sections
             if (target === 'leads') loadLeads();
