@@ -212,20 +212,28 @@ async def startup_event():
         logger.info("Database: Checking/creating tables...")
         await conn.run_sync(Base.metadata.create_all)
         
-        # ─── Auto-migrations: add new columns safely (no Alembic needed) ──────
-        # Uses ADD COLUMN IF NOT EXISTS (PostgreSQL) to be idempotent and safe.
-        from sqlalchemy import text as sa_text
-        migrations = [
-            "ALTER TABLE evolution_instances ADD COLUMN IF NOT EXISTS evolution_ip VARCHAR",
-            "ALTER TABLE evolution_instances ADD COLUMN IF NOT EXISTS owner_email VARCHAR",
-        ]
-        for sql in migrations:
-            try:
-                await conn.execute(sa_text(sql))
-                logger.info(f"Migration OK: {sql}")
-            except Exception as e:
-                logger.warning(f"Migration skipped (may already exist): {e}")
-        # ─────────────────────────────────────────────────────────────────────
+        # ─── Auto-migrations: add new columns safely ──────────────────────────
+        # Compatible with both SQLite and PostgreSQL.
+        from sqlalchemy import text as sa_text, inspect
+        
+        def _run_migrations(connection):
+            inspector = inspect(connection)
+            existing = [col["name"] for col in inspector.get_columns("evolution_instances")]
+            migrations_to_run = []
+            if "evolution_ip" not in existing:
+                migrations_to_run.append("ALTER TABLE evolution_instances ADD COLUMN evolution_ip VARCHAR")
+            if "owner_email" not in existing:
+                migrations_to_run.append("ALTER TABLE evolution_instances ADD COLUMN owner_email VARCHAR")
+            for sql in migrations_to_run:
+                connection.execute(sa_text(sql))
+                logger.info(f"Migration applied: {sql}")
+
+        try:
+            await conn.run_sync(_run_migrations)
+        except Exception as e:
+            logger.warning(f"Auto-migration warning: {e}")
+        # ──────────────────────────────────────────────────────────────────────
+
         
     await engine.dispose()
     logger.info("Database: Initialization complete.")
