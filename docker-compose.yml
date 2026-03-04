@@ -48,8 +48,8 @@ services:
       - APP_DEBUG=False
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - DATABASE_URL=postgresql+asyncpg://${DB_USER:-admin}:${DB_PASSWORD:-admin123}@postgres:5432/${DB_NAME:-auto_tech_lith}
-      # A URL deve apontar para onde a Evolution estiver rodando no Dokploy
-      - EVOLUTION_API_URL=${EVOLUTION_API_URL}
+      # Apontando para a Evolution API rodando no próprio docker-compose
+      - EVOLUTION_API_URL=http://evolution-api:8080
       - EVOLUTION_SERVER_URL=${EVOLUTION_SERVER_URL}
       - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
       - EVOLUTION_INSTANCE_NAME=${EVOLUTION_INSTANCE_NAME:-default}
@@ -97,10 +97,88 @@ services:
     profiles:
       - dev
 
+  # ─── Evolution API PostgreSQL ──────────────────────────────────────────────────
+  evolution-postgres:
+    image: postgres:15-alpine
+    container_name: auto_tech_evolution_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgresql
+      POSTGRES_PASSWORD: aqitnv06r6mbispd
+      POSTGRES_DB: evolution
+      TZ: America/Sao_Paulo
+    volumes:
+      - evolution_db_data:/var/lib/postgresql/data
+    networks:
+      - auto_tech_network
+
+  # ─── Evolution API Redis ───────────────────────────────────────────────────────
+  evolution-redis:
+    image: redis:7-alpine
+    container_name: auto_tech_evolution_redis
+    restart: always
+    command: redis-server
+    volumes:
+      - evolution_redis_data:/data
+    networks:
+      - auto_tech_network
+
+  # ─── Evolution API ─────────────────────────────────────────────────────────────
+  evolution-api:
+    image: atendai/evolution-api:v2.3.7
+    container_name: auto_tech_evolution_api
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_URL=${EVOLUTION_SERVER_URL:-https://auto-tech-lich-evolutionapi-9cae13-187-77-227-171.traefik.me}
+      - AUTHENTICATION_TYPE=apikey
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY}
+      - AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=true
+      - LANGUAGE=pt
+      - NODE_ENV=production
+      # Banco de dados
+      - DATABASE_ENABLED=true
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgres://postgresql:aqitnv06r6mbispd@evolution-postgres:5432/evolution
+      - DATABASE_SAVE_DATA_INSTANCE=true
+      - DATABASE_SAVE_DATA_NEW_MESSAGE=true
+      - DATABASE_SAVE_MESSAGE_UPDATE=true
+      - DATABASE_SAVE_DATA_CONTACTS=true
+      - DATABASE_SAVE_DATA_CHATS=true
+      - DATABASE_SAVE_DATA_LABELS=true
+      - DATABASE_SAVE_DATA_HISTORIC=true
+      # Redis
+      - CACHE_REDIS_ENABLED=true
+      - CACHE_REDIS_URI=redis://evolution-redis:6379
+      - CACHE_REDIS_PREFIX_KEY=evolution
+      - CACHE_REDIS_SAVE_INSTANCES=true
+      # Webhook Global para conexão imediata sem falhas
+      - WEBHOOK_GLOBAL_URL=http://backend:8000/api/v1/webhooks/whatsapp?token=${VERIFY_TOKEN}
+      - WEBHOOK_GLOBAL_ENABLED=true
+      - WEBHOOK_GLOBAL_EVENTS=APPLICATION_STARTUP,QRCODE_UPDATED,MESSAGES_SET,MESSAGES_UPSERT,MESSAGES_UPDATE,MESSAGES_DELETE,SEND_MESSAGE,CONNECTION_UPDATE,CALL
+    depends_on:
+      - evolution-postgres
+      - evolution-redis
+    volumes:
+      - evolution_instances:/Server/instances
+      - evolution_store:/Server/store
+    networks:
+      - auto_tech_network
+      - dokploy-network
+
 volumes:
   postgres_data:
     driver: local
   redis_data:
+    driver: local
+  evolution_db_data:
+    driver: local
+  evolution_redis_data:
+    driver: local
+  evolution_instances:
+    driver: local
+  evolution_store:
     driver: local
 
 networks:
