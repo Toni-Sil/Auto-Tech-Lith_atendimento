@@ -508,14 +508,13 @@ async function loadBilling() {
 
 // ── INFRASTRUCTURE ───────────────────────────────────────────────
 async function loadInfra() {
-    // Simulated — integrate with Docker/system API as needed
     const services = [
-        { name: 'PostgreSQL', icon: '🗄️', version: '15.4', status: 'online', cpu: '12%', mem: '340MB / 2GB' },
-        { name: 'FastAPI Backend', icon: '⚡', version: '0.115', status: 'online', cpu: '8%', mem: '180MB / 1GB' },
-        { name: 'Telegram Worker', icon: '✈️', version: '—', status: 'online', cpu: '2%', mem: '45MB / 512MB' },
-        { name: 'WhatsApp Evolution', icon: '📱', version: '2.1', status: 'online', cpu: '5%', mem: '120MB / 512MB' },
-        { name: 'Redis Cache', icon: '🔴', version: '7.2', status: 'warn', cpu: '1%', mem: '90MB / 256MB' },
-        { name: 'Nginx Proxy', icon: '🔄', version: '1.25', status: 'online', cpu: '1%', mem: '25MB / 128MB' },
+        { name: 'Auto Tech DB (Postgres)', icon: '🗄️', version: '15.4', status: 'online', cpu: '5%', mem: '150MB / 2GB' },
+        { name: 'Auto Tech Backend', icon: '⚡', version: '1.0', status: 'online', cpu: '8%', mem: '180MB / 1GB' },
+        { name: 'Evolution API', icon: '📱', version: '2.3.7', status: 'online', cpu: '10%', mem: '180MB / 512MB' },
+        { name: 'Evolution Postgres', icon: '🗄️', version: '15', status: 'online', cpu: '2%', mem: '110MB / 512MB' },
+        { name: 'Evolution Redis', icon: '🔴', version: '7.2', status: 'online', cpu: '1%', mem: '40MB / 256MB' },
+        { name: 'Traefik Proxy', icon: '🔄', version: 'Dokploy', status: 'online', cpu: '1%', mem: '25MB / 128MB' },
     ];
 
     const grid = document.getElementById('infraGrid');
@@ -1327,8 +1326,7 @@ async function loadWhatsAppInstances() {
                 </td>
                 <td>${i.phone_number || '<span class="text-muted text-sm">Não conectado</span>'}</td>
                 <td style="max-width:200px">
-                <div style="font-size:0.85rem">${i.evolution_ip || '<span class="text-muted">N/A</span>'}</div>
-                <div style="font-size:0.75rem;color:var(--text-muted)">${i.owner_email || 'Sem E-mail'}</div>
+                <div style="font-size:0.85rem;color:var(--text-muted)">${i.owner_email || 'Sem E-mail'}</div>
             </td>
                 <td><span class="badge ${i.status === 'open' || i.status === 'connected' ? 'active' : i.status === 'pending' || i.status === 'connecting' ? 'warn' : 'danger'}">${i.status || 'desconhecido'}</span></td>
                 <td>
@@ -1386,7 +1384,6 @@ window.createWhatsAppInstance = async function () {
     const instanceToken = document.getElementById('waInstanceToken').value.trim();
     const evolUrl = document.getElementById('waEvolUrl').value.trim();
     const evolKey = document.getElementById('waEvolKey').value.trim();
-    const evolIp = document.getElementById('waEvolIp').value.trim();
     const ownerEmail = document.getElementById('waOwnerEmail').value.trim();
 
     if (!tenantId || !instanceName) {
@@ -1410,7 +1407,6 @@ window.createWhatsAppInstance = async function () {
                 instance_token: instanceToken || null,
                 evolution_api_url: evolUrl || null,
                 evolution_api_key: evolKey || null,
-                evolution_ip: evolIp || null,
                 owner_email: ownerEmail || null
             })
         });
@@ -1420,25 +1416,20 @@ window.createWhatsAppInstance = async function () {
             closeWhatsAppCreateModal();
             loadWhatsAppInstances();
 
-            // Show modal with webhook URL
+            // Show success alert
             setTimeout(() => {
-                const webhookUrl = res.webhook_url || '';
                 const statusHtml = hasWarning
                     ? `<div style="background:#422006;border:1px solid #92400e;padding:.75rem;border-radius:8px;margin-bottom:1rem;color:#fbbf24;">${res.warning}</div>`
-                    : `<div style="background:#052e16;border:1px solid #166534;padding:.75rem;border-radius:8px;margin-bottom:1rem;color:#4ade80;">✅ Instância <strong>${instanceName}</strong> registrada e configurada com sucesso!</div>`;
+                    : `<div style="background:#052e16;border:1px solid #166534;padding:.75rem;border-radius:8px;margin-bottom:1rem;color:#4ade80;">✅ Instância <strong>${instanceName}</strong> registrada e configurada automaticamente!</div>`;
                 const instructions = `
                     <div style="text-align:left;">
                         ${statusHtml}
-                        <p><strong>Webhook Global (use esta URL na Evolution API):</strong></p>
-                        <div class="card bg-dark" style="padding:1rem; margin:.5rem 0; word-break:break-all; background:#0f172a; color:#38bdf8; font-family:monospace; border-radius:8px; font-size:.85rem;">
-                            ${webhookUrl}
-                        </div>
-                        <button class="btn btn-primary w-100" onclick="copyToClipboard('${webhookUrl}')">📋 Copiar Webhook</button>
-                        <p style="margin-top:1rem;color:#94a3b8;font-size:.85rem;">Configure esta URL na aba <em>Webhook</em> da instância <strong>${instanceName}</strong> na Evolution API.</p>
+                        <p>O Webhook já foi injetado globalmente pela nossa infraestrutura Docker Compose.</p>
+                        <p style="margin-top:1rem;color:#94a3b8;font-size:.85rem;">Você não precisa mais configurar nada na aba Webhook da Evolution API.</p>
                     </div>
                 `;
                 showGenericModal('Instância do WhatsApp', instructions);
-            }, 600);
+            }, 500);
         }
 
     } catch (e) {
@@ -1460,7 +1451,6 @@ window.openWhatsAppEditModal = function (instanceName) {
     document.getElementById('waEditInstanceToken').value = ''; // Don't show existing token for security
     document.getElementById('waEditEvolUrl').value = inst.evolution_api_url || '';
     document.getElementById('waEditEvolKey').value = inst.evolution_api_key || ''; // Will update if provided
-    document.getElementById('waEditEvolIp').value = inst.evolution_ip || '';
     document.getElementById('waEditOwnerEmail').value = inst.owner_email || '';
 
     document.getElementById('whatsappEditModal').classList.add('active');
@@ -1476,7 +1466,6 @@ window.editWhatsAppInstance = async function () {
     const instanceToken = document.getElementById('waEditInstanceToken').value.trim();
     const evolUrl = document.getElementById('waEditEvolUrl').value.trim();
     const evolKey = document.getElementById('waEditEvolKey').value.trim();
-    const evolIp = document.getElementById('waEditEvolIp').value.trim();
     const ownerEmail = document.getElementById('waEditOwnerEmail').value.trim();
 
     if (!instanceName) return;
@@ -1492,7 +1481,6 @@ window.editWhatsAppInstance = async function () {
         if (instanceToken) body.instance_token = instanceToken;
         if (evolUrl !== undefined) body.evolution_api_url = evolUrl || null;
         if (evolKey !== undefined && evolKey !== '') body.evolution_api_key = evolKey || null;
-        if (evolIp !== undefined) body.evolution_ip = evolIp || null;
         if (ownerEmail !== undefined) body.owner_email = ownerEmail || null;
 
         const res = await apiFetch(`/master/whatsapp/${encodeURIComponent(instanceName)}`, {
