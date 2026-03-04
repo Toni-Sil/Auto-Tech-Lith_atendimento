@@ -1315,7 +1315,9 @@ async function loadWhatsAppInstances() {
             tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem;">Nenhuma instância encontrada</td></tr>';
             return;
         }
-        tbody.innerHTML = instances.map(i => `
+        tbody.innerHTML = instances.map(i => {
+            const safeName = encodeURIComponent(i.instance_name);
+            return `
             <tr>
                 <td>#${i.id}</td>
                 <td><span class="bold">${i.tenant_name}</span> <span class="text-sm text-muted">(ID: ${i.tenant_id})</span></td>
@@ -1330,12 +1332,24 @@ async function loadWhatsAppInstances() {
             </td>
                 <td><span class="badge ${i.status === 'open' || i.status === 'connected' ? 'active' : i.status === 'pending' || i.status === 'connecting' ? 'warn' : 'danger'}">${i.status || 'desconhecido'}</span></td>
                 <td>
-                    ${i.status !== 'open' && i.status !== 'connected' ? `<button class="btn btn-ghost btn-sm" onclick="getWhatsAppPairingCode('${i.instance_name}')">🔗 Pareamento</button>` : ''}
-                    <button class="btn btn-ghost btn-sm" onclick="openWhatsAppEditModal('${i.instance_name}')">✏️ Editar</button>
-                    <button class="btn btn-ghost btn-danger btn-sm" onclick="deleteWhatsAppInstance('${i.instance_name}')">🗑️ Excluir</button>
+                    ${i.status !== 'open' && i.status !== 'connected' ? `<button class="btn btn-ghost btn-sm wa-pairing-btn" data-name="${safeName}">🔗 Pareamento</button>` : ''}
+                    <button class="btn btn-ghost btn-sm wa-edit-btn" data-name="${safeName}">✏️ Editar</button>
+                    <button class="btn btn-ghost btn-danger btn-sm wa-delete-btn" data-name="${safeName}">🗑️ Excluir</button>
                 </td>
             </tr>
-        `).join('');
+        `}).join('');
+
+        // Event delegation — evita problemas com nomes que têm espaços no onclick inline
+        tbody.querySelectorAll('.wa-edit-btn').forEach(btn => {
+            btn.addEventListener('click', () => openWhatsAppEditModal(decodeURIComponent(btn.dataset.name)));
+        });
+        tbody.querySelectorAll('.wa-delete-btn').forEach(btn => {
+            btn.addEventListener('click', () => deleteWhatsAppInstance(decodeURIComponent(btn.dataset.name)));
+        });
+        tbody.querySelectorAll('.wa-pairing-btn').forEach(btn => {
+            btn.addEventListener('click', () => getWhatsAppPairingCode(decodeURIComponent(btn.dataset.name)));
+        });
+
         // Store globally for edit modal
         window._waInstances = instances;
     } catch (e) {
