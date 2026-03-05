@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import List, Optional, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -46,6 +46,13 @@ class LeadCreate(BaseModel):
     estimated_mrr: Optional[float] = 0.0
     cac_value:     Optional[float] = 0.0
     assigned_to:   Optional[str] = None
+
+    @field_validator("name")
+    @classmethod
+    def name_required(cls, v):
+        if not v or not v.strip():
+            raise ValueError("Lead name is required")
+        return v.strip()
 
 
 class LeadUpdate(BaseModel):

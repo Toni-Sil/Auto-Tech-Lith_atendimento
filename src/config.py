@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     VERIFY_TOKEN: str = "MEU_TOKEN_SECRETO"
 
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_MINUTES: int = 1440 # 1 day
 
     # CORS — set via env as JSON list: '["https://yourapp.com"]'
     BACKEND_CORS_ORIGINS: List[str] = [

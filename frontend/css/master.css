@@ -879,22 +879,52 @@ tbody tr:last-child td {
 /* ═══ ALERT TOASTS ════════════════════════════════════════════════ */
 #alertContainer {
     position: fixed;
-    top: 1.25rem;
-    right: 1.25rem;
+    top: 20px;
+    right: 20px;
+    width: 320px;
     z-index: 9999;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    max-width: 380px;
+    gap: 0.75rem;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    to {
+        opacity: 0;
+        transform: scale(0.9);
+    }
 }
 
 .alert {
-    padding: 0.85rem 1.25rem;
+    padding: 1rem 1.25rem;
     border-radius: 12px;
     font-size: 0.875rem;
     font-weight: 600;
-    animation: slideIn 0.3s ease;
-    border: 1px solid;
+    animation: slideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: opacity 0.3s, transform 0.3s;
+}
+
+.alert.removing {
+    animation: fadeOut 0.3s forwards;
 }
 
 .alert.success {

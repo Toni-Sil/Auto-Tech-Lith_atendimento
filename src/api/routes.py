@@ -281,17 +281,19 @@ async def create_meeting(
     current_user: Annotated[AdminUser, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db)
 ):
-    new_meeting = Meeting(**meeting.model_dump())
+    # 1. Enforce ownership and check if customer belongs to tenant
+    customer = await db.scalar(select(Customer).where(Customer.id == meeting.customer_id, Customer.tenant_id == current_user.tenant_id))
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found in your tenant")
+        
+    new_meeting = Meeting(**meeting.model_dump(), tenant_id=current_user.tenant_id)
     db.add(new_meeting)
     
     # 2. Automate Customer Status Update
-    customer = await db.get(Customer, new_meeting.customer_id)
-    if customer:
-        if new_meeting.type == MeetingType.BRIEFING:
-            customer.status = "briefing"
-        elif new_meeting.type == MeetingType.PROPOSAL:
-            customer.status = "proposal"
-        # Outros status (mensal, finalizado) são manuais
+    if new_meeting.type == MeetingType.BRIEFING:
+        customer.status = "briefing"
+    elif new_meeting.type == MeetingType.PROPOSAL:
+        customer.status = "proposal"
             
     await db.commit()
     await db.refresh(new_meeting)
@@ -308,7 +310,7 @@ async def update_meeting(
     current_user: Annotated[AdminUser, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db)
 ):
-    existing = await db.get(Meeting, meeting_id)
+    existing = await db.scalar(select(Meeting).where(Meeting.id == meeting_id, Meeting.tenant_id == current_user.tenant_id))
     if not existing:
         raise HTTPException(status_code=404, detail="Meeting not found")
     
@@ -333,7 +335,7 @@ async def delete_meeting(
     current_user: Annotated[AdminUser, Depends(RequirePermissions(["meetings:delete"]))],
     db: AsyncSession = Depends(get_db)
 ):
-    meeting = await db.get(Meeting, meeting_id)
+    meeting = await db.scalar(select(Meeting).where(Meeting.id == meeting_id, Meeting.tenant_id == current_user.tenant_id))
     if not meeting:
         raise HTTPException(status_code=404, detail="Meeting not found")
     

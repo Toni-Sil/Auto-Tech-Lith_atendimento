@@ -349,9 +349,9 @@
                 });
 
                 if (!response.ok) throw new Error('Credenciais inválidas');
-
                 const data = await response.json();
-                localStorage.setItem('token', data.access_token);
+                // O token agora é enviado via HttpOnly Cookie pelo backend.
+
 
                 // ── RBAC Portal Routing ──────────────────────────────────
                 // Decode JWT to determine which portal to show

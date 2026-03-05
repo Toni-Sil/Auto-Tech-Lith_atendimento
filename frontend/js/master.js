@@ -6,34 +6,51 @@ const API = '/api/v1';
 const AUTH_URL = '/login.html';
 
 // ── Auth & Guard ─────────────────────────────────────────────────
+// ── Auth & Guard ─────────────────────────────────────────────────
+// With HttpOnly cookies, JS cannot read the token. 
+// We rely on the backend to validate the session.
 function getToken() { return localStorage.getItem('token'); }
 
-function checkMasterAuth() {
-    const token = getToken();
-    if (!token) { window.location.href = AUTH_URL; return false; }
+async function checkMasterAuth() {
     try {
-        const p = JSON.parse(atob(token.split('.')[1]));
-        // Check expiry
-        if (p.exp && Date.now() / 1000 > p.exp) {
-            localStorage.removeItem('token');
-            window.location.href = AUTH_URL;
-            return false;
-        }
-        const role = (p.role || '').toLowerCase();
-        const isMaster = (role === 'owner' || role === 'master_admin') && !p.tenant_id;
-        if (!isMaster) { localStorage.removeItem('token'); window.location.href = AUTH_URL; return false; }
+        const user = await apiFetch('/auth/me');
+        if (!user) { window.location.href = AUTH_URL; return false; }
+        const role = (user.role || '').toLowerCase();
+        const isMaster = (role === 'owner' || role === 'master_admin');
+        if (!isMaster) { window.location.href = AUTH_URL; return false; }
         return true;
-    } catch (_) { localStorage.removeItem('token'); window.location.href = AUTH_URL; return false; }
+    } catch (_) { window.location.href = AUTH_URL; return false; }
 }
 
 function authHeaders() {
-    return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` };
+    // Header 'Authorization' is now optional if cookie is present.
+    // We send it only if we still have a token in localStorage (migration phase).
+    const headers = { 'Content-Type': 'application/json' };
+    const token = getToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    return headers;
 }
 
 async function apiFetch(path, opts = {}) {
     opts.headers = { ...authHeaders(), ...(opts.headers || {}) };
+    opts.credentials = 'include'; // REQUIRED for cookies
     if (!opts.cache) opts.cache = 'no-store';
-    const r = await fetch(API + path, opts);
+
+    let r = await fetch(API + path, opts);
+
+    if (r.status === 401 && path !== '/auth/refresh') {
+        // Try refresh
+        const refreshed = await fetch(API + '/auth/refresh', { method: 'POST', credentials: 'include' });
+        if (refreshed.ok) {
+            // Retry original request
+            r = await fetch(API + path, opts);
+        } else {
+            localStorage.removeItem('token');
+            window.location.href = AUTH_URL;
+            return null;
+        }
+    }
+
     if (r.status === 401) {
         localStorage.removeItem('token');
         window.location.href = AUTH_URL;
@@ -136,6 +153,7 @@ function initNav() {
             document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
             item.classList.add('active');
             const target = item.dataset.target;
+            window.location.hash = target;
             const section = document.getElementById(target);
             if (section) {
                 section.classList.add('active');
@@ -165,6 +183,7 @@ function initNav() {
 
             // Additional Master sections
             if (target === 'leads') loadLeads();
+            document.title = `Auto Tech Lith | ${item.textContent.trim()}`;
             if (target === 'quotas') loadQuotas();
             if (target === 'abuse') loadAbuseAlerts();
             if (target === 'internal-finance') loadFinancial();
@@ -179,12 +198,22 @@ function initNav() {
 }
 
 // ── DOMContentLoaded ─────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-    if (!checkMasterAuth()) return;
+document.addEventListener('DOMContentLoaded', async () => {
+    if (!await checkMasterAuth()) return;
     startClock();
     initNav();
     loadUser();
-    loadDashboard();
+
+    // UX-001: Deep Linking (Handle Hash)
+    const hash = window.location.hash.substring(1);
+    if (hash) {
+        const item = document.querySelector(`.nav-item[data-target="${hash}"]`);
+        if (item) item.click();
+        else loadDashboard();
+    } else {
+        loadDashboard();
+    }
+
     // Auto-refresh dashboard every 60s
     setInterval(loadDashboard, 60000);
 });
@@ -902,6 +931,9 @@ async function loadLeads() {
         renderKanban(leads);
         renderLeadsList(leads);
         setText('leadsCount', leads.length);
+        // Sync Sidebar Badge
+        const badge = document.querySelector('.nav-item[data-target="leads"] .nav-badge');
+        if (badge) badge.textContent = leads.length;
     } catch (e) { showAlert('Erro ao carregar leads: ' + e.message, 'error'); }
     try {
         const m = await apiFetch('/master/leads/metrics/funnel');
@@ -988,10 +1020,19 @@ function closeLeadModal() { const modal = document.getElementById('leadModal'); 
 
 async function saveLead() {
     const id = document.getElementById('leadEditId')?.value;
+    const name = document.getElementById('leadName')?.value;
+    const phone = document.getElementById('leadPhone')?.value;
+
+    if (!name || name.trim() === '') {
+        showAlert('O nome do lead é obrigatório', 'error');
+        document.getElementById('leadName').focus();
+        return;
+    }
+
     const body = {
-        name: document.getElementById('leadName')?.value,
+        name: name.trim(),
         company: document.getElementById('leadCompany')?.value,
-        phone: document.getElementById('leadPhone')?.value,
+        phone: phone,
         email: document.getElementById('leadEmail')?.value,
         source: document.getElementById('leadSource')?.value,
         status: document.getElementById('leadStatus')?.value,

@@ -1,5 +1,5 @@
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -15,23 +15,38 @@ from src.config import settings
 from src.utils.logger import setup_logger
 from src.utils.audit import log_security_event
 from src.utils.rate_limit import rate_limit_check
-from fastapi import Request
+
 from datetime import datetime, timezone, timedelta
 
 logger = setup_logger(__name__)
 auth_router = APIRouter()
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/token", auto_error=False)
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: AsyncSession = Depends(get_db)):
+async def get_current_user(
+    request: Request,
+    token: Annotated[Optional[str], Depends(oauth2_scheme)] = None, 
+    db: AsyncSession = Depends(get_db)
+):
     from jose import JWTError, jwt
+    
+    # Try header (via oauth2_scheme) or cookie
+    actual_token = token or request.cookies.get("access_token")
+    
+    if not actual_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(actual_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         username: str = payload.get("sub")
         jti: str = payload.get("jti")
         if username is None:
@@ -76,6 +91,7 @@ class RequirePermissions:
 @auth_router.post("/token")
 async def login_for_access_token(
     request: Request,
+    response: Response,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: AsyncSession = Depends(get_db)
 ):
@@ -170,13 +186,19 @@ async def login_for_access_token(
     await db.commit()
         
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    refresh_token_expires = timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
+    
     import uuid
     jti = uuid.uuid4().hex
     
     access_token = create_access_token(
         data={"sub": user.username, "role": user.role, "tenant_id": user.tenant_id, "jti": jti},
         expires_delta=access_token_expires
+    )
+    
+    refresh_token = create_access_token(
+        data={"sub": user.username, "type": "refresh", "jti": jti},
+        expires_delta=refresh_token_expires
     )
     
     # Save active session
@@ -189,7 +211,76 @@ async def login_for_access_token(
     db.add(new_session)
     await db.commit()
     
-    return {"access_token": access_token, "token_type": "bearer"}
+    # Set HttpOnly Cookies
+    cookie_settings = {
+        "httponly": True,
+        "secure": settings.ENV == "production",
+        "samesite": "lax", # "strict" can be too aggressive if they come from other domains
+    }
+    
+    response.set_cookie(key="access_token", value=access_token, max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60, **cookie_settings)
+    response.set_cookie(key="refresh_token", value=refresh_token, max_age=settings.REFRESH_TOKEN_EXPIRE_MINUTES * 60, **cookie_settings)
+    
+    return {
+        "access_token": access_token, 
+        "refresh_token": refresh_token,
+        "token_type": "bearer"
+    }
+
+@auth_router.post("/refresh")
+async def refresh_token(request: Request, response: Response, db: AsyncSession = Depends(get_db)):
+    from jose import JWTError, jwt
+    token = request.cookies.get("refresh_token")
+    if not token:
+        raise HTTPException(status_code=401, detail="Refresh token missing")
+    
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        if payload.get("type") != "refresh":
+            raise HTTPException(status_code=401, detail="Invalid token type")
+        
+        username = payload.get("sub")
+        jti = payload.get("jti")
+        
+        # Validate session
+        session = await db.scalar(select(UserSession).where(UserSession.session_token_jti == jti))
+        if not session or session.is_revoked:
+            raise HTTPException(status_code=401, detail="Session revoked")
+            
+        # Get user
+        user = await db.scalar(select(AdminUser).where(AdminUser.username == username))
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+            
+        # Generate new access token
+        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        new_access_token = create_access_token(
+            data={"sub": user.username, "role": user.role, "tenant_id": user.tenant_id, "jti": jti},
+            expires_delta=access_token_expires
+        )
+        
+        # Update cookie
+        response.set_cookie(
+            key="access_token", 
+            value=new_access_token, 
+            max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            httponly=True,
+            secure=settings.ENV == "production",
+            samesite="lax"
+        )
+        
+        return {"access_token": new_access_token, "token_type": "bearer"}
+        
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+@auth_router.post("/logout")
+async def logout(response: Response, current_user: Annotated[AdminUser, Depends(get_current_user)], db: AsyncSession = Depends(get_db), request: Request = None):
+    # Revoke sessions for this user (or just the current one if JTI is known)
+    # For now, let's just clear the cookies on the client side
+    response.delete_cookie("access_token")
+    response.delete_cookie("refresh_token")
+    return {"status": "ok", "message": "Logged out successfully"}
 
 from src.schemas import AccountRecoveryRequest, AccountRecoveryReset
 import secrets
@@ -278,6 +369,7 @@ async def read_users_me(current_user: Annotated[AdminUser, Depends(get_current_u
     return {
         "username": current_user.username, 
         "name": current_user.name, 
+        "email": current_user.email,
         "role": current_user.custom_role.name if current_user.custom_role else current_user.role,
         "permissions": current_user.custom_role.permissions if current_user.custom_role else [],
         "avatar_url": current_user.avatar_url,
