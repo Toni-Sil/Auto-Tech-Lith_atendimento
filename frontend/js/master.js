@@ -19,7 +19,7 @@ async function checkMasterAuth() {
         const user = await apiFetch('/auth/me');
         if (!user) { window.location.href = AUTH_URL; return false; }
         const role = (user.role || '').toLowerCase();
-        const isMaster = (role === 'owner' || role === 'master_admin');
+        const isMaster = (role === 'owner' || role === 'master_admin' || role === 'admin');
         if (!isMaster) { window.location.href = AUTH_URL; return false; }
         return true;
     } catch (_) { window.location.href = AUTH_URL; return false; }
@@ -334,34 +334,55 @@ function renderChurnAlerts(churn) {
     const el = document.getElementById('dashChurnAlerts');
     if (!el) return;
     if (!churn || !churn.length) {
-        el.innerHTML = '<p class="text-muted text-sm" style="text-align:center;padding:2rem;">✅ Sem alertas de churn esta semana</p>';
+        el.textContent = '✅ Sem alertas de churn esta semana';
+        el.style.textAlign = 'center';
+        el.style.padding = '2rem';
+        el.style.color = 'var(--text-muted)';
         return;
     }
-    el.innerHTML = churn.map(c => `
-        <div style="display:flex;justify-content:space-between;align-items:center;
-            padding:0.75rem 0;border-bottom:1px solid var(--border);">
+    el.innerHTML = '';
+    churn.forEach(c => {
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.justifyContent = 'space-between';
+        row.style.alignItems = 'center';
+        row.style.padding = '0.75rem 0';
+        row.style.borderBottom = '1px solid var(--border)';
+
+        row.innerHTML = `
             <div>
                 <span class="bold">${c.tenant_name || 'Tenant #' + c.tenant_id}</span>
                 <span class="text-sm text-muted" style="margin-left:0.5rem;">${c.last_week_interactions} → ${c.this_week_interactions}</span>
             </div>
             <span class="badge danger">-${c.drop_percent}%</span>
-        </div>`).join('');
+        `;
+        el.appendChild(row);
+    });
 }
 
 function renderTopTenants(tenants) {
     const el = document.getElementById('dashTopTenants');
     if (!el || !tenants) return;
     const sorted = [...tenants].sort((a, b) => (b.interactions_30d || 0) - (a.interactions_30d || 0)).slice(0, 5);
-    el.innerHTML = sorted.map((t, i) => `
-        <div style="display:flex;align-items:center;gap:0.75rem;padding:0.6rem 0;
-            border-bottom:1px solid var(--border);">
+    el.innerHTML = '';
+    sorted.forEach((t, i) => {
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.alignItems = 'center';
+        row.style.gap = '0.75rem';
+        row.style.padding = '0.6rem 0';
+        row.style.borderBottom = '1px solid var(--border)';
+
+        row.innerHTML = `
             <span style="font-size:1rem;font-weight:800;color:var(--accent);min-width:20px;">#${i + 1}</span>
             <div style="flex:1;">
                 <div class="bold text-sm">${t.name}</div>
                 <div class="text-muted" style="font-size:0.75rem;">${fmt(t.interactions_30d || 0)} msgs · $${(t.cost_usd_30d || 0).toFixed(4)}</div>
             </div>
             <span class="badge ${t.is_active ? 'active' : 'neutral'}">${t.is_active ? 'Ativo' : 'Inativo'}</span>
-        </div>`).join('');
+        `;
+        el.appendChild(row);
+    });
 }
 
 function updateSystemStatus() {

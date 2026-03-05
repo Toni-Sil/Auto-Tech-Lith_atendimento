@@ -319,9 +319,6 @@
     </div>
 
     <script>
-        // Clear any old session on load (unless coming back from portal)
-        // Don't auto-logout here — let portals handle expired tokens
-
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
@@ -337,13 +334,18 @@
             spinner.style.display = 'block';
             errorBanner.style.display = 'none';
 
+            // Clear legacy tokens to ensure cookie-based auth is preferred
+            localStorage.removeItem('token');
+
             const formData = new URLSearchParams();
             formData.append('username', document.getElementById('username').value.trim());
             formData.append('password', document.getElementById('password').value);
 
-            const apiBase = (window.location.port === '8080')
+            const apiBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
                 ? `http://${window.location.hostname}:8000`
                 : '';
+
+            console.log('API Request to:', `${apiBase}/api/v1/auth/token`);
 
             try {
                 const response = await fetch(`${apiBase}/api/v1/auth/token`, {
@@ -360,7 +362,6 @@
                 }
                 const data = await response.json();
                 // O token agora é enviado via HttpOnly Cookie pelo backend.
-
 
                 // ── RBAC Portal Routing ──────────────────────────────────
                 // Decode JWT to determine which portal to show

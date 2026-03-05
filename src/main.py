@@ -74,19 +74,21 @@ async def add_security_headers(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     # Dynamic connect-src for development and production
-    connect_src = "connect-src 'self' http://localhost:8000 http://127.0.0.1:8000"
+    connect_origins = ["'self'", "http://localhost:8000", "http://127.0.0.1:8000"]
     if settings.PUBLIC_URL:
-        # Add public URL and its API path
         public_domain = settings.PUBLIC_URL.split('://')[-1].split('/')[0]
-        connect_src += f" https://{public_domain} wss://{public_domain}"
+        connect_origins.append(f"https://{public_domain}")
+        connect_origins.append(f"wss://{public_domain}")
     
-    response.headers["Content-Security-Policy"] = (
+    csp = (
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com; "
-        f"{connect_src};"
+        "img-src 'self' data: blob:; "
+        f"connect-src {' '.join(connect_origins)};"
     )
+    response.headers["Content-Security-Policy"] = csp
     return response
 
 # Montar arquivos estáticos do frontend (Dashboard) será feito no final
