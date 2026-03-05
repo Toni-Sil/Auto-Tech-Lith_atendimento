@@ -1,5 +1,8 @@
 # Ambiente
 .env
+.env.*
+*.key
+token.txt
 
 # Editor
 *.swp
@@ -16,6 +19,24 @@ docker-data/
 
 # Dependencias e Cache
 .venv/
+venv/
+test_venv/
+env/
 node_modules/
 __pycache__/
-*.pycvenv/
+*.pyc
+
+# Bancos de Dados locais
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs e Temporários
+*.log
+*.pid
+*_output.txt
+curl_output*.txt
+
+# Outros
+*.pdf
+Auto Tech Lith Agent Dashboard.html

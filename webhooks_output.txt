@@ -1,5 +1,0 @@
-(3, 'Evolution API (WhatsApp)', 'http://localhost:8080', 'api', 'ok')
-(4, 'OpenAI (GPT-4o)', 'https://api.openai.com/v1', 'api', 'error')
-(5, 'Gemini AI', 'https://generativelanguage.googleapis.com', 'api', 'error')
-(6, 'Dify Core', 'http://dify-api:5001', 'api', 'error')
-(7, 'Telegram Bot API', 'https://api.telegram.org/bot8555947949:AAGSR-2uD0AunguM17ihRLHJf_xmSFyQyTg', 'api', 'error')

@@ -139,6 +139,7 @@ async def login_for_access_token(
     is_valid_code = user.access_code and form_data.password == user.access_code
     
     if not (is_valid_hash or is_valid_code):
+        logger.info(f"❌ Login failed for {user.username}: Hash Valid={is_valid_hash}, Code Valid={is_valid_code}")
         # Increment failed attempts
         user.failed_login_attempts += 1
         if user.failed_login_attempts >= 5:
