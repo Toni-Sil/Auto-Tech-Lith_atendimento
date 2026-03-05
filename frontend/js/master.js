@@ -59,14 +59,62 @@ function logout() {
     window.location.href = AUTH_URL;
 }
 
-// ── Toast ────────────────────────────────────────────────────────
+// ── Toast & Loading & Modals ─────────────────────────────────────
 function showAlert(msg, type = 'success') {
+    const container = document.getElementById('alertContainer');
+    if (!container) return; // Prevent errors if container is missing
     const el = document.createElement('div');
     el.className = `alert ${type}`;
     el.textContent = msg;
-    document.getElementById('alertContainer').appendChild(el);
+    container.appendChild(el);
     setTimeout(() => el.remove(), 4500);
 }
+
+function setButtonLoading(btn, isLoading) {
+    if (!btn) return;
+    if (isLoading) {
+        btn.classList.add('loading');
+        if (!btn.querySelector('.spinner')) {
+            const spinner = document.createElement('div');
+            spinner.className = 'spinner';
+            btn.appendChild(spinner);
+        }
+    } else {
+        btn.classList.remove('loading');
+    }
+}
+
+function confirmAction(message, onConfirm) {
+    const modal = document.getElementById('confirmModal');
+    if (!modal) {
+        // Fallback to native if modal is not present
+        if (confirm(message)) onConfirm();
+        return;
+    }
+    document.getElementById('confirmMessage').textContent = message;
+
+    const btnCancel = document.getElementById('confirmCancelBtn');
+    const btnConfirm = document.getElementById('confirmOkBtn');
+
+    // Cleanup previous listeners to avoid multiple triggers
+    const parentCancel = btnCancel.parentNode;
+    const newCancel = btnCancel.cloneNode(true);
+    const newConfirm = btnConfirm.cloneNode(true);
+    parentCancel.replaceChild(newCancel, btnCancel);
+    parentCancel.replaceChild(newConfirm, btnConfirm);
+
+    newCancel.onclick = () => {
+        modal.classList.remove('active');
+    };
+
+    newConfirm.onclick = () => {
+        modal.classList.remove('active');
+        onConfirm();
+    };
+
+    modal.classList.add('active');
+}
+
 
 // ── Live Clock ───────────────────────────────────────────────────
 function startClock() {
@@ -93,6 +141,12 @@ function initNav() {
                 section.classList.add('active');
                 document.getElementById('pageTitle').textContent = item.textContent.trim();
             }
+
+            // Auto close mobile sidebar if open
+            if (window.innerWidth <= 992) {
+                toggleMobileSidebar();
+            }
+
             // Lazy-load section data
             if (target === 'dashboard') loadDashboard();
             if (target === 'tenants') loadTenants();
@@ -134,6 +188,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // Auto-refresh dashboard every 60s
     setInterval(loadDashboard, 60000);
 });
+
+function toggleMobileSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.getElementById('mobileSidebarOverlay');
+    if (!sidebar || !overlay) return;
+
+    sidebar.classList.toggle('mobile-open');
+    if (sidebar.classList.contains('mobile-open')) {
+        overlay.classList.add('active');
+    } else {
+        overlay.classList.remove('active');
+    }
+}
 
 // ── Load Current User ────────────────────────────────────────────
 async function loadUser() {
@@ -292,6 +359,9 @@ async function saveNewTenant() {
         max_messages_monthly: monthly,
     };
 
+    const btn = document.querySelector('#tenantCreateModal .btn-primary');
+    setButtonLoading(btn, true);
+
     try {
         const res = await apiFetch('/master/tenants', {
             method: 'POST',
@@ -303,6 +373,8 @@ async function saveNewTenant() {
         loadTenants();
     } catch (e) {
         showAlert('Erro ao criar tenant: ' + e.message, 'error');
+    } finally {
+        setButtonLoading(btn, false);
     }
 }
 
@@ -330,17 +402,17 @@ function renderTenantsTable(tenants) {
         </tr>`).join('');
 }
 
-async function deleteTenant(id, name = '') {
+function deleteTenant(id, name = '') {
     const label = name ? ` o tenant "${name}"` : '';
-    const ok = confirm(`Tem certeza que deseja excluir definitivamente${label}? Esta ação não poderá ser desfeita.`);
-    if (!ok) return;
-    try {
-        await apiFetch(`/master/tenants/${id}`, { method: 'DELETE' });
-        showAlert('🗑️ Tenant excluído com sucesso.', 'info');
-        loadTenants();
-    } catch (e) {
-        showAlert('Erro ao excluir tenant: ' + e.message, 'error');
-    }
+    confirmAction(`Tem certeza que deseja excluir definitivamente${label}? Esta ação não poderá ser desfeita.`, async () => {
+        try {
+            await apiFetch(`/master/tenants/${id}`, { method: 'DELETE' });
+            showAlert('🗑️ Tenant excluído com sucesso.', 'info');
+            loadTenants();
+        } catch (e) {
+            showAlert('Erro ao excluir tenant: ' + e.message, 'error');
+        }
+    });
 }
 
 async function openTenantModal(id) {
@@ -379,6 +451,9 @@ async function saveTenantChanges() {
         max_messages_monthly: parseInt(document.getElementById('editTenantMonthly').value) || 20000
     };
 
+    const btn = document.querySelector('#tenantModal .btn-primary');
+    setButtonLoading(btn, true);
+
     try {
         await apiFetch(`/master/tenants/${id}`, {
             method: 'PUT',
@@ -389,6 +464,8 @@ async function saveTenantChanges() {
         loadTenants();
     } catch (e) {
         showAlert('Erro ao salvar tenant: ' + e.message, 'error');
+    } finally {
+        setButtonLoading(btn, false);
     }
 }
 
@@ -1239,15 +1316,26 @@ async function saveWebhook() {
     }
 }
 
+function removeIntegration(nodeId) {
+    confirmAction('Tem certeza que deseja excluir esta integração?', async () => {
+        try {
+            await apiFetch(`/master/integrations/${nodeId}`, { method: 'DELETE' });
+            showAlert('Integração removida', 'success');
+            loadWebhooks(); // Refresh
+        } catch (e) { showAlert('Erro: ' + e.message, 'error'); }
+    });
+}
+
 async function deleteWebhook(id) {
-    if (!confirm('Tem certeza que deseja excluir esta integração?')) return;
-    try {
-        await apiFetch(`/webhooks/${id}`, { method: 'DELETE' });
-        showAlert('🗑️ Integração removida.', 'info');
-        loadWebhooks();
-    } catch (e) {
-        showAlert('Erro ao excluir: ' + e.message, 'error');
-    }
+    confirmAction('Tem certeza que deseja excluir esta integração?', async () => {
+        try {
+            await apiFetch(`/webhooks/${id}`, { method: 'DELETE' });
+            showAlert('🗑️ Integração removida.', 'info');
+            loadWebhooks();
+        } catch (e) {
+            showAlert('Erro ao excluir: ' + e.message, 'error');
+        }
+    });
 }
 
 async function testWebhook(id) {
@@ -1501,15 +1589,16 @@ window.editWhatsAppInstance = async function () {
     }
 };
 
-window.deleteWhatsAppInstance = async function (instanceName) {
-    if (!confirm(`Tem certeza que deseja remover a instância "${instanceName}"? A conexão com o WhatsApp será desfeita.`)) return;
-    try {
-        await apiFetch(`/master/whatsapp/${instanceName}`, { method: 'DELETE' });
-        showAlert('Instância removida com sucesso.', 'info');
-        loadWhatsAppInstances();
-    } catch (e) {
-        showAlert('Erro ao deletar: ' + e.message, 'error');
-    }
+window.deleteWhatsAppInstance = function deleteWhatsAppInstance(instanceName) {
+    confirmAction(`Tem certeza que deseja remover a instância "${instanceName}"? A conexão com o WhatsApp será desfeita.`, async () => {
+        try {
+            await apiFetch(`/master/whatsapp/${instanceName}`, { method: 'DELETE' });
+            showAlert('Instância removida com sucesso.', 'info');
+            loadWhatsAppInstances();
+        } catch (e) {
+            showAlert('Erro ao deletar: ' + e.message, 'error');
+        }
+    });
 };
 
 async function getWhatsAppPairingCode(instanceName) {

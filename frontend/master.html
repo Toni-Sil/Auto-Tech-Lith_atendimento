@@ -128,7 +128,14 @@
     <!-- ═══════════════════ MAIN CONTENT ══════════════════════════ -->
     <main class="main-content">
         <header class="top-bar">
-            <h1 class="page-title" id="pageTitle">Dashboard Global</h1>
+            <div style="display:flex; align-items:center; gap:0.5rem">
+                <button class="hamburger-btn" onclick="toggleMobileSidebar()">☰</button>
+                <div class="breadcrumb-container">
+                    <span class="breadcrumb-item">Visão Global</span>
+                    <span class="breadcrumb-separator">/</span>
+                    <span class="breadcrumb-item" id="pageTitle">Dashboard Global</span>
+                </div>
+            </div>
             <div class="top-actions">
                 <div class="live-clock" id="liveClock">--:--:--</div>
                 <button class="btn btn-ghost btn-sm" onclick="loadDashboard()">🔄 Atualizar</button>
@@ -1516,6 +1523,23 @@
         </div>
     </div>
 
+    <!-- Modal de Confirmação (Destructive Actions) -->
+    <div id="confirmModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 420px;">
+            <div class="modal-header">
+                <h2>⚠️ Confirmação</h2>
+            </div>
+            <div id="confirmMessage" class="modal-body"
+                style="margin: 1rem 0; font-size: 0.95rem; line-height: 1.5; color: var(--text-secondary);">
+                Tem certeza que deseja executar esta ação?
+            </div>
+            <div class="modal-footer">
+                <button id="confirmCancelBtn" class="btn btn-ghost">Cancelar</button>
+                <button id="confirmOkBtn" class="btn btn-danger">Confirmar Exclusão</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Genérico -->
     <div id="genericModal" class="modal-overlay">
         <div class="modal-box">
@@ -1528,6 +1552,9 @@
             </div>
         </div>
     </div>
+
+    <!-- Sidebar Overlay (Mobile) -->
+    <div class="sidebar-overlay" id="mobileSidebarOverlay" onclick="toggleMobileSidebar()"></div>
 
     <script src="js/master.js?v=0.2.0"></script>
 </body>

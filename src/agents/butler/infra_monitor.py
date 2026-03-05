@@ -6,6 +6,7 @@ Returns a structured InfraStatus dict usable by alert logic.
 """
 
 import asyncio
+import shutil
 import subprocess
 import time
 from dataclasses import dataclass, asdict
@@ -85,6 +86,12 @@ def _check_docker_containers() -> List[ServiceHealth]:
     Returns a health entry per container.
     """
     results: List[ServiceHealth] = []
+    if not shutil.which("docker"):
+        # For environments explicitly lacking the docker binary (e.g. some PaaS),
+        # return an OK status with a note instead of degrading the whole system.
+        results.append(ServiceHealth("docker", "ok", detail="Docker not installed/required in this environment"))
+        return results
+
     try:
         proc = subprocess.run(
             ["docker", "ps", "--format", "{{.Names}}\t{{.Status}}"],
