@@ -9,8 +9,8 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
 
     # Environment
-    ENV: str = "production"  # development | production
-    APP_DEBUG: bool = False
+    ENV: str = "development"  # development | production
+    APP_DEBUG: bool = True
 
     # Database
     # Default to SQLite for local development
@@ -50,6 +50,8 @@ class Settings(BaseSettings):
         "http://localhost",
         "http://localhost:8000",
         "http://127.0.0.1:8000",
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
     ]
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")

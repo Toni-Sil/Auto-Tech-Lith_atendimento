@@ -2,7 +2,7 @@
 // MASTER ADMIN JS — Auto Tech Lith SaaS Platform
 // ═══════════════════════════════════════════════════════════════
 
-const API = '/api/v1';
+const API = window.location.port === '8080' ? 'http://localhost:8000/api/v1' : '/api/v1';
 const AUTH_URL = '/login.html';
 
 // ── Auth & Guard ─────────────────────────────────────────────────
