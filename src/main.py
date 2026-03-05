@@ -50,9 +50,16 @@ if getattr(settings, "APP_DEBUG", False):
 
 # Configuração de CORS
 if settings.BACKEND_CORS_ORIGINS:
+    origins = list(settings.BACKEND_CORS_ORIGINS)
+    if settings.PUBLIC_URL:
+        # Add public URL without trailing slash
+        p_url = settings.PUBLIC_URL.rstrip('/')
+        if p_url not in origins:
+            origins.append(p_url)
+            
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.BACKEND_CORS_ORIGINS,
+        allow_origins=origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -66,7 +73,20 @@ async def add_security_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
-    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;"
+    # Dynamic connect-src for development and production
+    connect_src = "connect-src 'self' http://localhost:8000 http://127.0.0.1:8000"
+    if settings.PUBLIC_URL:
+        # Add public URL and its API path
+        public_domain = settings.PUBLIC_URL.split('://')[-1].split('/')[0]
+        connect_src += f" https://{public_domain} wss://{public_domain}"
+    
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        f"{connect_src};"
+    )
     return response
 
 # Montar arquivos estáticos do frontend (Dashboard) será feito no final

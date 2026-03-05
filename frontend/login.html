@@ -341,15 +341,23 @@
             formData.append('username', document.getElementById('username').value.trim());
             formData.append('password', document.getElementById('password').value);
 
+            const apiBase = (window.location.port === '8080')
+                ? `http://${window.location.hostname}:8000`
+                : '';
+
             try {
-                const response = await fetch('http://localhost:8000/api/v1/auth/token', {
+                const response = await fetch(`${apiBase}/api/v1/auth/token`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: formData,
                     credentials: 'include'
                 });
 
-                if (!response.ok) throw new Error('Credenciais inválidas');
+                if (!response.ok) {
+                    const errBody = await response.text();
+                    console.error('Login error:', response.status, errBody);
+                    throw new Error('Credenciais inválidas');
+                }
                 const data = await response.json();
                 // O token agora é enviado via HttpOnly Cookie pelo backend.
 

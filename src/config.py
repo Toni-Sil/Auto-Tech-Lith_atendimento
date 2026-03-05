@@ -52,6 +52,7 @@ class Settings(BaseSettings):
         "http://127.0.0.1:8000",
         "http://localhost:8080",
         "http://127.0.0.1:8080",
+        "https://auto-tech-lich-server-1w3am1-6a00ef-187-77-227-171.traefik.me",
     ]
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
