@@ -127,12 +127,14 @@ async def login_for_access_token(
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Verificação de Telefone (OTP) pendente. Confirme seu celular para continuar.")
     
     # Brute Force Protection: Check Lockout
-    if user.locked_until and datetime.now(timezone.utc) < user.locked_until.replace(tzinfo=timezone.utc):
-        await log_security_event(db, "login_attempt_locked_account", username=user.username, ip_address=ip_address, user_agent=user_agent)
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Account temporarily locked. Try again after {user.locked_until.strftime('%H:%M:%S')}",
-        )
+    if user.locked_until:
+        locked_until_utc = user.locked_until if user.locked_until.tzinfo else user.locked_until.replace(tzinfo=timezone.utc)
+        if datetime.now(timezone.utc) < locked_until_utc:
+            await log_security_event(db, "login_attempt_locked_account", username=user.username, ip_address=ip_address, user_agent=user_agent)
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Account temporarily locked. Try again after {user.locked_until.strftime('%H:%M:%S')}",
+            )
     
     # Check password via hash OR via access_code (standard/fallback)
     is_valid_hash = user.password_hash and verify_password(form_data.password, user.password_hash)
@@ -278,7 +280,23 @@ async def refresh_token(request: Request, response: Response, db: AsyncSession =
 @auth_router.post("/logout")
 async def logout(response: Response, current_user: Annotated[AdminUser, Depends(get_current_user)], db: AsyncSession = Depends(get_db), request: Request = None):
     # Revoke sessions for this user (or just the current one if JTI is known)
-    # For now, let's just clear the cookies on the client side
+    if request:
+        from jose import JWTError, jwt
+        access_token = request.cookies.get("access_token")
+        if access_token:
+            try:
+                payload = jwt.decode(access_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+                jti = payload.get("jti")
+                if jti:
+                    from sqlalchemy import select
+                    from src.models.user_session import UserSession
+                    session_to_revoke = await db.scalar(select(UserSession).where(UserSession.session_token_jti == jti))
+                    if session_to_revoke:
+                        session_to_revoke.is_revoked = True
+                        await db.commit()
+            except JWTError:
+                pass
+
     response.delete_cookie("access_token")
     response.delete_cookie("refresh_token")
     return {"status": "ok", "message": "Logged out successfully"}
@@ -327,9 +345,16 @@ async def request_password_recovery(
     await log_security_event(db, "recovery_requested_email", username=user.username, ip_address=request.client.host)
     await db.commit()
     
-    # Dummy Email Sender (Console Logger)
-    logger.info(f"📧 [DUMMY EMAIL] Enviado para {user.email or user.username}")
-    logger.info(f"🔗 Link de redefinição: /reset-password?token={raw_token}&username={user.username}")
+    # Real Email Sender
+    recovery_link = f"{settings.PUBLIC_URL}/reset-password?token={raw_token}&username={user.username}"
+    
+    from src.services.email_service import email_service
+    if user.email:
+        email_service.send_recovery_email(user.email, recovery_link)
+    else:
+        logger.warning(f"Usuário {user.username} solicitou recuperação mas não tem email cadastrado.")
+    
+    logger.info(f"📧 Recovery email workflow initiated for {user.username}")
     
     return {"message": "Caso a conta exista, um link de recuperação foi enviado."}
 

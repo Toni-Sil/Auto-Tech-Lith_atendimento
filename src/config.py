@@ -42,6 +42,12 @@ class Settings(BaseSettings):
     # Webhook Verification
     VERIFY_TOKEN: str = "MEU_TOKEN_SECRETO"
 
+    # SMTP Settings
+    SMTP_SERVER: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_USER: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 1440 # 1 day
 
