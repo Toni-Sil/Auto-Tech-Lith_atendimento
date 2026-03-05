@@ -20,4 +20,5 @@ COPY src /app/src
 COPY frontend /app/frontend
 
 # Comando para rodar a aplicação
+EXPOSE 8000
 CMD ["python", "-m", "src.main"]
