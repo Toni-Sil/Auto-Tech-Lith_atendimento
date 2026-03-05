@@ -202,6 +202,43 @@ function toggleMobileSidebar() {
     }
 }
 
+// ── Export CSV & Submenu toggles ─────────────────────────────────
+window.toggleSubmenu = function (el) {
+    el.classList.toggle('collapsed');
+    const submenu = el.nextElementSibling;
+    if (submenu && submenu.classList.contains('nav-submenu')) {
+        submenu.classList.toggle('collapsed');
+    }
+};
+
+window.exportTableToCSV = function (tableId, filename) {
+    const table = document.getElementById(tableId);
+    if (!table) return showAlert('Tabela não encontrada para exportação.', 'error');
+
+    let csv = [];
+    const rows = table.querySelectorAll('tr');
+
+    for (const row of rows) {
+        let cols = row.querySelectorAll('td, th');
+        let rowData = [];
+        for (const col of cols) {
+            let data = col.innerText.replace(/"/g, '""');
+            rowData.push(`"${data}"`);
+        }
+        csv.push(rowData.join(','));
+    }
+
+    // Add BOM for Excel UTF-8 support
+    const csvFile = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const downloadLink = document.createElement('a');
+    downloadLink.download = `${filename}_${new Date().toISOString().slice(0, 10)}.csv`;
+    downloadLink.href = window.URL.createObjectURL(csvFile);
+    downloadLink.style.display = 'none';
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    downloadLink.remove();
+};
+
 // ── Load Current User ────────────────────────────────────────────
 async function loadUser() {
     try {
@@ -219,30 +256,46 @@ async function loadUser() {
 // ── DASHBOARD ────────────────────────────────────────────────────
 async function loadDashboard() {
     try {
-        const [kpis, tenants, churn] = await Promise.all([
-            apiFetch('/master/kpis').catch(() => null),
-            apiFetch('/master/tenants').catch(() => []),
-            apiFetch('/master/churn-alerts').catch(() => []),
-        ]);
+        const fetchAll = async () => {
+            return await Promise.all([
+                apiFetch('/master/kpis').catch(() => null),
+                apiFetch('/master/tenants').catch(() => []),
+                apiFetch('/master/churn-alerts').catch(() => []),
+            ]);
+        };
 
-        if (kpis) {
-            setText('kpiTotalTenants', kpis.total_tenants ?? '—');
-            setText('kpiActiveTenants', kpis.active_tenants ?? '—');
-            setText('kpiInteractions', fmt(kpis.total_interactions_30d));
-            setText('kpiChurnAlerts', kpis.churn_alert_count ?? 0);
-            setText('kpiTotalCost', '$' + (kpis.total_cost_usd_30d ?? 0).toFixed(2));
-            setText('kpiAvgTokens', fmt(kpis.avg_tokens_per_tenant ?? 0));
+        let data;
+        const cachedStr = sessionStorage.getItem('dashboard_cache');
+        if (cachedStr) {
+            try {
+                data = JSON.parse(cachedStr);
+                applyDashboardData(data[0], data[1], data[2]);
+            } catch (e) { }
+            // SWR Background Revalidation
+            fetchAll().then(fresh => {
+                sessionStorage.setItem('dashboard_cache', JSON.stringify(fresh));
+                applyDashboardData(fresh[0], fresh[1], fresh[2]);
+            });
+        } else {
+            data = await fetchAll();
+            sessionStorage.setItem('dashboard_cache', JSON.stringify(data));
+            applyDashboardData(data[0], data[1], data[2]);
         }
-
-        // Churn list
-        renderChurnAlerts(churn);
-
-        // Tenant activity (top 5 most active)
-        renderTopTenants(tenants);
-
-        // Infra status pills
-        updateSystemStatus();
     } catch (e) { console.error('loadDashboard', e); }
+}
+
+function applyDashboardData(kpis, tenants, churn) {
+    if (kpis) {
+        setText('kpiTotalTenants', kpis.total_tenants ?? '—');
+        setText('kpiActiveTenants', kpis.active_tenants ?? '—');
+        setText('kpiInteractions', fmt(kpis.total_interactions_30d));
+        setText('kpiChurnAlerts', kpis.churn_alert_count ?? 0);
+        setText('kpiTotalCost', '$' + (kpis.total_cost_usd_30d ?? 0).toFixed(2));
+        setText('kpiAvgTokens', fmt(kpis.avg_tokens_per_tenant ?? 0));
+    }
+    if (churn) renderChurnAlerts(churn);
+    if (tenants) renderTopTenants(tenants);
+    updateSystemStatus();
 }
 
 function renderChurnAlerts(churn) {
@@ -539,7 +592,7 @@ function viewTicket(id) { showAlert('Detalhe de ticket em breve (#' + id + ')', 
 async function loadAuditLogs() {
     const tbody = document.getElementById('logsBody');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem;">Carregando logs...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem;"><span class=\"skeleton\"></span></td></tr>';
     try {
         // Future: apiFetch('/audit-logs?limit=100')
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem;">API de logs em integração. Disponível em breve.</td></tr>';
@@ -1657,7 +1710,7 @@ function closeGenericModal() {
 async function loadRegistrations() {
     const body = document.getElementById('registrationsBody');
     if (!body) return;
-    body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;">Carregando...</td></tr>';
+    body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;"><span class=\"skeleton\"></span></td></tr>';
 
     try {
         const regs = await apiFetch('/master/registrations');

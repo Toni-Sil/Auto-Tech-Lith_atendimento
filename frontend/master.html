@@ -35,82 +35,94 @@
             <div class="sidebar-badge">🌍 Master Admin</div>
         </div>
 
-        <nav class="sidebar-nav">
-            <div class="nav-group-label">Visão Global</div>
-            <a class="nav-item active" data-target="dashboard">
-                <span class="nav-icon">📊</span> Dashboard Global
-            </a>
-            <a class="nav-item" data-target="tenants">
-                <span class="nav-icon">🏢</span> Gestão de Tenants
-            </a>
+        <nav class="sidebar-nav" role="navigation" aria-label="Menu Principal">
+            <!-- GRUPO 1: PAINEL & GESTÃO -->
+            <div class="nav-group">
+                <div class="nav-group-header" onclick="toggleSubmenu(this)">Painel & Gestão</div>
+                <div class="nav-submenu">
+                    <a class="nav-item active" data-target="dashboard" tabindex="0">
+                        <span class="nav-icon" aria-hidden="true">📊</span> Dashboard Global
+                    </a>
+                    <a class="nav-item" data-target="tenants" tabindex="0">
+                        <span class="nav-icon" aria-hidden="true">🏢</span> Gestão de Tenants
+                    </a>
+                    <a class="nav-item" data-target="leads" tabindex="0">
+                        <span class="nav-icon" aria-hidden="true">👥</span> Leads / CRM
+                        <span class="nav-badge" id="leadsCount">0</span>
+                    </a>
+                    <a class="nav-item" data-target="internal-finance" tabindex="0">
+                        <span class="nav-icon" aria-hidden="true">💸</span> Financeiro Interno
+                    </a>
+                    <a class="nav-item" data-target="internal-ai" tabindex="0">
+                        <span class="nav-icon" aria-hidden="true">🤖</span> IA Interna (Max)
+                    </a>
+                </div>
+            </div>
 
-            <div class="sidebar-divider"></div>
-            <div class="nav-group-label">Operação Interna</div>
-            <a class="nav-item" data-target="internal-ai">
-                <span class="nav-icon">🤖</span> IA Interna (Max)
-            </a>
-            <a class="nav-item" data-target="leads">
-                <span class="nav-icon">👥</span> Leads / CRM
-                <span class="nav-badge" id="leadsCount">0</span>
-            </a>
-            <a class="nav-item" data-target="internal-finance">
-                <span class="nav-icon">💸</span> Financeiro Interno
-            </a>
+            <!-- GRUPO 2: COTAS & INTEGRAÇÕES -->
+            <div class="nav-group">
+                <div class="nav-group-header" onclick="toggleSubmenu(this)">Cotas & Integrações</div>
+                <div class="nav-submenu">
+                    <a class="nav-item" data-target="quotas" tabindex="0">
+                        <span class="nav-icon" aria-hidden="true">📊</span> Cotas & Rate Limit
+                    </a>
+                    <a class="nav-item" data-target="abuse" tabindex="0">
+                        <span class="nav-icon" aria-hidden="true">🚨</span> Monitoramento de Abuso
+                        <span class="nav-badge" id="abuseCount" style="background:var(--yellow)">0</span>
+                    </a>
+                    <a class="nav-item" data-target="whatsapp" tabindex="0">
+                        <span class="nav-icon" aria-hidden="true">📱</span> WhatsApp (Evolution)
+                    </a>
+                </div>
+            </div>
 
-            <div class="sidebar-divider"></div>
-            <div class="nav-group-label">Integrações e Cotas</div>
-            <a class="nav-item" data-target="quotas">
-                <span class="nav-icon">📊</span> Cotas & Rate Limit
-            </a>
-            <a class="nav-item" data-target="abuse">
-                <span class="nav-icon">🚨</span> Monitoramento de Abuso
-                <span class="nav-badge" id="abuseCount" style="background:var(--yellow)">0</span>
-            </a>
-            <a class="nav-item" data-target="whatsapp">
-                <span class="nav-icon">📱</span> WhatsApp (Evolution)
-            </a>
+            <!-- GRUPO 3: MORDOMO DIGITAL -->
+            <div class="nav-group">
+                <div class="nav-group-header collapsed" onclick="toggleSubmenu(this)">🤵 Mordomo Digital</div>
+                <div class="nav-submenu collapsed">
+                    <a class="nav-item" data-target="butler-status" tabindex="0">
+                        <span class="nav-icon" aria-hidden="true">🖥️</span> Status & Infraestrutura
+                    </a>
+                    <a class="nav-item" data-target="butler-logs" tabindex="0">
+                        <span class="nav-icon" aria-hidden="true">📋</span> Logs de Decisão
+                    </a>
+                    <a class="nav-item" data-target="butler-churn" tabindex="0">
+                        <span class="nav-icon" aria-hidden="true">📉</span> Risco de Churn
+                    </a>
+                    <a class="nav-item" data-target="butler-billing" tabindex="0">
+                        <span class="nav-icon" aria-hidden="true">💳</span> Relatório Billing
+                    </a>
+                    <a class="nav-item" data-target="butler-scheduler" tabindex="0">
+                        <span class="nav-icon" aria-hidden="true">⏰</span> Agendador
+                    </a>
+                </div>
+            </div>
 
-            <div class="sidebar-divider"></div>
-            <div class="nav-group-label">🤵 Mordomo Digital</div>
-            <a class="nav-item" data-target="butler-status">
-                <span class="nav-icon">🖥️</span> Status & Infraestrutura
-            </a>
-            <a class="nav-item" data-target="butler-logs">
-                <span class="nav-icon">📋</span> Logs de Decisão
-            </a>
-            <a class="nav-item" data-target="butler-churn">
-                <span class="nav-icon">📉</span> Risco de Churn
-            </a>
-            <a class="nav-item" data-target="butler-billing">
-                <span class="nav-icon">💳</span> Relatório Billing
-            </a>
-            <a class="nav-item" data-target="butler-scheduler">
-                <span class="nav-icon">⏰</span> Agendador
-            </a>
-            <div class="sidebar-divider"></div>
-            <div class="nav-group-label">Suporte</div>
-            <a class="nav-item" data-target="tickets">
-                <span class="nav-icon">🎫</span> Tickets
-                <span class="nav-badge" id="ticketCount">0</span>
-            </a>
-            <a class="nav-item" data-target="logs">
-                <span class="nav-icon">📋</span> Logs & Auditoria
-            </a>
-
-            <div class="sidebar-divider"></div>
-            <div class="nav-group-label">Plataforma</div>
-            <a class="nav-item" data-target="faturamento">
-                <span class="nav-icon">💰</span> Faturamento
-            </a>
-            <a class="nav-item" data-target="infra">
-                <span class="nav-icon">⚙️</span> Infraestrutura
-            </a>
-            <a class="nav-item" data-target="kb">
-                <span class="nav-icon">📚</span> Base de Conhecimento
-            </a>
-            <a class="nav-item" data-target="configuracao">
-                <span class="nav-icon">⚙️</span> Configuração
-            </a>
+            <!-- GRUPO 4: PLATAFORMA & SUPORTE -->
+            <div class="nav-group">
+                <div class="nav-group-header collapsed" onclick="toggleSubmenu(this)">Plataforma & Suporte</div>
+                <div class="nav-submenu collapsed">
+                    <a class="nav-item" data-target="tickets" tabindex="0">
+                        <span class="nav-icon" aria-hidden="true">🎫</span> Tickets
+                        <span class="nav-badge" id="ticketCount">0</span>
+                    </a>
+                    <a class="nav-item" data-target="logs" tabindex="0">
+                        <span class="nav-icon" aria-hidden="true">📋</span> Logs & Auditoria
+                    </a>
+                    <a class="nav-item" data-target="faturamento" tabindex="0">
+                        <span class="nav-icon" aria-hidden="true">💰</span> Faturamento
+                    </a>
+                    <a class="nav-item" data-target="infra" tabindex="0">
+                        <span class="nav-icon" aria-hidden="true">⚙️</span> Infraestrutura
+                    </a>
+                    <a class="nav-item" data-target="kb" tabindex="0">
+                        <span class="nav-icon" aria-hidden="true">📚</span> Base de Conhecimento
+                    </a>
+                    <a class="nav-item" data-target="configuracao" tabindex="0">
+                        <span class="nav-icon" aria-hidden="true">⚙️</span> Configuração
+                    </a>
+                </div>
+            </div>
         </nav>
 
         <div class="sidebar-footer">
@@ -356,12 +368,14 @@
                         <input type="text" id="tenantSearch" placeholder="🔍  Buscar tenant..."
                             oninput="filterTenants(this.value)"
                             style="width:220px;padding:0.5rem 0.85rem;font-size:0.82rem;">
+                        <button class="btn btn-ghost btn-sm" onclick="exportTableToCSV('tenantsTable', 'Tenants')">📥
+                            Exportar CSV</button>
                         <button class="btn btn-ghost btn-sm" onclick="loadTenants()">🔄</button>
                     </div>
                 </div>
                 <div class="card">
                     <div class="table-wrap">
-                        <table>
+                        <table id="tenantsTable">
                             <thead>
                                 <tr>
                                     <th>ID</th>
@@ -738,16 +752,21 @@
                     <div class="stat-card green">
                         <h3>CAC Estimado</h3>
                         <div class="value" id="finCAC">—</div>
-                        <div class="trend">Por tenant pagante</div>
                     </div>
                 </div>
                 <div class="grid-2">
                     <div class="card">
-                        <div class="card-header">
+                        <div class="card-header flex-between mb-3">
                             <h3>💰 Rateio por Tenant</h3>
+                            <div>
+                                <button class="btn btn-ghost btn-sm"
+                                    onclick="exportTableToCSV('billingTable', 'Faturamento_Tenants')">📥 Exportar
+                                    CSV</button>
+                                <button class="btn btn-ghost btn-sm" onclick="loadBilling()">🔄 Atualizar</button>
+                            </div>
                         </div>
                         <div class="table-wrap">
-                            <table>
+                            <table id="billingTable">
                                 <thead>
                                     <tr>
                                         <th>Tenant</th>
@@ -920,12 +939,14 @@
                             <option value="medium">🟡 Medium</option>
                             <option value="low">🟢 Low</option>
                         </select>
+                        <button class="btn btn-ghost btn-sm"
+                            onclick="exportTableToCSV('butlerLogsTable', 'Logs_Mordomo')">📥 Export</button>
                         <button class="btn btn-ghost btn-sm" onclick="loadButlerLogs()">🔄 Atualizar</button>
                     </div>
                 </div>
                 <div class="card">
                     <div class="table-wrap">
-                        <table>
+                        <table id="butlerLogsTable">
                             <thead>
                                 <tr>
                                     <th>#</th>

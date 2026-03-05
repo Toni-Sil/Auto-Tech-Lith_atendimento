@@ -200,6 +200,48 @@ body {
     border-radius: 0 3px 3px 0;
 }
 
+/* ── SUBMENUS ── */
+.nav-group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    font-size: 0.67rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding: 0.75rem 0.5rem 0.35rem;
+    margin-top: 0.5rem;
+    transition: color 0.2s;
+}
+
+.nav-group-header:hover {
+    color: var(--text-primary);
+}
+
+.nav-group-header::after {
+    content: '▼';
+    font-size: 0.55rem;
+    transition: transform 0.2s;
+}
+
+.nav-group-header.collapsed::after {
+    transform: rotate(-90deg);
+}
+
+.nav-submenu {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    max-height: 1000px;
+}
+
+.nav-submenu.collapsed {
+    max-height: 0;
+}
+
 .nav-icon {
     font-size: 1.05rem;
     flex-shrink: 0;
@@ -928,6 +970,50 @@ select option {
     color: var(--text-primary);
 }
 
+/* Accessible focus ring */
+:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+body {
+    background: var(--bg-body);
+    color: var(--text-primary);
+    line-height: 1.6;
+}
+
+/* ═══ SKELETON LOADING ══════════════════════════════════════════ */
+@keyframes shimmer {
+    0% {
+        background-position: -1000px 0;
+    }
+
+    100% {
+        background-position: 1000px 0;
+    }
+}
+
+.skeleton {
+    animation: shimmer 2s infinite linear;
+    background: linear-gradient(to right, var(--bg-card) 4%, var(--border) 25%, var(--bg-card) 36%);
+    background-size: 1000px 100%;
+    border-radius: 4px;
+    height: 1.25rem;
+    display: inline-block;
+    width: 100%;
+}
+
+.skeleton.shorter {
+    width: 60%;
+}
+
+.skeleton.avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+}
+
+/* ═══════════════════ TYPOGRAPHY & UTILS ══════════════════════ */
 /* ═══ KB ACCORDION ════════════════════════════════════════════════ */
 .kb-accordion {
     border: 1px solid var(--border);
@@ -1466,7 +1552,9 @@ select option {
 }
 
 @keyframes spin-simple {
-    to { transform: translate(-50%, -50%) rotate(360deg); }
+    to {
+        transform: translate(-50%, -50%) rotate(360deg);
+    }
 }
 
 /* Breadcrumbs */
