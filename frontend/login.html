@@ -33,7 +33,6 @@
             overflow: hidden;
         }
 
-        /* Animated background orbs */
         body::before,
         body::after {
             content: '';
@@ -62,15 +61,8 @@
         }
 
         @keyframes float {
-
-            0%,
-            100% {
-                transform: translateY(0) scale(1);
-            }
-
-            50% {
-                transform: translateY(-30px) scale(1.05);
-            }
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-30px) scale(1.05); }
         }
 
         .login-wrapper {
@@ -81,7 +73,6 @@
             padding: 1.5rem;
         }
 
-        /* Logo / Brand */
         .brand {
             text-align: center;
             margin-bottom: 2rem;
@@ -113,7 +104,6 @@
             margin-top: 0.25rem;
         }
 
-        /* Card */
         .login-card {
             background: rgba(255, 255, 255, 0.07);
             backdrop-filter: blur(24px);
@@ -190,9 +180,7 @@
             box-shadow: 0 8px 24px var(--accent-glow);
         }
 
-        .btn-login:active {
-            transform: translateY(0);
-        }
+        .btn-login:active { transform: translateY(0); }
 
         .btn-login:disabled {
             opacity: 0.6;
@@ -200,7 +188,6 @@
             transform: none;
         }
 
-        /* Spinner */
         .spinner {
             display: none;
             width: 20px;
@@ -212,13 +199,8 @@
             margin: 0 auto;
         }
 
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* Error */
         .error-banner {
             display: none;
             background: rgba(239, 68, 68, 0.15);
@@ -231,7 +213,6 @@
             text-align: center;
         }
 
-        /* Portal badges (shown after role detected) */
         .portal-hint {
             display: none;
             margin-top: 1.5rem;
@@ -260,7 +241,6 @@
             color: #6ee7b7;
         }
 
-        /* Footer */
         .login-footer {
             text-align: center;
             margin-top: 1.5rem;
@@ -288,8 +268,7 @@
                 </div>
                 <div class="form-group">
                     <label for="password">Senha</label>
-                    <input type="password" id="password" placeholder="••••••••" required
-                        autocomplete="current-password">
+                    <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
                 </div>
 
                 <button type="submit" class="btn-login" id="btnLogin">
@@ -301,7 +280,6 @@
                     ❌ Usuário ou senha inválidos. Tente novamente.
                 </div>
 
-                <!-- Role detected hint -->
                 <div class="portal-hint" id="portalHint">
                     <div class="portal-badge master" id="masterBadge" style="display:none;">
                         🛡️ Redirecionando para o Painel Master Admin...
@@ -328,13 +306,11 @@
             const errorBanner = document.getElementById('errorBanner');
             const portalHint = document.getElementById('portalHint');
 
-            // Loading state
             btn.disabled = true;
             btnText.style.display = 'none';
             spinner.style.display = 'block';
             errorBanner.style.display = 'none';
 
-            // Clear legacy tokens to ensure cookie-based auth is preferred
             localStorage.removeItem('token');
 
             const formData = new URLSearchParams();
@@ -360,32 +336,27 @@
                     console.error('Login error:', response.status, errBody);
                     throw new Error('Credenciais inválidas');
                 }
-                const data = await response.json();
-                // O token agora é enviado via HttpOnly Cookie pelo backend.
 
-                // ── RBAC Portal Routing ──────────────────────────────────
-                // Decode JWT to determine which portal to show
-                let targetPortal = '/';  // default: lojista
+                const data = await response.json();
+
+                let targetPortal = '/';
                 try {
                     const tokenParts = data.access_token.split('.');
                     const payload = JSON.parse(atob(tokenParts[1]));
                     const role = (payload.role || '').toLowerCase();
+                    // FIX: added 'master' to the isMaster role check
                     const isMaster = (role === 'owner' || role === 'master_admin' || role === 'admin' || role === 'master')
                         && (!payload.tenant_id || payload.tenant_id === null);
                     targetPortal = isMaster ? '/master.html' : '/';
 
-                    // Show redirect badge
                     portalHint.style.display = 'flex';
                     if (isMaster) {
                         document.getElementById('masterBadge').style.display = 'block';
                     } else {
                         document.getElementById('lojistaBadge').style.display = 'block';
                     }
-                } catch (_) {
-                    // JWT decode failed — go to lojista by default
-                }
+                } catch (_) {}
 
-                // Short delay to show badge, then redirect
                 setTimeout(() => { window.location.href = targetPortal; }, 800);
 
             } catch (error) {
@@ -396,7 +367,6 @@
             }
         });
 
-        // Press Enter on username → focus password
         document.getElementById('username').addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
