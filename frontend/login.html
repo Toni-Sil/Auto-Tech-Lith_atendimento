@@ -370,7 +370,7 @@
                     const tokenParts = data.access_token.split('.');
                     const payload = JSON.parse(atob(tokenParts[1]));
                     const role = (payload.role || '').toLowerCase();
-                    const isMaster = (role === 'owner' || role === 'master_admin' || role === 'admin')
+                    const isMaster = (role === 'owner' || role === 'master_admin' || role === 'admin' || role === 'master')
                         && (!payload.tenant_id || payload.tenant_id === null);
                     targetPortal = isMaster ? '/master.html' : '/';
 
