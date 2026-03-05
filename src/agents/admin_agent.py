@@ -90,8 +90,8 @@ Você tem **AUTORIZAÇÃO TOTAL** e acesso irrestrito a todas as ferramentas aba
 9. **get_notes** — Recuperar apontamentos arquivados na memória.
 10. **get_analytics** — Fornecer relatórios gerenciais refinados (funil, prioridades, métricas).
 11. **manage_profiles** — Configurar os Perfis de Agente menores do sistema.
-92. 12. **manage_account_recovery** — Auxiliar na recuperação de conta. Somente gera um link seguro (ação: request_reset). Nunca redefina a senha diretamente e sempre prefira ajudar através de outras ferramentas se possível.
-93. 13. **command_agent** — Dar uma instrução direta a um agente de atendimento sobre como tratar um cliente específico.
+12. **manage_account_recovery** — Auxiliar na recuperação de conta. Somente gera um link seguro (ação: request_reset). Nunca redefina a senha diretamente e sempre prefira ajudar através de outras ferramentas se possível.
+13. **command_agent** — Dar uma instrução direta a um agente de atendimento sobre como tratar um cliente específico.
 14. **manage_whatsapp** — Criar, listar ou excluir instâncias de WhatsApp de nível empresarial.
 
 ## REGRAS DE OPERAÇÃO DA MANSÃO (SISTEMA)
@@ -444,7 +444,7 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
         action: str,
         query: Optional[str] = None,
         customer_id: Optional[int] = None,
-        data: Optional[str] = None,
+        data: Optional[Dict[str, Any]] = None,
         limit: int = 10,
         **kwargs
     ) -> str:
@@ -519,12 +519,8 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
 
             elif action == "create":
                 if not data:
-                    return "⚠️ Informe os dados em JSON (`data`). Ex: `{\"name\": \"João\", \"phone\": \"11999999999\"}`"
-                try:
-                    d = json.loads(data.replace("'", '"'))
-                except Exception:
-                    return "❌ JSON inválido. Use aspas duplas."
-                new_c = Customer(**d)
+                    return "⚠️ Informe os dados no objeto `data`. Ex: `{\"name\": \"João\", \"phone\": \"11999999999\"}`"
+                new_c = Customer(**data)
                 session.add(new_c)
                 await session.commit()
                 await session.refresh(new_c)
@@ -534,15 +530,11 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                 if not customer_id:
                     return "⚠️ Informe o `customer_id`."
                 if not data:
-                    return "⚠️ Informe os campos a atualizar em JSON (`data`)."
+                    return "⚠️ Informe os campos a atualizar no objeto `data`."
                 c = await session.get(Customer, customer_id)
                 if not c:
                     return f"Cliente ID {customer_id} não encontrado."
-                try:
-                    d = json.loads(data.replace("'", '"'))
-                except Exception:
-                    return "❌ JSON inválido."
-                for k, v in d.items():
+                for k, v in data.items():
                     if hasattr(c, k):
                         setattr(c, k, v)
                 c.updated_at = datetime.now()
@@ -574,6 +566,7 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
         status: Optional[str] = None,
         priority: Optional[str] = None,
         category: Optional[str] = None,
+        query: Optional[str] = None,
         limit: int = 10,
         **kwargs
     ) -> str:
@@ -594,6 +587,34 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                 if not rows:
                     return "Nenhum ticket encontrado."
                 lines = [f"*{len(rows)} Tickets:*"]
+                for t, cname in rows:
+                    prio_emoji = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🟢"}.get(t.priority, "⚪")
+                    lines.append(
+                        f"  #{t.id} {prio_emoji} *{t.subject}* — {cname}\n"
+                        f"     Status: {t.status} | {t.created_at.strftime('%d/%m/%Y') if t.created_at else 'N/A'}"
+                    )
+                return "\n".join(lines)
+
+            elif action == "search":
+                if not query:
+                    return "⚠️ Informe a `query` de busca."
+                stmt = (
+                    select(Ticket, Customer.name.label("cname"))
+                    .join(Customer, Ticket.customer_id == Customer.id)
+                    .where(
+                        or_(
+                            Ticket.subject.ilike(f"%{query}%"),
+                            Ticket.description.ilike(f"%{query}%")
+                        )
+                    )
+                    .order_by(desc(Ticket.created_at))
+                    .limit(limit)
+                )
+                res = await session.execute(stmt)
+                rows = res.all()
+                if not rows:
+                    return f"Nenhum ticket encontrado para a busca '{query}'."
+                lines = [f"*{len(rows)} Tickets encontrados para '{query}':*"]
                 for t, cname in rows:
                     prio_emoji = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🟢"}.get(t.priority, "⚪")
                     lines.append(
@@ -885,6 +906,7 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
         customer_id: Optional[int] = None,
         phone: Optional[str] = None,
         limit: int = 20,
+        offset: int = 0,
         **kwargs
     ) -> str:
         async with async_session() as session:
@@ -908,6 +930,7 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                 .where(Conversation.customer_id == customer_id)
                 .order_by(desc(Conversation.created_at))
                 .limit(limit)
+                .offset(offset)
             )
             convs = res.scalars().all()
             convs = list(reversed(convs))  # Ordem cronológica
@@ -1353,7 +1376,7 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                             },
                             "query": {"type": "string", "description": "Termo de busca (para search)"},
                             "customer_id": {"type": "integer", "description": "ID do cliente (para get/update/delete)"},
-                            "data": {"type": "string", "description": "JSON com campos do cliente (para create/update). Ex: '{\"name\": \"João\", \"phone\": \"11999999999\", \"status\": \"briefing\"}'"},
+                            "data": {"type": "object", "description": "JSON com campos do cliente (para create/update). Ex: {'name': 'João', 'phone': '11999999999', 'status': 'briefing'}"},
                             "limit": {"type": "integer", "description": "Máx. resultados (default 10)"},
                         },
                         "required": ["action"],
@@ -1364,13 +1387,13 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                 "type": "function",
                 "function": {
                     "name": "manage_tickets",
-                    "description": "Gerencia tickets de suporte. Ações: list (listar), get (detalhes), create (criar), update (atualizar status/prioridade).",
+                    "description": "Gerencia tickets de suporte. Ações: list (listar), search (buscar), get (detalhes), create (criar), update (atualizar status/prioridade).",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "action": {
                                 "type": "string",
-                                "enum": ["list", "get", "create", "update"],
+                                "enum": ["list", "search", "get", "create", "update"],
                                 "description": "Ação a executar",
                             },
                             "ticket_id": {"type": "integer", "description": "ID do ticket"},
@@ -1380,6 +1403,7 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                             "status": {"type": "string", "enum": ["open", "in_progress", "resolved", "closed"], "description": "Status do ticket"},
                             "priority": {"type": "string", "enum": ["low", "medium", "high", "critical"], "description": "Prioridade"},
                             "category": {"type": "string", "description": "Categoria: support, sales, inquiry"},
+                            "query": {"type": "string", "description": "Termo de busca (para search)"},
                             "limit": {"type": "integer", "description": "Máx. resultados (default 10)"},
                         },
                         "required": ["action"],
@@ -1446,6 +1470,7 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                             "customer_id": {"type": "integer", "description": "ID do cliente"},
                             "phone": {"type": "string", "description": "Telefone do cliente (alternativa ao ID)"},
                             "limit": {"type": "integer", "description": "Máx. mensagens (default 20)"},
+                            "offset": {"type": "integer", "description": "Deslocamento para paginação (default 0)"},
                         },
                         "required": [],
                     },
@@ -1555,8 +1580,8 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                         "properties": {
                             "action": {
                                 "type": "string",
-                                "enum": ["create", "list"],
-                                "description": "Ação a executar: 'create' para registrar uma nova conexão de WhatsApp, 'list' para mostrar."
+                                "enum": ["create", "list", "delete"],
+                                "description": "Ação a executar: 'create' para registrar uma nova conexão de WhatsApp, 'list' para mostrar, 'delete' para excluir."
                             },
                             "instance_name": {"type": "string", "description": "Nome da instância (Obrigatório para create)"},
                             "tenant_id": {"type": "integer", "description": "ID do Lojista (Opcional, deixa em branco para master/interno)"}
