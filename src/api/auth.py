@@ -4,7 +4,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import timedelta
-from typing import Annotated
+from typing import Annotated, Optional
 
 from src.models.database import get_db
 from src.models.admin import AdminUser

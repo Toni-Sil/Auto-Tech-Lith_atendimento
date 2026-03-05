@@ -6,7 +6,6 @@
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 VENV_PYTHON="$PROJECT_DIR/venv/bin/python3"
-UVICORN="$PROJECT_DIR/venv/bin/uvicorn"
 LOG_FILE="$PROJECT_DIR/uvicorn.log"
 PID_FILE="$PROJECT_DIR/uvicorn.pid"
 PORT=8000
@@ -19,7 +18,7 @@ start() {
 
     echo "🚀 Iniciando servidor na porta $PORT..."
     cd "$PROJECT_DIR"
-    PYTHONPATH="$PROJECT_DIR" "$UVICORN" src.main:app \
+    PYTHONPATH="$PROJECT_DIR" "$VENV_PYTHON" -m uvicorn src.main:app \
         --host 0.0.0.0 \
         --port "$PORT" \
         --reload \
