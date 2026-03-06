@@ -73,6 +73,10 @@ services:
     networks:
       - auto_tech_network
       - dokploy-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.ia-backend.loadbalancer.server.port=8000"
+      - "traefik.docker.network=dokploy-network"
 
   # ─── pgAdmin (Gerenciador visual do banco) ────────────────────────────────────
   pgadmin:
@@ -153,6 +157,10 @@ services:
     networks:
       - auto_tech_network
       - dokploy-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.ia-evolution.loadbalancer.server.port=8080"
+      - "traefik.docker.network=dokploy-network"
 
 volumes:
   backend_logs:

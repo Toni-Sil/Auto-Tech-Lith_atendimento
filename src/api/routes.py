@@ -347,183 +347,184 @@ async def delete_meeting(
 from fastapi import Request
 @api_router.post("/webhooks/whatsapp")
 async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks, instance_name: Optional[str] = None):
+    """
+    Recebe eventos da Evolution API via webhook global.
+    IMPORTANTE: Este endpoint SEMPRE retorna HTTP 200 para evitar
+    que a Evolution API reencaminhe eventos em loop infinito.
+    Qualquer retorno 4xx/5xx é interpretado como falha e resulta em reenvio.
+    """
     logger.info(f"--- WHATSAPP WEBHOOK HIT --- Instance: {instance_name}")
     try:
-        payload = await request.json()
-    except Exception as e:
-        logger.error(f"Failed to parse webhook JSON: {e}")
-        return {"status": "error", "reason": "invalid json"}
-        
-    # Security: Verify Webhook Token
-    # Check query param 'token' or header 'Verification-Token'
-    token = request.query_params.get("token") or request.headers.get("verification-token")
-    if token != settings.VERIFY_TOKEN:
-        logger.warning(f"Unauthorized webhook attempt with token: {token}")
-        raise HTTPException(status_code=403, detail="Invalid verification token")
+        # ── Parse do JSON ───────────────────────────────────────────────────
+        try:
+            payload = await request.json()
+        except Exception as e:
+            logger.error(f"Failed to parse webhook JSON: {e}")
+            return {"status": "ok", "reason": "invalid_json"}
 
-    logger.info(f"Webhook received: {payload}")
-    
-    # Identify instance from payload if not in URL
-    if not instance_name:
-        instance_name = payload.get("instance")
-        
-    event_type = payload.get("event")
-    
-    # Handle connection updates to keep UI synchronized
-    if event_type == "connection.update":
-        state = payload.get("data", {}).get("state")
-        if state and instance_name:
-            from src.models.database import async_session
-            from src.models.whatsapp import EvolutionInstance
-            from sqlalchemy import update
-            async with async_session() as session:
-                new_status = "connected" if state == 'open' else ("disconnected" if state == 'close' else "pending")
-                stmt = update(EvolutionInstance).where(EvolutionInstance.instance_name == instance_name).values(status=new_status)
-                await session.execute(stmt)
-                await session.commit()
-                logger.info(f"Updated connection status for {instance_name} to {new_status}")
-            return {"status": "success", "reason": "connection status updated to " + new_status}
-    
-    # Identificar mensagem de texto
-    # Estrutura típica Evolution API v2:
-    if not isinstance(payload, dict):
-         logger.warning(f"Received non-dict payload: {type(payload)}")
-         return {"status": "ignored", "reason": "payload is not a dict"}
-         
-    data = payload.get("data", {})
-    
-    # Validação de tipo: eventos como 'contacts.update' enviam lista em 'data'
-    if not isinstance(data, dict):
-        return {"status": "ignored", "reason": "data is not a dict (likely system event)"}
+        # ── Verificação do Token de Segurança ───────────────────────────────
+        # Verificar query param 'token' ou header 'Verification-Token'
+        token = request.query_params.get("token") or request.headers.get("verification-token")
+        if token != settings.VERIFY_TOKEN:
+            # Nunca retornar 403 — a Evolution API reenviaria em loop.
+            # Registrar como warning e ignorar silenciosamente.
+            logger.warning(f"Unauthorized webhook attempt. Received token: '{token}' — ignoring.")
+            return {"status": "ok", "reason": "unauthorized"}
 
-    message = data.get("message", {})
-    
-    if not message:
-         # Tenta estrutura v1 ou diferente se necessario
-         return {"status": "ignored", "reason": "no message data"}
+        logger.info(f"Webhook received event: {payload.get('event', 'unknown')}")
 
-    # Extrair dados
-    # Remetente (remoteJid geralmente é o numero@s.whatsapp.net)
-    key = data.get("key", {})
-    remote_jid = key.get("remoteJid", "")
-    from_me = key.get("fromMe", False)
-    message_id = key.get("id", "")
-    
-    # Ignorar mensagens enviadas pelo próprio sistema (evitar loop)
-    if from_me:
-        return {"status": "ignored", "reason": "fromMe is true"}
+        # ── Identificar instância ────────────────────────────────────────────
+        if not instance_name:
+            instance_name = payload.get("instance")
 
-    if remote_jid and message_id:
-        # Log — o agente via process_message também chamará mark_message_as_read
-        logger.info(f"Incoming message from {remote_jid} id={message_id}")
+        event_type = payload.get("event")
 
-    phone = remote_jid.split("@")[0] if remote_jid else ""
-    
-    # Texto
-    text = message.get("conversation") or message.get("extendedTextMessage", {}).get("text")
-    
-    # Processar Áudio
-    audio_message = message.get("audioMessage")
-    if audio_message:
-        message_id = data.get("key", {}).get("id")
-        mimetype = audio_message.get("mimetype", "audio/ogg").split(";")[0] # ex: audio/ogg; codecs=opus -> audio/ogg
-        
-        # Mapear extensão
-        import mimetypes
-        extension = mimetypes.guess_extension(mimetype) or ".ogg"
-        if extension == ".oga": extension = ".ogg" # Common fix
-        
-        logger.info(f"Audio message received ID: {message_id}, Mimetype: {mimetype}, Ext: {extension}")
-        
-        # Tentar obter base64 (payload ou fetch)
-        media_base64 = audio_message.get("base64")
-        if not media_base64:
-            logger.info(f"Base64 not found in payload for msg {message_id}, fetching from API...")
-            # We must pass the FULL data object (containing key, message, etc)
-            media_base64 = await evolution_service.get_media_base64(data)
-        else:
-             logger.info(f"Base64 found directly in payload for msg {message_id}")
-            
-        if media_base64:
-            temp_audio_path = None
-            try:
-                # Salvar arquivo temporário
-                audio_data = base64.b64decode(media_base64)
-                file_size = len(audio_data)
-                logger.info(f"Decoded audio size: {file_size} bytes")
-                
-                with tempfile.NamedTemporaryFile(suffix=extension, delete=False) as temp_audio:
-                    temp_audio.write(audio_data)
-                    temp_audio_path = temp_audio.name
-                
-                logger.info(f"Audio saved to temp file: {temp_audio_path}")
+        # ── Atualização de conexão ───────────────────────────────────────────
+        if event_type == "connection.update":
+            state = payload.get("data", {}).get("state")
+            if state and instance_name:
+                from src.models.database import async_session
+                from src.models.whatsapp import EvolutionInstance
+                from sqlalchemy import update
+                async with async_session() as session:
+                    new_status = "connected" if state == "open" else ("disconnected" if state == "close" else "pending")
+                    stmt = update(EvolutionInstance).where(EvolutionInstance.instance_name == instance_name).values(status=new_status)
+                    await session.execute(stmt)
+                    await session.commit()
+                    logger.info(f"Updated connection status for '{instance_name}' to '{new_status}'")
+            return {"status": "ok", "reason": "connection_update_processed"}
 
-                # Transcrever
+        # ── Validação de estrutura do payload ────────────────────────────────
+        if not isinstance(payload, dict):
+            logger.warning(f"Non-dict payload received: {type(payload)}")
+            return {"status": "ok", "reason": "non_dict_payload"}
+
+        data = payload.get("data", {})
+
+        # Eventos como 'contacts.update' e 'chats.set' enviam lista em 'data'
+        if not isinstance(data, dict):
+            logger.info(f"Evento '{event_type}' ignorado: data não é dict (provavelmente evento de sistema).")
+            return {"status": "ok", "reason": "system_event_ignored"}
+
+        message = data.get("message", {})
+        if not message:
+            logger.warning(f"Evento desconhecido recebido: '{event_type}' — sem campo 'message'. Ignorando.")
+            return {"status": "ok", "reason": "no_message_data"}
+
+        # ── Extrair metadados da mensagem ────────────────────────────────────
+        key = data.get("key", {})
+        remote_jid = key.get("remoteJid", "")
+        from_me = key.get("fromMe", False)
+        message_id = key.get("id", "")
+
+        # Ignorar mensagens enviadas pelo próprio sistema (evitar loop)
+        if from_me:
+            return {"status": "ok", "reason": "from_me_ignored"}
+
+        if remote_jid and message_id:
+            logger.info(f"Incoming message from {remote_jid} id={message_id}")
+
+        phone = remote_jid.split("@")[0] if remote_jid else ""
+
+        # ── Texto ─────────────────────────────────────────────────────────────
+        text = message.get("conversation") or message.get("extendedTextMessage", {}).get("text")
+
+        # ── Processar Áudio ───────────────────────────────────────────────────
+        audio_message = message.get("audioMessage")
+        if audio_message:
+            message_id = data.get("key", {}).get("id")
+            mimetype = audio_message.get("mimetype", "audio/ogg").split(";")[0]
+
+            import mimetypes
+            extension = mimetypes.guess_extension(mimetype) or ".ogg"
+            if extension == ".oga":
+                extension = ".ogg"
+
+            logger.info(f"Audio message received ID: {message_id}, Mimetype: {mimetype}, Ext: {extension}")
+
+            media_base64 = audio_message.get("base64")
+            if not media_base64:
+                logger.info(f"Base64 not in payload for msg {message_id}, fetching from API...")
+                media_base64 = await evolution_service.get_media_base64(data)
+            else:
+                logger.info(f"Base64 found directly in payload for msg {message_id}")
+
+            if media_base64:
+                temp_audio_path = None
                 try:
-                    # Usar AudioService local (Whisper + FFmpeg)
-                    # Não precisa abrir o arquivo, passar o caminho direto
-                    from src.services.audio_service import audio_service
-                    
-                    # Offload para thread pool se o método for síncrono (Whisper é bloqueante e cpu-bound)
-                    # O AudioService.transcribe é síncrono.
-                    import asyncio
-                    from functools import partial
-                    
-                    loop = asyncio.get_running_loop()
-                    transcription = await loop.run_in_executor(
-                        None, 
-                        partial(audio_service.transcribe, temp_audio_path)
-                    )
-                    
-                    if transcription:
-                        text = f"[Áudio]: {transcription}"
-                        logger.info(f"Transcribed text: {text}")
-                    else:
-                        logger.warning(f"Transcription returned empty string for msg {message_id}")
-                        # DUMP AUDIO FOR DEBUG
-                        debug_dir = "debug_audio"
-                        if not os.path.exists(debug_dir): os.makedirs(debug_dir)
-                        debug_path = os.path.join(debug_dir, f"failed_{message_id}{extension}")
-                        with open(debug_path, "wb") as f_debug:
-                            f_debug.write(audio_data)
-                        logger.info(f"Saved failed audio to {debug_path} for inspection")
-                        
-                except Exception as e:
-                     logger.error(f"Error calling Whisper for msg {message_id}: {e}")
-                finally:
-                    # Limpar arquivo temporário
-                    if temp_audio_path and os.path.exists(temp_audio_path):
-                        os.unlink(temp_audio_path)
-            except Exception as e:
-                logger.error(f"Error processing audio content (decoding/file): {e}")
-        else:
-            logger.error(f"Failed to obtain media base64 for audio message {message_id}")
-        
-        # Fallback: Se falhou em obter texto (por erro no download ou transcrição),
-        # definimos um texto padrão para o agente saber que houve uma tentativa de áudio.
-        if not text:
-             text = "[Áudio recebido, mas houve falha na transcrição. Peça para o usuário escrever.]"
-             logger.warning(f"Audio processing failed for {message_id}. Using fallback text.")
+                    audio_data = base64.b64decode(media_base64)
+                    logger.info(f"Decoded audio size: {len(audio_data)} bytes")
 
-    # Nome (pushName)
-    push_name = data.get("pushName", "Cliente WhatsApp")
-    
-    if phone and text:
-        # Processar em background para não bloquear o webhook
-        background_tasks.add_task(
-            customer_agent.process_message,
-            message=text,
-            context={
-                "phone": phone,
-                "name": push_name,
-                "remote_jid": remote_jid,    # para marcar como lido
-                "message_id": message_id,    # para marcar como lido
-                "instance_name": instance_name
-            }
-        )
-        return {"status": "processing"}
-    
-    return {"status": "ignored", "reason": "invalid data"}
+                    with tempfile.NamedTemporaryFile(suffix=extension, delete=False) as temp_audio:
+                        temp_audio.write(audio_data)
+                        temp_audio_path = temp_audio.name
+
+                    logger.info(f"Audio saved to temp file: {temp_audio_path}")
+
+                    try:
+                        from src.services.audio_service import audio_service
+                        import asyncio
+                        from functools import partial
+
+                        loop = asyncio.get_running_loop()
+                        transcription = await loop.run_in_executor(
+                            None,
+                            partial(audio_service.transcribe, temp_audio_path)
+                        )
+
+                        if transcription:
+                            text = f"[Áudio]: {transcription}"
+                            logger.info(f"Transcribed text: {text}")
+                        else:
+                            logger.warning(f"Transcription empty for msg {message_id}")
+                            debug_dir = "debug_audio"
+                            if not os.path.exists(debug_dir):
+                                os.makedirs(debug_dir)
+                            debug_path = os.path.join(debug_dir, f"failed_{message_id}{extension}")
+                            with open(debug_path, "wb") as f_debug:
+                                f_debug.write(audio_data)
+                            logger.info(f"Saved failed audio to {debug_path} for inspection")
+
+                    except Exception as e:
+                        logger.error(f"Error calling Whisper for msg {message_id}: {e}")
+                    finally:
+                        if temp_audio_path and os.path.exists(temp_audio_path):
+                            os.unlink(temp_audio_path)
+
+                except Exception as e:
+                    logger.error(f"Error processing audio content: {e}")
+            else:
+                logger.error(f"Failed to obtain media base64 for audio message {message_id}")
+
+            if not text:
+                text = "[Áudio recebido, mas houve falha na transcrição. Peça para o usuário escrever.]"
+                logger.warning(f"Audio processing failed for {message_id}. Using fallback text.")
+
+        # ── Nome (pushName) ───────────────────────────────────────────────────
+        push_name = data.get("pushName", "Cliente WhatsApp")
+
+        # ── Despachar para o agente em background ─────────────────────────────
+        if phone and text:
+            background_tasks.add_task(
+                customer_agent.process_message,
+                message=text,
+                context={
+                    "phone": phone,
+                    "name": push_name,
+                    "remote_jid": remote_jid,
+                    "message_id": message_id,
+                    "instance_name": instance_name
+                }
+            )
+            return {"status": "ok", "reason": "processing"}
+
+        return {"status": "ok", "reason": "no_actionable_data"}
+
+    except Exception as e:
+        # Captura qualquer erro inesperado — NUNCA propagar exceção para fora do handler.
+        # A Evolution API interpreta qualquer 5xx como falha e reencaminha em loop.
+        logger.error(f"Unexpected error in whatsapp_webhook: {e}", exc_info=True)
+        return {"status": "ok", "reason": "internal_error_handled"}
 
 # --- Health & Status APIs ---
 @api_router.get("/ping")

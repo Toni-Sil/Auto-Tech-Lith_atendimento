@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Portal do Cliente · Auto Tech Lith</title>
+    <link rel="stylesheet" href="css/admin.css?v=3.0">
+    <link rel="stylesheet" href="css/style.css?v=1.5">
+    <style>
+        body {
+            display: flex;
+            flex-direction: row;
+        }
+
+        .container {
+            max-width: none;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+        }
+
+        /* Status indicator */
+        .status-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+
+        .status-dot.connected {
+            background: #10b981;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+            animation: pulse-green 2s ease-in-out infinite;
+        }
+
+        .status-dot.disconnected {
+            background: #ef4444;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+        }
+
+        .status-dot.checking {
+            background: #f59e0b;
+            animation: pulse-yellow 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse-green {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.2); }
+        }
+
+        @keyframes pulse-yellow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Badge status */
+        .wa-badge {
+            padding: 0.35rem 0.85rem;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .wa-badge.connected {
+            background: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.35);
+        }
+
+        .wa-badge.disconnected {
+            background: rgba(239, 68, 68, 0.12);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .wa-badge.checking {
+            background: rgba(245, 158, 11, 0.12);
+            color: #f59e0b;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            align-items: center;
+            margin-top: 1.25rem;
+        }
+
+        .pagination button {
+            padding: 0.4rem 0.85rem;
+            border-radius: 8px;
+            border: 1px solid var(--card-border, #e5e7eb);
+            background: white;
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: var(--accent, #6366f1);
+            color: white;
+            border-color: var(--accent, #6366f1);
+        }
+
+        .pagination button.active {
+            background: var(--accent, #6366f1);
+            color: white;
+            border-color: var(--accent, #6366f1);
+        }
+
+        .pagination button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* AI Config readonly card */
+        .ai-config-card {
+            background: var(--card-bg, white);
+            border: 1px solid var(--card-border, #e5e7eb);
+            border-radius: var(--radius-lg, 12px);
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .ai-config-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.35rem;
+            flex-shrink: 0;
+        }
+
+        .ai-config-info {
+            flex: 1;
+        }
+
+        .ai-config-info h4 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            margin: 0 0 0.2rem;
+        }
+
+        .ai-config-info p {
+            font-size: 0.82rem;
+            color: var(--text-muted, #6b7280);
+            margin: 0;
+        }
+
+        .ai-status-badge {
+            padding: 0.3rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .ai-status-badge.active {
+            background: rgba(16, 185, 129, 0.12);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .ai-status-badge.inactive {
+            background: rgba(107, 114, 128, 0.12);
+            color: #6b7280;
+            border: 1px solid rgba(107, 114, 128, 0.3);
+        }
+
+        /* Readonly notice */
+        .readonly-notice {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            background: rgba(99, 102, 241, 0.07);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1.25rem;
+            font-size: 0.83rem;
+            color: var(--text-muted, #6b7280);
+        }
+
+        .readonly-notice span:first-child {
+            font-size: 1.1rem;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: var(--text-muted, #6b7280);
+        }
+
+        .empty-state .icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .empty-state p {
+            font-size: 0.9rem;
+            margin: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <script>
+        // ── Guard: Auth ─────────────────────────────────────────────────────────
+        const _token = localStorage.getItem('token');
+        if (!_token) { window.location.href = '/login.html'; }
+
+        // ── Guard: Role — client/tenant only ────────────────────────────────────
+        // Admins e masters devem ir para index.html / master.html
+        try {
+            const _b64 = _token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+            const _p = JSON.parse(decodeURIComponent(escape(atob(_b64))));
+            const _r = (_p.role || '').toLowerCase();
+            const _masterRoles = ['owner', 'master_admin', 'admin', 'master', 'super admin', 'superadmin'];
+            if (_masterRoles.includes(_r) && !_p.tenant_id) {
+                window.location.href = '/master.html';
+            } else if (_masterRoles.includes(_r) && _p.tenant_id) {
+                // Admin de tenant vai para o painel admin normal
+                window.location.href = '/';
+            }
+            // tenant / client / user → fica nesta página
+        } catch (_) { }
+    </script>
+
+    <!-- ═══════════════════════════ SIDEBAR ═══════════════════════════ -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h2><span id="sidebarEmoji">🏪</span> <span id="sidebarName">Meu Portal</span></h2>
+            <div class="sidebar-version">Auto Tech Lith · v3.0</div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-group-label">Visão Geral</div>
+            <a class="nav-item active" data-target="dashboard">
+                <span class="nav-icon">📊</span> Dashboard
+            </a>
+
+            <div class="sidebar-divider"></div>
+            <div class="nav-group-label">Atendimento</div>
+            <a class="nav-item" data-target="conversations">
+                <span class="nav-icon">💬</span> Conversas
+            </a>
+            <a class="nav-item" data-target="tickets">
+                <span class="nav-icon">🎫</span> Tickets
+            </a>
+
+            <div class="sidebar-divider"></div>
+            <div class="nav-group-label">Canais & IA</div>
+            <a class="nav-item" data-target="whatsapp-status">
+                <span class="nav-icon">📱</span> Status WhatsApp
+            </a>
+            <a class="nav-item" data-target="ai-config">
+                <span class="nav-icon">🤖</span> Configuração de IA
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar" id="userAvatar">C</div>
+                <div class="user-details">
+                    <div class="user-name" id="userNameDisplay">Carregando...</div>
+                    <div class="user-role" id="userRoleDisplay">Cliente</div>
+                </div>
+                <button onclick="logout()" class="btn-logout" title="Sair">🚪</button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ═══════════════════════════ MAIN ═══════════════════════════ -->
+    <main class="main-content">
+        <header class="top-bar">
+            <h1 class="page-title" id="pageTitle">Dashboard</h1>
+            <div class="top-actions">
+                <button class="btn-secondary btn-sm" onclick="refreshCurrentView()">🔄 Atualizar</button>
+            </div>
+        </header>
+
+        <div class="content-wrapper">
+
+            <!-- ─────────────── DASHBOARD ─────────────── -->
+            <section id="dashboard" class="view-section active">
+                <div class="grid-4" style="margin-bottom:1.75rem;">
+                    <div class="stat-card">
+                        <h3>Conversas</h3>
+                        <div class="value" id="statConversations">—</div>
+                    </div>
+                    <div class="stat-card success">
+                        <h3>Tickets Abertos</h3>
+                        <div class="value" id="statTickets">—</div>
+                    </div>
+                    <div class="stat-card warning">
+                        <h3>Reuniões Agendadas</h3>
+                        <div class="value" id="statMeetings">—</div>
+                    </div>
+                    <div class="stat-card" id="waStatusCard">
+                        <h3>WhatsApp</h3>
+                        <div class="value" id="statWhatsapp">
+                            <span class="status-dot checking" id="dashWaDot"></span>
+                            <span id="dashWaText">Verificando...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent conversations preview -->
+                <div class="panel-card">
+                    <div class="panel-card-header">
+                        <h3>💬 Conversas Recentes</h3>
+                        <button class="btn-secondary btn-sm" onclick="switchTab('conversations')">Ver todas →</button>
+                    </div>
+                    <div class="panel-card-body" style="padding:0;">
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Cliente</th>
+                                        <th>Telefone</th>
+                                        <th>Última mensagem</th>
+                                        <th>Data</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dashConversationsBody">
+                                    <tr><td colspan="4" style="text-align:center;color:#6b7280;padding:1.5rem;">Carregando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ─────────────── CONVERSAS ─────────────── -->
+            <section id="conversations" class="view-section">
+                <div class="flex-between mb-2">
+                    <div>
+                        <h2 style="margin:0;font-size:1.1rem;font-weight:700;">Conversas</h2>
+                        <p class="text-muted mt-1">Histórico de conversas via WhatsApp.</p>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Cliente</th>
+                                <th>Telefone</th>
+                                <th>Última mensagem</th>
+                                <th>Data</th>
+                            </tr>
+                        </thead>
+                        <tbody id="conversationsBody">
+                            <tr><td colspan="4" style="text-align:center;color:#6b7280;padding:2rem;">Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="conversationsPagination"></div>
+            </section>
+
+            <!-- ─────────────── TICKETS ─────────────── -->
+            <section id="tickets" class="view-section">
+                <div class="flex-between mb-2">
+                    <div>
+                        <h2 style="margin:0;font-size:1.1rem;font-weight:700;">Tickets</h2>
+                        <p class="text-muted mt-1">Tickets de suporte ativos e histórico.</p>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Cliente</th>
+                                <th>Assunto</th>
+                                <th>Status</th>
+                                <th>Prioridade</th>
+                                <th>Data</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ticketsBody">
+                            <tr><td colspan="6" style="text-align:center;color:#6b7280;padding:2rem;">Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="ticketsPagination"></div>
+            </section>
+
+            <!-- ─────────────── STATUS WHATSAPP ─────────────── -->
+            <section id="whatsapp-status" class="view-section">
+                <h2 style="margin-bottom:1.5rem;font-size:1.1rem;font-weight:700;">📱 Status do WhatsApp</h2>
+
+                <div class="panel-card" style="max-width:560px;">
+                    <div class="panel-card-header">
+                        <h3>Instância WhatsApp</h3>
+                        <span class="wa-badge checking" id="waBadge">
+                            <span class="status-dot checking" id="waDot"></span>
+                            Verificando...
+                        </span>
+                    </div>
+                    <div class="panel-card-body">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem;">
+                            <div>
+                                <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.35rem;">Instância</div>
+                                <div style="font-weight:700;" id="waInstance">—</div>
+                            </div>
+                            <div>
+                                <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.35rem;">Estado</div>
+                                <div style="font-weight:700;" id="waState">—</div>
+                            </div>
+                        </div>
+                        <button class="btn-secondary btn-sm" onclick="loadWhatsAppStatus()">🔄 Verificar novamente</button>
+                    </div>
+                </div>
+
+                <div class="panel-card" style="max-width:560px;margin-top:1rem;">
+                    <div class="panel-card-header">
+                        <h3>ℹ️ Sobre a conexão</h3>
+                    </div>
+                    <div class="panel-card-body">
+                        <p style="font-size:0.875rem;color:var(--text-muted);margin:0;line-height:1.7;">
+                            O WhatsApp é conectado via <strong>Evolution API</strong>. Quando o status aparece
+                            como <strong>Conectado</strong>, as mensagens dos seus clientes são processadas
+                            automaticamente pelo agente de IA. Se estiver <strong>Desconectado</strong>,
+                            entre em contato com o suporte para reconectar.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ─────────────── CONFIGURAÇÃO DE IA ─────────────── -->
+            <section id="ai-config" class="view-section">
+                <h2 style="margin-bottom:1rem;font-size:1.1rem;font-weight:700;">🤖 Configuração de IA</h2>
+
+                <div class="readonly-notice">
+                    <span>🔒</span>
+                    <span>Esta seção é somente leitura. Para alterar configurações de IA, entre em contato com o administrador.</span>
+                </div>
+
+                <div id="aiConfigList">
+                    <div class="ai-config-card">
+                        <div class="ai-config-icon">🧠</div>
+                        <div class="ai-config-info">
+                            <h4>Agente de Atendimento</h4>
+                            <p>Modelo de linguagem ativo para processar mensagens dos clientes.</p>
+                        </div>
+                        <span class="ai-status-badge active" id="aiAgentBadge">✓ Ativo</span>
+                    </div>
+
+                    <div class="ai-config-card">
+                        <div class="ai-config-icon">🎙️</div>
+                        <div class="ai-config-info">
+                            <h4>Transcrição de Áudio</h4>
+                            <p>Converte mensagens de voz em texto automaticamente via Whisper.</p>
+                        </div>
+                        <span class="ai-status-badge active">✓ Ativo</span>
+                    </div>
+
+                    <div class="ai-config-card">
+                        <div class="ai-config-icon">🔄</div>
+                        <div class="ai-config-info">
+                            <h4>Funil de Vendas</h4>
+                            <p>Guia automático das etapas do processo comercial via IA.</p>
+                        </div>
+                        <span class="ai-status-badge inactive" id="aiFunnelBadge">Não configurado</span>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <script>
+        // ── Utilidades ─────────────────────────────────────────────────────────
+        const token = localStorage.getItem('token');
+
+        const apiBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? `http://${window.location.hostname}:8000`
+            : '';
+
+        const authHeaders = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        };
+
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = '/login.html';
+        }
+
+        function fmt(dateStr) {
+            if (!dateStr) return '—';
+            try {
+                return new Date(dateStr).toLocaleString('pt-BR', {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                });
+            } catch (_) { return dateStr; }
+        }
+
+        function statusBadge(status) {
+            const map = {
+                open: { label: 'Aberto', cls: 'danger' },
+                in_progress: { label: 'Em andamento', cls: 'warning' },
+                resolved: { label: 'Resolvido', cls: 'success' },
+                closed: { label: 'Fechado', cls: '' },
+            };
+            const s = map[status] || { label: status || '—', cls: '' };
+            return `<span class="badge badge-${s.cls}">${s.label}</span>`;
+        }
+
+        function priorityBadge(priority) {
+            const map = {
+                high: { label: '⬆ Alta', cls: 'danger' },
+                medium: { label: '➡ Média', cls: 'warning' },
+                low: { label: '⬇ Baixa', cls: 'success' },
+            };
+            const p = map[priority] || { label: priority || '—', cls: '' };
+            return `<span class="badge badge-${p.cls}">${p.label}</span>`;
+        }
+
+        // ── Navegação ─────────────────────────────────────────────────────────
+        const pageTitles = {
+            dashboard: 'Dashboard',
+            conversations: 'Conversas',
+            tickets: 'Tickets',
+            'whatsapp-status': 'Status do WhatsApp',
+            'ai-config': 'Configuração de IA',
+        };
+
+        function switchTab(targetId) {
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.classList.toggle('active', el.dataset.target === targetId);
+            });
+            document.querySelectorAll('.view-section').forEach(section => {
+                section.classList.toggle('active', section.id === targetId);
+            });
+            document.getElementById('pageTitle').textContent = pageTitles[targetId] || targetId;
+
+            // Lazy load on switch
+            if (targetId === 'conversations') loadConversations();
+            if (targetId === 'tickets') loadTickets();
+            if (targetId === 'whatsapp-status') loadWhatsAppStatus();
+        }
+
+        document.querySelectorAll('.nav-item[data-target]').forEach(el => {
+            el.addEventListener('click', () => switchTab(el.dataset.target));
+        });
+
+        function refreshCurrentView() {
+            const active = document.querySelector('.view-section.active');
+            if (active) switchTab(active.id);
+            loadStats();
+        }
+
+        // ── Dados do usuário ─────────────────────────────────────────────────
+        try {
+            const parts = token.split('.');
+            const payload = JSON.parse(decodeURIComponent(escape(atob(
+                parts[1].replace(/-/g, '+').replace(/_/g, '/')
+            ))));
+            const name = payload.name || payload.username || 'Cliente';
+            document.getElementById('userNameDisplay').textContent = name;
+            document.getElementById('userRoleDisplay').textContent = payload.role || 'client';
+            document.getElementById('userAvatar').textContent = name.charAt(0).toUpperCase();
+            document.getElementById('sidebarName').textContent = name;
+        } catch (_) { }
+
+        // ── Stats ─────────────────────────────────────────────────────────────
+        async function loadStats() {
+            try {
+                const res = await fetch(`${apiBase}/api/v1/stats`, { headers: authHeaders });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                document.getElementById('statConversations').textContent = data.today_conversations ?? '—';
+                document.getElementById('statTickets').textContent = data.open_tickets ?? '—';
+                document.getElementById('statMeetings').textContent = data.scheduled_meetings ?? '—';
+            } catch (e) {
+                console.error('Erro ao carregar stats:', e);
+            }
+        }
+
+        // ── WhatsApp Status ───────────────────────────────────────────────────
+        async function loadWhatsAppStatus() {
+            const badge = document.getElementById('waBadge');
+            const dot = document.getElementById('waDot');
+            const dashDot = document.getElementById('dashWaDot');
+            const dashText = document.getElementById('dashWaText');
+            const statDashWa = document.getElementById('statWhatsapp');
+
+            // Reset to checking
+            ['waBadge', 'waDot', 'dashWaDot'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) { el.className = el.tagName === 'SPAN' && el.classList.contains('wa-badge') ? 'wa-badge checking' : 'status-dot checking'; }
+            });
+            if (badge) badge.innerHTML = '<span class="status-dot checking"></span> Verificando...';
+            if (dashText) dashText.textContent = 'Verificando...';
+
+            try {
+                const res = await fetch(`${apiBase}/api/v1/webhooks/evolution/status`, { headers: authHeaders });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+
+                const isConnected = data.status === 'connected';
+                const stateText = isConnected ? 'Conectado ✓' : 'Desconectado';
+                const instanceName = data.instance || '—';
+
+                // Update badge
+                if (badge) {
+                    badge.className = `wa-badge ${isConnected ? 'connected' : 'disconnected'}`;
+                    badge.innerHTML = `<span class="status-dot ${isConnected ? 'connected' : 'disconnected'}"></span> ${stateText}`;
+                }
+
+                // Update detail fields
+                const waInst = document.getElementById('waInstance');
+                const waState = document.getElementById('waState');
+                if (waInst) waInst.textContent = instanceName;
+                if (waState) waState.textContent = stateText;
+
+                // Update dashboard card
+                if (dashDot) dashDot.className = `status-dot ${isConnected ? 'connected' : 'disconnected'}`;
+                if (dashText) dashText.textContent = stateText;
+
+            } catch (e) {
+                console.error('Erro ao verificar WhatsApp:', e);
+                if (badge) {
+                    badge.className = 'wa-badge disconnected';
+                    badge.innerHTML = '<span class="status-dot disconnected"></span> Erro ao verificar';
+                }
+                if (dashText) dashText.textContent = 'Erro';
+            }
+        }
+
+        // ── Conversas ─────────────────────────────────────────────────────────
+        let allConversations = [];
+        let convPage = 1;
+        const PER_PAGE = 10;
+
+        async function loadConversations() {
+            const body = document.getElementById('conversationsBody');
+            const dashBody = document.getElementById('dashConversationsBody');
+            if (body) body.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:#6b7280;">Carregando...</td></tr>';
+
+            try {
+                const res = await fetch(`${apiBase}/api/v1/conversations`, { headers: authHeaders });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                allConversations = await res.json();
+                renderConversationsPage(1);
+
+                // Dashboard preview (top 5)
+                if (dashBody) {
+                    const preview = allConversations.slice(0, 5);
+                    if (!preview.length) {
+                        dashBody.innerHTML = '<tr><td colspan="4" class="empty-state"><p>Nenhuma conversa ainda.</p></td></tr>';
+                    } else {
+                        dashBody.innerHTML = preview.map(c => `
+                            <tr>
+                                <td>${c.customer_name || '—'}</td>
+                                <td>${c.phone || '—'}</td>
+                                <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.last_message_preview || '—'}</td>
+                                <td>${fmt(c.last_message_at)}</td>
+                            </tr>`).join('');
+                    }
+                }
+            } catch (e) {
+                console.error('Erro ao carregar conversas:', e);
+                if (body) body.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:#ef4444;">Erro ao carregar conversas.</td></tr>';
+                if (dashBody) dashBody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:1.5rem;color:#ef4444;">Erro ao carregar.</td></tr>';
+            }
+        }
+
+        function renderConversationsPage(page) {
+            convPage = page;
+            const body = document.getElementById('conversationsBody');
+            const pagContainer = document.getElementById('conversationsPagination');
+            const totalPages = Math.ceil(allConversations.length / PER_PAGE);
+            const slice = allConversations.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+            if (!slice.length) {
+                body.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2.5rem;color:#6b7280;">Nenhuma conversa encontrada.</td></tr>';
+            } else {
+                body.innerHTML = slice.map(c => `
+                    <tr>
+                        <td>${c.customer_name || '—'}</td>
+                        <td>${c.phone || '—'}</td>
+                        <td style="max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.last_message_preview || '—'}</td>
+                        <td>${fmt(c.last_message_at)}</td>
+                    </tr>`).join('');
+            }
+
+            renderPagination(pagContainer, totalPages, page, renderConversationsPage);
+        }
+
+        // ── Tickets ───────────────────────────────────────────────────────────
+        let allTickets = [];
+        let ticketPage = 1;
+
+        async function loadTickets() {
+            const body = document.getElementById('ticketsBody');
+            if (body) body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#6b7280;">Carregando...</td></tr>';
+
+            try {
+                const res = await fetch(`${apiBase}/api/v1/tickets`, { headers: authHeaders });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                allTickets = await res.json();
+                renderTicketsPage(1);
+            } catch (e) {
+                console.error('Erro ao carregar tickets:', e);
+                if (body) body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#ef4444;">Erro ao carregar tickets.</td></tr>';
+            }
+        }
+
+        function renderTicketsPage(page) {
+            ticketPage = page;
+            const body = document.getElementById('ticketsBody');
+            const pagContainer = document.getElementById('ticketsPagination');
+            const totalPages = Math.ceil(allTickets.length / PER_PAGE);
+            const slice = allTickets.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+            if (!slice.length) {
+                body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2.5rem;color:#6b7280;">Nenhum ticket encontrado.</td></tr>';
+            } else {
+                body.innerHTML = slice.map(t => `
+                    <tr>
+                        <td>#${t.id}</td>
+                        <td>${t.customer_name || '—'}</td>
+                        <td>${t.subject || '—'}</td>
+                        <td>${statusBadge(t.status)}</td>
+                        <td>${priorityBadge(t.priority)}</td>
+                        <td>${fmt(t.created_at)}</td>
+                    </tr>`).join('');
+            }
+
+            renderPagination(pagContainer, totalPages, page, renderTicketsPage);
+        }
+
+        // ── Paginação genérica ────────────────────────────────────────────────
+        function renderPagination(container, totalPages, currentPage, onPageChange) {
+            if (!container) return;
+            if (totalPages <= 1) { container.innerHTML = ''; return; }
+
+            let html = `<button ${currentPage === 1 ? 'disabled' : ''} onclick="(${onPageChange.name})(${currentPage - 1})">← Anterior</button>`;
+
+            for (let i = 1; i <= totalPages; i++) {
+                if (totalPages > 7 && Math.abs(i - currentPage) > 2 && i !== 1 && i !== totalPages) {
+                    if (i === 2 || i === totalPages - 1) html += `<button disabled>…</button>`;
+                    continue;
+                }
+                html += `<button class="${i === currentPage ? 'active' : ''}" onclick="(${onPageChange.name})(${i})">${i}</button>`;
+            }
+
+            html += `<button ${currentPage === totalPages ? 'disabled' : ''} onclick="(${onPageChange.name})(${currentPage + 1})">Próxima →</button>`;
+            container.innerHTML = html;
+        }
+
+        // ── Init ──────────────────────────────────────────────────────────────
+        (async function init() {
+            await Promise.allSettled([
+                loadStats(),
+                loadWhatsAppStatus(),
+                loadConversations(),
+            ]);
+        })();
+    </script>
+</body>
+
+</html>

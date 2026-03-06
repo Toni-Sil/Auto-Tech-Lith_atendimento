@@ -388,8 +388,18 @@
 
                     const role = (payload.role || '').toLowerCase();
                     const masterRoles = ['owner', 'master_admin', 'admin', 'master', 'super admin', 'superadmin'];
+                    const tenantRoles = ['tenant', 'client', 'user'];
+
                     const isMaster = masterRoles.includes(role) && (!payload.tenant_id || payload.tenant_id === null);
-                    targetPortal = isMaster ? '/master.html' : '/';
+                    const isTenant = tenantRoles.includes(role) || (payload.tenant_id && !masterRoles.includes(role));
+
+                    if (isMaster) {
+                        targetPortal = '/master.html';
+                    } else if (isTenant) {
+                        targetPortal = '/client.html';
+                    } else {
+                        targetPortal = '/'; // admin de tenant → index.html
+                    }
 
                     // Show redirect badge
                     portalHint.style.display = 'flex';
@@ -398,6 +408,12 @@
                     } else {
                         document.getElementById('lojistaBadge').style.display = 'block';
                     }
+
+                    // Update lojista badge text for client portal
+                    if (isTenant) {
+                        document.getElementById('lojistaBadge').textContent = '🏪 Redirecionando para o Portal do Cliente...';
+                    }
+
                 } catch (e) {
                     console.error('JWT Decode Error:', e);
                     // JWT decode failed — go to lojista by default
