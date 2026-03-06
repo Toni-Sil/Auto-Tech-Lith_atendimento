@@ -74,7 +74,6 @@ services:
       retries: 3
       start_period: 20s
     volumes:
-
       - backend_logs:/app/logs
       - backend_uploads:/app/frontend/assets/uploads
     networks:
@@ -82,8 +81,12 @@ services:
       - dokploy-network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.services.ia-backend.loadbalancer.server.port=8000"
       - "traefik.docker.network=dokploy-network"
+      - "traefik.http.routers.ia-backend.rule=Host(`autotechlith.com`) || Host(`www.autotechlith.com`)"
+      - "traefik.http.routers.ia-backend.entrypoints=websecure"
+      - "traefik.http.routers.ia-backend.tls=true"
+      - "traefik.http.routers.ia-backend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.ia-backend.loadbalancer.server.port=8000"
 
   # ─── pgAdmin (Gerenciador visual do banco) ────────────────────────────────────
   pgadmin:
@@ -129,7 +132,7 @@ services:
     image: evoapicloud/evolution-api:v2.3.7
     restart: always
     environment:
-      - SERVER_URL=${EVOLUTION_SERVER_URL:-https://auto-tech-lich-evolutionapi-9cae13-187-77-227-171.traefik.me}
+      - SERVER_URL=${EVOLUTION_SERVER_URL:-https://evolution.autotechlith.com}
       - AUTHENTICATION_TYPE=apikey
       - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY}
       - AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=true
@@ -151,7 +154,7 @@ services:
       - CACHE_REDIS_URI=redis://evolution-redis:6379
       - CACHE_REDIS_PREFIX_KEY=evolution
       - CACHE_REDIS_SAVE_INSTANCES=true
-      # Webhook Global para conexão imediata sem falhas
+      # Webhook Global
       - WEBHOOK_GLOBAL_URL=http://backend:8000/api/v1/webhooks/whatsapp?token=${VERIFY_TOKEN}
       - WEBHOOK_GLOBAL_ENABLED=true
       - WEBHOOK_GLOBAL_EVENTS=APPLICATION_STARTUP,QRCODE_UPDATED,MESSAGES_SET,MESSAGES_UPSERT,MESSAGES_UPDATE,MESSAGES_DELETE,SEND_MESSAGE,CONNECTION_UPDATE,CALL
@@ -166,8 +169,12 @@ services:
       - dokploy-network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.services.ia-evolution.loadbalancer.server.port=8080"
       - "traefik.docker.network=dokploy-network"
+      - "traefik.http.routers.ia-evolution.rule=Host(`evolution.autotechlith.com`)"
+      - "traefik.http.routers.ia-evolution.entrypoints=websecure"
+      - "traefik.http.routers.ia-evolution.tls=true"
+      - "traefik.http.routers.ia-evolution.tls.certresolver=letsencrypt"
+      - "traefik.http.services.ia-evolution.loadbalancer.server.port=8080"
 
 volumes:
   backend_logs:
