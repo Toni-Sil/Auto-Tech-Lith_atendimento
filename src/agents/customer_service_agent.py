@@ -154,7 +154,12 @@ class CustomerServiceAgent(BaseAgent):
         db_prompt = None
         try:
            async with async_session() as session:
-               config = await session.scalar(select(SystemConfig).where(SystemConfig.key == "system_prompt"))
+               config = await session.scalar(
+                   select(SystemConfig).where(
+                       SystemConfig.key == "system_prompt",
+                       SystemConfig.tenant_id == customer.tenant_id
+                   )
+               )
                if config and config.value:
                    db_prompt = config.value
         except Exception as e:
@@ -291,8 +296,9 @@ class CustomerServiceAgent(BaseAgent):
         redis_client = None
         # Usamos hashlib para gerar um hash estável (diferente do hash() nativo do Python)
         import hashlib
-        cache_hash = hashlib.md5((system_prompt + message).encode()).hexdigest()
-        cache_key = f"ai_response:{cache_hash}"
+        tenant_str = str(customer.tenant_id or "master")
+        cache_hash = hashlib.md5((tenant_str + system_prompt + message).encode()).hexdigest()
+        cache_key = f"ai_response:{tenant_str}:{cache_hash}"
 
         try:
             import redis

@@ -377,6 +377,17 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks, 
         if not instance_name:
             instance_name = payload.get("instance")
 
+        if instance_name:
+            from src.models.whatsapp import EvolutionInstance
+            from src.models.database import async_session as _async_session
+            async with _async_session() as _session:
+                _inst = await _session.scalar(
+                    select(EvolutionInstance).where(EvolutionInstance.instance_name == instance_name)
+                )
+                if not _inst:
+                    logger.warning(f"Webhook para instância desconhecida: {instance_name}. Ignorando.")
+                    return {"status": "ok", "reason": "unknown_instance"}
+
         event_type = payload.get("event")
 
         # ── Atualização de conexão ───────────────────────────────────────────
