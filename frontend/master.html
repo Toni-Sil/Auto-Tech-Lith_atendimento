@@ -18,8 +18,9 @@
             const t = localStorage.getItem('token');
             if (!t) { window.location.href = '/login.html'; return; }
             try {
-                const p = JSON.parse(atob(t.split('.')[1]));
-                const ok = (p.role === 'owner' || p.role === 'master_admin') && !p.tenant_id;
+                const b64 = t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+                const p = JSON.parse(decodeURIComponent(escape(atob(b64))));
+                const ok = (p.role === 'owner' || p.role === 'master_admin' || p.role === 'admin' || p.role === 'master') && (!p.tenant_id);
                 if (!ok) window.location.href = '/';
             } catch (_) { window.location.href = '/login.html'; }
         })();

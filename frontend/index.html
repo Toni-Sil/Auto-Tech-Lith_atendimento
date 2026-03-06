@@ -31,8 +31,9 @@
         if (!localStorage.getItem('token')) { window.location.href = '/login.html'; }
         // Redirect Master Admin (no tenant_id) to their portal
         try {
-            const p = JSON.parse(atob(localStorage.getItem('token').split('.')[1]));
-            if ((p.role === 'owner' || p.role === 'master_admin') && !p.tenant_id) {
+            const b64 = localStorage.getItem('token').split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+            const p = JSON.parse(decodeURIComponent(escape(atob(b64))));
+            if ((p.role === 'owner' || p.role === 'master_admin' || p.role === 'admin' || p.role === 'master') && !p.tenant_id) {
                 window.location.href = '/master.html';
             }
         } catch (_) { }
