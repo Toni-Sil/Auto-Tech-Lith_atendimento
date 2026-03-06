@@ -1,4 +1,4 @@
-from sqlalchemy import Index, String, Text, DateTime, func, ForeignKey
+from sqlalchemy import Index, String, Text, DateTime, func, ForeignKey, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import Optional, List
 from datetime import datetime
@@ -26,8 +26,8 @@ class Customer(Base):
     # Agent Intelligence Fields
     lead_score: Mapped[int] = mapped_column(default=0)
     last_sentiment_score: Mapped[float] = mapped_column(default=0.0)
-    sentiment_history: Mapped[Optional[List[dict]]] = mapped_column(default=list)
-    score_breakdown: Mapped[Optional[dict]] = mapped_column(default=dict)
+    sentiment_history: Mapped[Optional[List[dict]]] = mapped_column(JSON, default=list)
+    score_breakdown: Mapped[Optional[dict]] = mapped_column(JSON, default=dict)
     
     # Funnel Tracking
     funnel_stage: Mapped[Optional[str]] = mapped_column(String, nullable=True) # agendado, briefing, proposta, fechado
