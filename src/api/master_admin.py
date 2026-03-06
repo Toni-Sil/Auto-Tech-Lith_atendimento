@@ -1125,6 +1125,86 @@ async def update_whatsapp_instance(
         "evolution_api_key": instance.evolution_api_key
     }
 
+@master_router.get("/whatsapp/{instance_name}/diagnose")
+async def diagnose_whatsapp_instance(
+    instance_name: str,
+    master: Annotated[AdminUser, Depends(_require_master_admin)],
+    db: AsyncSession = Depends(get_db),
+):
+    """Diagnóstico completo da instância: testa credenciais, estado e webhook."""
+    import httpx
+
+    instance = await db.scalar(select(EvolutionInstance).where(EvolutionInstance.instance_name == instance_name))
+    if not instance:
+        raise HTTPException(status_code=404, detail="Instance not found.")
+
+    result = {
+        "instance_name": instance_name,
+        "db_status": instance.status,
+        "evolution_reachable": False,
+        "evolution_state": None,
+        "credentials_valid": False,
+        "webhook_configured": False,
+        "webhook_url_registered": None,
+        "errors": []
+    }
+
+    url = instance.evolution_api_url
+    key = instance.evolution_api_key
+
+    if not url or not key:
+        result["errors"].append("URL ou API Key da Evolution não configuradas nesta instância.")
+        return result
+
+    # 1. Testar credenciais e estado da instância
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{url.rstrip('/')}/instance/connectionState/{instance_name}",
+                headers={"apikey": key},
+                timeout=8.0
+            )
+            if resp.status_code == 401:
+                result["errors"].append("Credenciais inválidas (401). Verifique a API Key.")
+            elif resp.status_code == 404:
+                result["evolution_reachable"] = True
+                result["credentials_valid"] = True
+                result["errors"].append("Instância não encontrada na Evolution API. Pode precisar ser recriada.")
+            elif resp.status_code == 200:
+                result["evolution_reachable"] = True
+                result["credentials_valid"] = True
+                data = resp.json()
+                state = data.get("instance", {}).get("state") or data.get("state")
+                result["evolution_state"] = state  # "open", "close", "connecting", etc.
+            else:
+                result["evolution_reachable"] = True
+                result["errors"].append(f"Resposta inesperada da Evolution: HTTP {resp.status_code}")
+    except httpx.ConnectError:
+        result["errors"].append(f"Não foi possível conectar à Evolution API em: {url}")
+    except Exception as e:
+        result["errors"].append(f"Erro ao contatar Evolution API: {str(e)[:100]}")
+
+    # 2. Verificar webhook configurado na instância
+    if result["credentials_valid"]:
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(
+                    f"{url.rstrip('/')}/webhook/find/{instance_name}",
+                    headers={"apikey": key},
+                    timeout=8.0
+                )
+                if resp.status_code == 200:
+                    wh_data = resp.json()
+                    wh_url = wh_data.get("url") or wh_data.get("webhook", {}).get("url")
+                    result["webhook_url_registered"] = wh_url
+                    result["webhook_configured"] = bool(wh_url)
+                    if not wh_url:
+                        result["errors"].append("Webhook não configurado na Evolution para esta instância.")
+        except Exception as e:
+            result["errors"].append(f"Não foi possível verificar webhook: {str(e)[:80]}")
+
+    return result
+
 @master_router.get("/whatsapp/{instance_name}/pairing-code")
 async def get_pairing_code(
     instance_name: str,

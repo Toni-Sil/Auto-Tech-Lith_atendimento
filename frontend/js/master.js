@@ -1550,6 +1550,7 @@ async function loadWhatsAppInstances() {
                 <td><span class="badge ${i.status === 'open' || i.status === 'connected' ? 'active' : i.status === 'pending' || i.status === 'connecting' ? 'warn' : 'danger'}">${i.status || 'desconhecido'}</span></td>
                 <td>
                     ${i.status !== 'open' && i.status !== 'connected' ? `<button class="btn btn-ghost btn-sm wa-pairing-btn" data-name="${safeName}">🔗 Pareamento</button>` : ''}
+                    <button class="btn btn-ghost btn-sm wa-diag-btn" data-name="${safeName}">🔍 Diagnóstico</button>
                     <button class="btn btn-ghost btn-sm wa-edit-btn" data-name="${safeName}">✏️ Editar</button>
                     <button class="btn btn-ghost btn-danger btn-sm wa-delete-btn" data-name="${safeName}">🗑️ Excluir</button>
                 </td>
@@ -1565,6 +1566,9 @@ async function loadWhatsAppInstances() {
         });
         tbody.querySelectorAll('.wa-pairing-btn').forEach(btn => {
             btn.addEventListener('click', () => getWhatsAppPairingCode(decodeURIComponent(btn.dataset.name)));
+        });
+        tbody.querySelectorAll('.wa-diag-btn').forEach(btn => {
+            btn.addEventListener('click', () => diagnoseWhatsAppInstance(decodeURIComponent(btn.dataset.name)));
         });
 
         // Store globally for edit modal
@@ -1758,6 +1762,52 @@ async function getWhatsAppPairingCode(instanceName) {
         showAlert('Erro: ' + e.message, 'error');
     }
 }
+
+window.diagnoseWhatsAppInstance = async function(instanceName) {
+    try {
+        showAlert('Executando diagnóstico, aguarde...', 'info');
+        const res = await apiFetch(`/master/whatsapp/${encodeURIComponent(instanceName)}/diagnose`);
+        if (!res) return;
+
+        let errorHtml = '';
+        if (res.errors && res.errors.length > 0) {
+            errorHtml = `<div style="margin-top:1rem; padding:1rem; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.2); border-radius:8px;">
+                            <h4 style="color:var(--red); margin-bottom:0.5rem; font-size:0.95rem;">⚠️ Erros Encontrados:</h4>
+                            <ul style="color:var(--red); font-size:0.85rem; padding-left:1.5rem; margin-bottom:0;">
+                                ${res.errors.map(e => `<li>${e}</li>`).join('')}
+                            </ul>
+                         </div>`;
+        }
+
+        const stateColor = res.evolution_state === 'open' ? 'var(--green)' : 
+                          (res.evolution_state === 'connecting' ? 'var(--yellow)' : 'var(--red)');
+        
+        const stateText = res.evolution_state === 'open' ? 'Conectado' : 
+                         (res.evolution_state === 'close' ? 'Desconectado' : 
+                         (res.evolution_state === 'connecting' ? 'Conectando' : (res.evolution_state || 'Desconhecido')));
+
+        const html = `
+            <div style="text-align:left; font-size:0.95rem; line-height:1.6;">
+                <p><strong>Instância:</strong> ${res.instance_name}</p>
+                <hr style="border-color:var(--border); margin:1rem 0;">
+                <p><strong>Status Banco de Dados (Plataforma):</strong> ${res.db_status}</p>
+                <p><strong>Evolution Acessível:</strong> ${res.evolution_reachable ? '✅ Sim' : '❌ Não'}</p>
+                <p><strong>Credenciais Válidas:</strong> ${res.credentials_valid ? '✅ Sim' : '❌ Não'}</p>
+                <p><strong>Estado na Evolution:</strong> <span style="color:${stateColor}; font-weight:bold;">${stateText}</span> ${res.evolution_state ? `(${res.evolution_state})` : ''}</p>
+                <p><strong>Webhook Configurado:</strong> ${res.webhook_configured ? '✅ Sim' : '❌ Não'}</p>
+                ${res.webhook_url_registered ? `<p style="font-size:0.8rem; color:var(--text-muted); word-break:break-all;">URL Registrada: ${res.webhook_url_registered}</p>` : ''}
+                
+                ${errorHtml}
+            </div>
+            <div style="margin-top:1.5rem; text-align:right;">
+                <button class="btn btn-primary" onclick="closeGenericModal()">Entendi</button>
+            </div>
+        `;
+        showGenericModal('Diagnóstico: ' + instanceName, html);
+    } catch (e) {
+        showAlert('Erro no diagnóstico: ' + e.message, 'error');
+    }
+};
 
 // ── UTILS ────────────────────────────────────────────────────────
 function setText(id, val) {
