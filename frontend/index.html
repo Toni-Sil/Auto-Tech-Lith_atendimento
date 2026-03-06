@@ -34,7 +34,8 @@
             const b64 = localStorage.getItem('token').split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
             const p = JSON.parse(decodeURIComponent(escape(atob(b64))));
             const r = (p.role || '').toLowerCase();
-            if ((r === 'owner' || r === 'master_admin' || r === 'admin' || r === 'master') && !p.tenant_id) {
+            const masterRoles = ['owner', 'master_admin', 'admin', 'master', 'super admin', 'superadmin'];
+            if (masterRoles.includes(r) && !p.tenant_id) {
                 window.location.href = '/master.html';
             }
         } catch (_) { }

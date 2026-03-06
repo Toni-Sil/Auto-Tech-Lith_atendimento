@@ -25,8 +25,9 @@ leads_router = APIRouter()
 # ── Gate ──────────────────────────────────────────────────────────────────────
 
 def _require_master(current_user: AdminUser = Depends(get_current_user)) -> AdminUser:
-    allowed_roles = ["owner", "admin", "master_admin", "master"]
-    if current_user.role not in allowed_roles or current_user.tenant_id is not None:
+    allowed_roles = ["owner", "admin", "master_admin", "master", "super admin", "superadmin"]
+    user_role = (current_user.role or "").lower()
+    if user_role not in allowed_roles or current_user.tenant_id is not None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Master Admin access required.",

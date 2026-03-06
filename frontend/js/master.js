@@ -23,8 +23,8 @@ async function checkMasterAuth() {
         const role = (user.base_role || user.role || '').toLowerCase();
         const tenantId = user.tenant_id;
 
-        const isMaster = (role === 'owner' || role === 'master_admin' || role === 'admin' || role === 'master')
-            && (!tenantId || tenantId === null);
+        const masterRoles = ['owner', 'master_admin', 'admin', 'master', 'super admin', 'superadmin'];
+        const isMaster = masterRoles.includes(role) && (!tenantId || tenantId === null);
 
         if (!isMaster) {
             console.warn('Access denied: not a master admin', { role, tenantId });

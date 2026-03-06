@@ -37,11 +37,13 @@ def _require_master_admin(current_user: AdminUser = Depends(get_current_user)) -
     Strict gate: only a platform-level owner, admin or master_admin with NO tenant affiliation
     may access these endpoints. Tenant owners are denied.
     """
-    allowed_roles = ["owner", "admin", "master_admin", "master"]
-    if current_user.role not in allowed_roles or current_user.tenant_id is not None:
+    allowed_roles = ["owner", "admin", "master_admin", "master", "super admin", "superadmin"]
+    user_role = (current_user.role or "").lower()
+    if user_role not in allowed_roles or current_user.tenant_id is not None:
+        logger.warning(f"⛔ Master Admin Access Denied: user={current_user.username}, role={user_role}, tenant_id={current_user.tenant_id}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Master Admin access required. This endpoint is restricted to platform-level administrators.",
+            detail=f"Master Admin access required (role={user_role}, tenant_id={current_user.tenant_id}).",
         )
     return current_user
 

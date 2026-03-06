@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.database import get_db
 from src.models.butler_log import ButlerLog, ButlerActionType, ButlerSeverity
+from src.models.admin import AdminUser
 from src.api.auth import get_current_user
 from src.utils.logger import setup_logger
 
@@ -23,8 +24,9 @@ butler_router = APIRouter(prefix="/butler", tags=["Butler Agent"])
 
 # ── RBAC gate ─────────────────────────────────────────────────────────────────
 
-async def _require_master(current_user=Depends(get_current_user)):
-    if current_user.role not in ["owner", "admin", "master_admin"] or current_user.tenant_id is not None:
+async def _require_master(current_user: AdminUser = Depends(get_current_user)) -> AdminUser:
+    allowed_roles = ["owner", "admin", "master_admin", "master"]
+    if current_user.role not in allowed_roles or current_user.tenant_id is not None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Master Admin only")
     return current_user
 

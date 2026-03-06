@@ -387,8 +387,8 @@
                     const payload = JSON.parse(base64);
 
                     const role = (payload.role || '').toLowerCase();
-                    const isMaster = (role === 'owner' || role === 'master_admin' || role === 'admin' || role === 'master')
-                        && (!payload.tenant_id || payload.tenant_id === null);
+                    const masterRoles = ['owner', 'master_admin', 'admin', 'master', 'super admin', 'superadmin'];
+                    const isMaster = masterRoles.includes(role) && (!payload.tenant_id || payload.tenant_id === null);
                     targetPortal = isMaster ? '/master.html' : '/';
 
                     // Show redirect badge
