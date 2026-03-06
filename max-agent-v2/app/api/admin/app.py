@@ -19,7 +19,7 @@ def leads_dashboard():
     supabase = SupabaseClient.get_client()
     
     # Busca leads com score > 0 (ou todos)
-    response = supabase.table("dados cliente").select("*").order("lead_score", desc=True).execute()
+    response = supabase.table("customers").select("*").order("lead_score", desc=True).execute()
     leads = response.data if response.data else []
     
     return render_template('dashboard.html', leads=leads)

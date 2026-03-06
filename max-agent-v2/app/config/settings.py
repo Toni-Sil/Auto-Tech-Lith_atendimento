@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     # Admin
     admin_port: int = 5000
     admin_secret_key: str
+    
+    # Multi-tenant
+    tenant_id: int = 1 # Default for internal agent or as fallback
 
 # Singleton
 _settings: Optional[Settings] = None

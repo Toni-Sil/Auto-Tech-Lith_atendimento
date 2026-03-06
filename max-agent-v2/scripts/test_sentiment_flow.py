@@ -45,8 +45,9 @@ async def run_test():
     
     response = await ai_service.process_message(pos_msg, sender, "TestUser")
     print(f"AI Response: {response}")
-    
-    client_data = supabase.table("dados cliente").select("*").eq("telefoneCliente", sender).execute()
+    # Verify in DB
+    client_data = supabase.table("customers").select("*").eq("phone", sender).execute()
+    print(f"\n[DB Check] Client: {client_data.data}")
     if client_data.data:
         print(f"Client Sentiment Score (Updated): {client_data.data[0].get('last_sentiment_score')}")
 

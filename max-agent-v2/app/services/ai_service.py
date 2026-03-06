@@ -43,19 +43,20 @@ class AIService:
     async def _get_or_create_client(self, phone: str, name: Optional[str] = None):
         """Fetches client by phone, or creates a basic record if new."""
         try:
-            response = self.supabase.table("dados cliente").select("*").eq("telefoneCliente", phone).execute()
+            response = self.supabase.table("customers").select("*").eq("phone", phone).execute()
             if response.data:
                 return response.data[0]
             
             # Create new if name is provided (or just return None/empty to prompt for name)
             if name:
                 new_client = {
-                    "telefoneCliente": phone,
-                    "nomeCliente": name,
+                    "phone": phone,
+                    "name": name,
+                    "tenant_id": settings.tenant_id,
                     "lead_score": 0,
                     "sentiment_history": []
                 }
-                res = self.supabase.table("dados cliente").insert(new_client).execute()
+                res = self.supabase.table("customers").insert(new_client).execute()
                 if res.data:
                     return res.data[0]
             return None
@@ -66,13 +67,7 @@ class AIService:
     async def _update_sentiment_data(self, client_id: int, sentiment: Dict[str, Any]):
         """Updates client record with new sentiment score and history."""
         try:
-            # Append to history (simplified here, ideally would fetch->append->update or use a stored procedure)
-            # Fetch current history first to be safe, or assume the client obj has it
-            
-            # For efficiency in this MVP, we might just push to the array if Supabase supports it, 
-            # but standard update is safer.
-            
-            current = self.supabase.table("dados cliente").select("sentiment_history").eq("id", client_id).execute()
+            current = self.supabase.table("customers").select("sentiment_history").eq("id", client_id).execute()
             history = current.data[0].get("sentiment_history", []) if current.data else []
             if not isinstance(history, list):
                 history = []
@@ -85,7 +80,7 @@ class AIService:
             }
             history.append(new_entry)
             
-            self.supabase.table("dados cliente").update({
+            self.supabase.table("customers").update({
                 "last_sentiment_score": sentiment["score"],
                 "sentiment_history": history
             }).eq("id", client_id).execute()
@@ -97,27 +92,22 @@ class AIService:
         """Calculates and updates lead score."""
         try:
             # Context construction
-            # TODO: Fetch real interaction count from DB
             context = {
                 "history": current_message, # Ideally would be full history
-                "niche": client_data.get("nicho_trabalho", ""),
+                "niche": client_data.get("initial_demand", ""),
                 "interaction_count": 1 # Placeholder
             }
             
             score_data = self.scorer.calculate_score(context)
             
             # Update DB
-            self.supabase.table("dados cliente").update({
+            self.supabase.table("customers").update({
                 "lead_score": score_data["total_score"],
                 "score_breakdown": score_data["breakdown"]
             }).eq("id", client_id).execute()
             
             # Check for Hot Lead Alert (>= 75)
-            # Only alert if score changed significantly or is new high? 
-            # For now, alert every time it crosses threshold to be safe, 
-            # but maybe limit to avoid spam. Simple logic: just alert.
             if score_data["total_score"] >= 60:
-                # We interpret this as a "Hot Lead" event
                 await self.notifier.send_lead_alert(client_data, score_data)
                 
         except Exception as e:
@@ -149,10 +139,9 @@ class AIService:
             await self._update_lead_score(client_id, client, message)
         
         # 3. Dynamic Prompt Injection
-        # ... (Existing prompt logic) ...
         system_prompt = self.base_system_prompt
-        client_name = client.get("nomeCliente", "Visitante") if client else "Visitante"
-        client_niche = client.get("nicho_trabalho", "Nicho não informado") if client else "Nicho não informado"
+        client_name = client.get("name", "Visitante") if client else "Visitante"
+        client_niche = client.get("initial_demand", "Nicho não informado") if client else "Nicho não informado"
         system_prompt = system_prompt.replace("{{NICHE_CONTEXT}}", f"O cliente atua no nicho: {client_niche}.")
         
         # Tone Logic
@@ -249,7 +238,7 @@ class AIService:
                             
                         # If name missing, try to get from context if possible
                         if "name" not in function_args and client:
-                             function_args["name"] = client.get("nomeCliente")
+                             function_args["name"] = client.get("name")
 
                         # Call CalendarService
                         result = await calendar_svc.schedule_meeting(function_args)

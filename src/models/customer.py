@@ -22,6 +22,19 @@ class Customer(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
     last_interaction: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    
+    # Agent Intelligence Fields
+    lead_score: Mapped[int] = mapped_column(default=0)
+    last_sentiment_score: Mapped[float] = mapped_column(default=0.0)
+    sentiment_history: Mapped[Optional[List[dict]]] = mapped_column(default=list)
+    score_breakdown: Mapped[Optional[dict]] = mapped_column(default=dict)
+    
+    # Funnel Tracking
+    funnel_stage: Mapped[Optional[str]] = mapped_column(String, nullable=True) # agendado, briefing, proposta, fechado
+    status_briefing: Mapped[Optional[str]] = mapped_column(String, nullable=True) # pendente, realizado, cancelado
+    status_proposta: Mapped[Optional[str]] = mapped_column(String, nullable=True) # enviada, aceita, recusada
+    data_briefing: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    data_proposta: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     # Relacionamentos
     tenant: Mapped[Optional["Tenant"]] = relationship(back_populates="customers")

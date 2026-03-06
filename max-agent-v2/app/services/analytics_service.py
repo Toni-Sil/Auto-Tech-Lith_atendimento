@@ -23,7 +23,7 @@ class AnalyticsService:
             date_limit = datetime.now() - timedelta(days=days)
             
             # Fetch data (Optimized select)
-            response = self.supabase.table("dados cliente").select(
+            response = self.supabase.table("customers").select(
                 "id, created_at, lead_score, funnel_stage, status_briefing, status_proposta, data_briefing, data_proposta"
             ).execute()
             

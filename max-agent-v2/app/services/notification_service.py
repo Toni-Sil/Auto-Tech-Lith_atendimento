@@ -42,9 +42,10 @@ class NotificationService:
         Sends a specific alert for Hot Leads.
         """
         try:
-            name = lead_data.get("nomeCliente", "Cliente Desconhecido")
-            phone = lead_data.get("telefoneCliente", "N/A")
-            niche = lead_data.get("nicho_trabalho", "N/A")
+            phone = lead_data.get("phone", "N/A")
+            name = lead_data.get("name", "Cliente")
+            company = lead_data.get("company", "N/A")
+            niche = lead_data.get("initial_demand", "N/A")
             score = score_data.get("total_score", 0)
             breakdown = score_data.get("breakdown", {})
             classification = score_data.get("classification", "COLD")
