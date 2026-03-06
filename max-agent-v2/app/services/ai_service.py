@@ -27,10 +27,15 @@ class AIService:
         self.scorer = LeadScorer()
         self.notifier = NotificationService()
         
-        # Load System Prompt
+        # Load System Prompt from DB
         try:
-            with open("p:/agentes/dify/agent-prompt.md", "r", encoding="utf-8") as f:
-                self.base_system_prompt = f.read()
+            result = self.supabase.table("agent_profiles") \
+                .select("base_prompt") \
+                .eq("tenant_id", settings.tenant_id) \
+                .eq("is_active", True) \
+                .single() \
+                .execute()
+            self.base_system_prompt = result.data["base_prompt"]
         except Exception:
             # Fallback if file not found
             self.base_system_prompt = "Você é MAX, assistente virtual da Auto Tech Lith."
