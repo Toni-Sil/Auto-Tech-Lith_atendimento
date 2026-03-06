@@ -906,26 +906,23 @@ window.loadSchedulerJobs = loadSchedulerJobs;
 window.triggerJob = triggerJob;
 
 // ── AI CONFIG ────────────────────────────────────────────────────
-function updateAIPreview() {
-    const name = document.getElementById('aiAgentName')?.value || 'Max';
-    const tone = document.getElementById('aiTone')?.value || 'professional';
-    const persona = document.getElementById('aiPersona')?.value;
-    const toneLabels = { professional: 'Profissional', friendly: 'Amigável', formal: 'Formal', casual: 'Casual', technical: 'Técnico' };
+function updateAIPreview(config = null) {
+    const name = config?.agent_name || 'Max';
+    const tone = config?.tone || 'professional';
+    const persona = config?.persona || 'Preencha os campos e salve para gerar o preview...';
+
     setText('aiPreviewName', name);
-    setText('aiPreviewTone', 'Tom: ' + (toneLabels[tone] || tone));
-    setText('aiPreviewPersona', persona || 'Preencha os campos ao lado...');
+    setText('aiPreviewTone', 'Tom: ' + tone);
+    setText('aiPreviewPersona', persona);
 }
 
 async function loadInternalAIConfig() {
     try {
         const config = await apiFetch('/master/internal-ai/config');
         if (config) {
-            const setV = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
-            setV('aiAgentName', config.agent_name);
-            setV('aiTone', config.tone);
-            setV('aiPersona', config.persona);
-            setV('aiBasePrompt', config.base_prompt);
-            updateAIPreview();
+            const el = document.getElementById('aiBasePrompt');
+            if (el) el.value = config.base_prompt || '';
+            updateAIPreview(config);
         }
     } catch (e) {
         console.error('loadInternalAIConfig error:', e);
@@ -934,9 +931,6 @@ async function loadInternalAIConfig() {
 
 async function saveInternalAI() {
     const body = {
-        agent_name: document.getElementById('aiAgentName')?.value,
-        tone: document.getElementById('aiTone')?.value,
-        persona: document.getElementById('aiPersona')?.value,
         base_prompt: document.getElementById('aiBasePrompt')?.value,
     };
     try {
@@ -946,6 +940,7 @@ async function saveInternalAI() {
         });
         if (r) {
             showAlert('✅ Configuração de IA interna salva com sucesso!', 'success');
+            loadInternalAIConfig(); // recarregar p/ exibir o preview processado
         }
     } catch (e) {
         showAlert('Erro ao salvar configuração: ' + e.message, 'error');
@@ -1763,7 +1758,7 @@ async function getWhatsAppPairingCode(instanceName) {
     }
 }
 
-window.diagnoseWhatsAppInstance = async function(instanceName) {
+window.diagnoseWhatsAppInstance = async function (instanceName) {
     try {
         showAlert('Executando diagnóstico, aguarde...', 'info');
         const res = await apiFetch(`/master/whatsapp/${encodeURIComponent(instanceName)}/diagnose`);
@@ -1779,12 +1774,12 @@ window.diagnoseWhatsAppInstance = async function(instanceName) {
                          </div>`;
         }
 
-        const stateColor = res.evolution_state === 'open' ? 'var(--green)' : 
-                          (res.evolution_state === 'connecting' ? 'var(--yellow)' : 'var(--red)');
-        
-        const stateText = res.evolution_state === 'open' ? 'Conectado' : 
-                         (res.evolution_state === 'close' ? 'Desconectado' : 
-                         (res.evolution_state === 'connecting' ? 'Conectando' : (res.evolution_state || 'Desconhecido')));
+        const stateColor = res.evolution_state === 'open' ? 'var(--green)' :
+            (res.evolution_state === 'connecting' ? 'var(--yellow)' : 'var(--red)');
+
+        const stateText = res.evolution_state === 'open' ? 'Conectado' :
+            (res.evolution_state === 'close' ? 'Desconectado' :
+                (res.evolution_state === 'connecting' ? 'Conectando' : (res.evolution_state || 'Desconhecido')));
 
         const html = `
             <div style="text-align:left; font-size:0.95rem; line-height:1.6;">

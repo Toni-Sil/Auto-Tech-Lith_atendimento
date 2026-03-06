@@ -703,19 +703,27 @@ async def create_profile(
     # Auto-fill logic
     base_prompt = profile_data.get("base_prompt")
     if base_prompt:
-        # Prevent overriding if objective is already set explicitly by the user
-        # (Assuming an empty objective means we should try to auto-fill)
+        extracted = await prompt_generator_service.analyze_prompt(base_prompt)
+        
+        # 1. Fallback for 'name'
+        if not profile_data.get("name"):
+            profile_data["name"] = extracted.get("name") or "Agente"
+            
+        # 2. Fallback for 'tone'
+        if not profile_data.get("tone") or profile_data.get("tone") == "neutro":
+            profile_data["tone"] = extracted.get("tone") or "neutro"
+            
+        # 3. Fallback for 'objective'
         if not profile_data.get("objective"):
-            extracted = await prompt_generator_service.analyze_prompt(base_prompt)
-            for field, value in extracted.items():
-                if field in profile_data:
-                    current_val = profile_data.get(field)
-                    is_empty_or_default = (
-                        not current_val 
-                        or current_val in ["geral", "neutro", "equilibrado", "equilibrada"]
-                    )
-                    if is_empty_or_default and value:
-                        profile_data[field] = value
+            profile_data["objective"] = extracted.get("objective") or "atendimento"
+            
+        # Other extracted fields
+        for field, value in extracted.items():
+            if field not in ["name", "tone", "objective"] and field in profile_data:
+                current_val = profile_data.get(field)
+                is_empty_or_default = (not current_val or current_val in ["geral", "equilibrado", "equilibrada"])
+                if is_empty_or_default and value:
+                    profile_data[field] = value
 
     profile = await profile_service.create_profile(profile_data, tenant_id=current_user.tenant_id)
     return AgentProfileResponse.model_validate(profile)
@@ -731,17 +739,27 @@ async def update_profile(
     # Auto-fill logic
     base_prompt = profile_data.get("base_prompt")
     if base_prompt:
+        extracted = await prompt_generator_service.analyze_prompt(base_prompt)
+        
+        # 1. Fallback for 'name'
+        if not profile_data.get("name"):
+            profile_data["name"] = extracted.get("name") or "Agente"
+            
+        # 2. Fallback for 'tone'
+        if not profile_data.get("tone") or profile_data.get("tone") == "neutro":
+            profile_data["tone"] = extracted.get("tone") or "neutro"
+            
+        # 3. Fallback for 'objective'
         if not profile_data.get("objective"):
-            extracted = await prompt_generator_service.analyze_prompt(base_prompt)
-            for field, value in extracted.items():
-                if field in profile_data:
-                    current_val = profile_data.get(field)
-                    is_empty_or_default = (
-                        not current_val 
-                        or current_val in ["geral", "neutro", "equilibrado", "equilibrada"]
-                    )
-                    if is_empty_or_default and value:
-                        profile_data[field] = value
+            profile_data["objective"] = extracted.get("objective") or "atendimento"
+            
+        # Other extracted fields
+        for field, value in extracted.items():
+            if field not in ["name", "tone", "objective"] and field in profile_data:
+                current_val = profile_data.get(field)
+                is_empty_or_default = (not current_val or current_val in ["geral", "equilibrado", "equilibrada"])
+                if is_empty_or_default and value:
+                    profile_data[field] = value
 
     profile = await profile_service.update_profile(profile_id, profile_data, tenant_id=current_user.tenant_id)
     if not profile:

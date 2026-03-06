@@ -128,10 +128,10 @@ class ChurnAlert(BaseModel):
 
 
 class InternalAIConfig(BaseModel):
-    agent_name: str
-    tone: str
-    persona: Optional[str]
-    base_prompt: Optional[str]
+    base_prompt: str
+    agent_name: Optional[str] = None
+    tone: Optional[str] = None
+    persona: Optional[str] = None
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -738,7 +738,15 @@ async def save_internal_ai_config(
     db: AsyncSession = Depends(get_db),
 ):
     from src.models.audit import AuditLog
+    from src.services.prompt_generator_service import prompt_generator_service
     import json
+    
+    # Auto-extract based on prompt if not explicitly given
+    if body.base_prompt:
+        extracted = await prompt_generator_service.analyze_prompt(body.base_prompt)
+        body.agent_name = body.agent_name or extracted.get("name") or "Max"
+        body.tone = body.tone or extracted.get("tone") or "neutro"
+        body.persona = body.persona or extracted.get("objective") or "Assistente Interno"
     
     stmt = select(AgentProfile).where(
         AgentProfile.tenant_id == None, 

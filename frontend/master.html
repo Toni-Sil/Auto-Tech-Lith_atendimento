@@ -592,23 +592,11 @@
                             <h3>⚙️ Configurações do Agente</h3>
                         </div>
                         <div class="card-body">
-                            <div class="form-group"><label>Nome do Agente</label><input id="aiAgentName" type="text"
-                                    value="Max" oninput="updateAIPreview()"></div>
-                            <div class="form-group"><label>Tom de Voz</label>
-                                <select id="aiTone" onchange="updateAIPreview()">
-                                    <option value="professional">Profissional</option>
-                                    <option value="friendly">Amigável</option>
-                                    <option value="formal">Formal</option>
-                                    <option value="casual">Casual</option>
-                                    <option value="technical">Técnico</option>
-                                </select>
+                            <div class="form-group">
+                                <label>Prompt Base do Sistema</label>
+                                <textarea id="aiBasePrompt" rows="12"
+                                    placeholder="Cole o prompt do sistema / instruções completas aqui..."></textarea>
                             </div>
-                            <div class="form-group"><label>Persona / Personalidade</label><textarea id="aiPersona"
-                                    rows="3" placeholder="Ex: Especialista em automação, direto e eficiente..."
-                                    oninput="updateAIPreview()"></textarea></div>
-                            <div class="form-group"><label>Prompt Base do Sistema</label><textarea id="aiBasePrompt"
-                                    rows="5"
-                                    placeholder="Você é Max, assistente interno da Auto Tech Lith..."></textarea></div>
                         </div>
                     </div>
                     <div class="ai-preview-box">

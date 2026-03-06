@@ -198,6 +198,7 @@ Cliente atual:
 Dado um texto de prompt de sistema (base_prompt), retorne SOMENTE um JSON válido com os seguintes campos:
 
 {
+  "name": "<nome do agente extraído ou 'Agente' se indefinido>",
   "niche": "<geral|imobiliario|saude|educacao|ecommerce|tecnologia|financeiro|juridico|restaurante|automacao>",
   "tone": "<formal|semi-formal|neutro|amigavel|jovem>",
   "formality": "<muito_informal|informal|equilibrado|formal|muito_formal>",

@@ -119,19 +119,19 @@ class ChatTestRequest(BaseModel):
 from pydantic import field_validator
 
 class AgentProfileCreate(BaseModel):
-    name: str
+    base_prompt: str
+    name: Optional[str] = None
     agent_name_display: Optional[str] = None   # Nome do agente (ex: Max, Sofia)
     agent_avatar: Optional[str] = "🤖"          # Emoji do agente
     channel: Optional[str] = "whatsapp"         # Canal: whatsapp, telegram, web...
-    niche: str = "geral"
-    tone: str = "neutro"
-    formality: str = "equilibrado"
-    autonomy_level: str = "equilibrada"
+    niche: Optional[str] = "geral"
+    tone: Optional[str] = "neutro"
+    formality: Optional[str] = "equilibrado"
+    autonomy_level: Optional[str] = "equilibrada"
     objective: Optional[str] = None
     target_audience: Optional[str] = None
     data_to_collect: Optional[List[str]] = None
     constraints: Optional[str] = None
-    base_prompt: Optional[str] = None
 
     @field_validator('formality', 'autonomy_level', mode='before')
     @classmethod
