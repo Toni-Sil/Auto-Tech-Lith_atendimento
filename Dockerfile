@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
@@ -6,6 +6,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     curl \
     gcc \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Instalar dependências do Python
@@ -21,4 +22,5 @@ COPY frontend /app/frontend
 
 # Comando para rodar a aplicação
 EXPOSE 8000
-CMD ["python", "-m", "src.main"]
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--loop", "uvloop"]
+

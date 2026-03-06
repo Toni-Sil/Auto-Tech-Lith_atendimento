@@ -48,6 +48,24 @@ def _require_master_admin(current_user: AdminUser = Depends(get_current_user)) -
     return current_user
 
 
+def _require_master_or_owner(current_user: AdminUser = Depends(get_current_user)) -> AdminUser:
+    """
+    Flexible gate: Allows platform admins OR tenant owners.
+    Used for features that can be self-managed (like WhatsApp instances).
+    """
+    user_role = (current_user.role or "").lower()
+    is_master = user_role in ["owner", "admin", "master_admin", "master", "super admin", "superadmin"] and current_user.tenant_id is None
+    is_tenant_owner = user_role == "owner" and current_user.tenant_id is not None
+    
+    if not (is_master or is_tenant_owner):
+        logger.warning(f"⛔ Access Denied: user={current_user.username}, role={user_role}, tenant_id={current_user.tenant_id}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Master Admin or Tenant Owner access required.",
+        )
+    return current_user
+
+
 # ── Schemas ──────────────────────────────────────────────────────────────────
 
 class TenantStatus(BaseModel):
@@ -990,10 +1008,14 @@ async def list_whatsapp_instances(
 async def create_whatsapp_instance(
     request: Request,
     body: WhatsAppInstanceCreate,
-    master: Annotated[AdminUser, Depends(_require_master_admin)],
+    user: Annotated[AdminUser, Depends(_require_master_or_owner)],
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new WhatsApp instance for a specific tenant in Evolution API and DB."""
+    # Security: If not master, force their own tenant_id
+    if user.tenant_id:
+        body.tenant_id = user.tenant_id
+        
     # Check if tenant exists (only if tenant_id is provided)
     if body.tenant_id:
         tenant = await db.get(Tenant, body.tenant_id)
@@ -1134,7 +1156,7 @@ async def update_whatsapp_instance(
 async def get_pairing_code(
     instance_name: str,
     phone: str,
-    master: Annotated[AdminUser, Depends(_require_master_admin)],
+    user: Annotated[AdminUser, Depends(_require_master_or_owner)],
     db: AsyncSession = Depends(get_db),
 ):
     """Get a pairing code to connect WhatsApp without scanning QR."""
@@ -1144,8 +1166,15 @@ async def get_pairing_code(
         raise HTTPException(status_code=400, detail="Invalid phone number format.")
         
     instance = await db.scalar(select(EvolutionInstance).where(EvolutionInstance.instance_name == instance_name))
-    custom_url = instance.evolution_api_url if instance else None
-    custom_key = instance.evolution_api_key if instance else None
+    if not instance:
+         raise HTTPException(status_code=404, detail="Instance not found.")
+         
+    # Security: Tenant owner can only get pairing code for their own instances
+    if user.tenant_id and instance.tenant_id != user.tenant_id:
+        raise HTTPException(status_code=403, detail="Forbidden: This instance belongs to another tenant.")
+
+    custom_url = instance.evolution_api_url
+    custom_key = instance.evolution_api_key
 
     evo_response = await evolution_service.get_pairing_code(
         instance_name, 

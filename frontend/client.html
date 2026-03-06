@@ -50,13 +50,29 @@
         }
 
         @keyframes pulse-green {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.7; transform: scale(1.2); }
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.7;
+                transform: scale(1.2);
+            }
         }
 
         @keyframes pulse-yellow {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
         }
 
         /* Badge status */
@@ -217,6 +233,169 @@
             font-size: 0.9rem;
             margin: 0;
         }
+
+        /* --- ONBOARDING WIZARD --- */
+        #onboardingModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(8px);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .wizard-card {
+            background: rgba(255, 255, 255, 0.95);
+            width: 100%;
+            max-width: 500px;
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            padding: 2.5rem;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .wizard-step {
+            display: none;
+        }
+
+        .wizard-step.active {
+            display: block;
+            animation: slideUp 0.4s ease;
+        }
+
+        .wizard-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .wizard-header .icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .wizard-header h2 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #1e293b;
+            margin: 0;
+        }
+
+        .wizard-header p {
+            color: #64748b;
+            font-size: 0.95rem;
+            margin-top: 0.5rem;
+        }
+
+        .progress-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 2rem;
+            justify-content: center;
+        }
+
+        .progress-dot {
+            width: 40px;
+            height: 6px;
+            border-radius: 10px;
+            background: #e2e8f0;
+            transition: all 0.3s ease;
+        }
+
+        .progress-dot.active {
+            background: var(--accent, #6366f1);
+            width: 60px;
+        }
+
+        .wizard-footer {
+            margin-top: 2rem;
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+        }
+
+        .pairing-code-container {
+            background: #f8fafc;
+            border: 2px dashed #cbd5e1;
+            border-radius: 16px;
+            padding: 1.5rem;
+            text-align: center;
+            margin: 1.5rem 0;
+        }
+
+        .pairing-code {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 2.5rem;
+            font-weight: 900;
+            letter-spacing: 8px;
+            color: #1e293b;
+            margin: 0.5rem 0;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .copy-btn {
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 5px;
+        }
+
+        .copy-btn:hover {
+            background: #e2e8f0;
+        }
+
+        .spinner {
+            width: 30px;
+            height: 30px;
+            border: 3px solid #e2e8f0;
+            border-top: 3px solid var(--accent, #6366f1);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
     </style>
 </head>
 
@@ -340,7 +519,10 @@
                                     </tr>
                                 </thead>
                                 <tbody id="dashConversationsBody">
-                                    <tr><td colspan="4" style="text-align:center;color:#6b7280;padding:1.5rem;">Carregando...</td></tr>
+                                    <tr>
+                                        <td colspan="4" style="text-align:center;color:#6b7280;padding:1.5rem;">
+                                            Carregando...</td>
+                                    </tr>
                                 </tbody>
                             </table>
                         </div>
@@ -367,7 +549,9 @@
                             </tr>
                         </thead>
                         <tbody id="conversationsBody">
-                            <tr><td colspan="4" style="text-align:center;color:#6b7280;padding:2rem;">Carregando...</td></tr>
+                            <tr>
+                                <td colspan="4" style="text-align:center;color:#6b7280;padding:2rem;">Carregando...</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -395,7 +579,9 @@
                             </tr>
                         </thead>
                         <tbody id="ticketsBody">
-                            <tr><td colspan="6" style="text-align:center;color:#6b7280;padding:2rem;">Carregando...</td></tr>
+                            <tr>
+                                <td colspan="6" style="text-align:center;color:#6b7280;padding:2rem;">Carregando...</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -417,15 +603,18 @@
                     <div class="panel-card-body">
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem;">
                             <div>
-                                <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.35rem;">Instância</div>
+                                <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.35rem;">Instância
+                                </div>
                                 <div style="font-weight:700;" id="waInstance">—</div>
                             </div>
                             <div>
-                                <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.35rem;">Estado</div>
+                                <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.35rem;">Estado
+                                </div>
                                 <div style="font-weight:700;" id="waState">—</div>
                             </div>
                         </div>
-                        <button class="btn-secondary btn-sm" onclick="loadWhatsAppStatus()">🔄 Verificar novamente</button>
+                        <button class="btn-secondary btn-sm" onclick="loadWhatsAppStatus()">🔄 Verificar
+                            novamente</button>
                     </div>
                 </div>
 
@@ -450,7 +639,8 @@
 
                 <div class="readonly-notice">
                     <span>🔒</span>
-                    <span>Esta seção é somente leitura. Para alterar configurações de IA, entre em contato com o administrador.</span>
+                    <span>Esta seção é somente leitura. Para alterar configurações de IA, entre em contato com o
+                        administrador.</span>
                 </div>
 
                 <div id="aiConfigList">
@@ -485,6 +675,82 @@
 
         </div>
     </main>
+
+    <!-- ═══════════════════════════ ONBOARDING MODAL ═══════════════════════════ -->
+    <div id="onboardingModal">
+        <div class="wizard-card">
+            <div class="progress-bar">
+                <div class="progress-dot active" id="dot1"></div>
+                <div class="progress-dot" id="dot2"></div>
+                <div class="progress-dot" id="dot3"></div>
+            </div>
+
+            <!-- STEP 1: Welcome & Setup -->
+            <div class="wizard-step active" id="step1">
+                <div class="wizard-header">
+                    <span class="icon">🚀</span>
+                    <h2>Bem-vindo ao Futuro!</h2>
+                    <p>Vamos configurar o seu assistente de IA em menos de 2 minutos.</p>
+                </div>
+                <div class="form-group">
+                    <label>Nome da sua Empresa/Instância</label>
+                    <input type="text" id="obInstanceName" placeholder="Ex: Minha Loja" class="w-100">
+                    <small class="text-muted">Este nome ajuda a identificar sua conexão.</small>
+                </div>
+                <div class="wizard-footer">
+                    <button class="btn-primary w-100" id="btnStep1" onclick="submitStep1()">Começar Agora →</button>
+                </div>
+            </div>
+
+            <!-- STEP 2: WhatsApp Connection -->
+            <div class="wizard-step" id="step2">
+                <div class="wizard-header">
+                    <span class="icon">📱</span>
+                    <h2>Conectar WhatsApp</h2>
+                    <p
+                        style="font-size: 0.85rem; background: #fffbeb; padding: 10px; border-radius: 12px; border: 1px solid #fef3c7; color: #92400e; margin-bottom: 1.5rem;">
+                        <strong>Instrução:</strong> Abra o WhatsApp no seu celular > Configurações > Aparelhos
+                        conectados > Conectar com número de telefone.
+                    </p>
+                </div>
+
+                <div class="form-group">
+                    <label>Seu número de WhatsApp</label>
+                    <input type="text" id="obPhoneNumber" placeholder="5511999999999" class="w-100">
+                    <small class="text-muted">DDI + DDD + Número (apenas dígitos).</small>
+                </div>
+
+                <div class="pairing-code-container" id="pairingContainer" style="display:none;">
+                    <p style="font-size:0.75rem; color:#64748b; margin-bottom:0;">DIGITE ESTE CÓDIGO NO WHATSAPP:</p>
+                    <div class="pairing-code" id="displayPairingCode">--------</div>
+                    <button class="copy-btn" onclick="copyPairingCode()">📋 Copiar Código</button>
+                </div>
+
+                <div class="wizard-footer" id="footerStep2">
+                    <button class="btn-primary w-100" onclick="getPairingCode()">Gerar Código de Pareamento</button>
+                </div>
+            </div>
+
+            <!-- STEP 3: Confirmation -->
+            <div class="wizard-step" id="step3">
+                <div class="wizard-header">
+                    <span class="icon" id="step3Icon">⏳</span>
+                    <h2 id="step3Title">Conectando...</h2>
+                    <p id="step3Desc">Seu WhatsApp está sendo conectado!</p>
+                </div>
+
+                <div id="pollingStatus" style="text-align:center; padding: 1.5rem 0;">
+                    <div class="spinner"></div>
+                    <p id="pollingText" style="font-size:0.85rem; color:#64748b;">Aguardando sinal do seu celular...
+                        (60s)</p>
+                </div>
+
+                <div class="wizard-footer" id="footerStep3" style="display:none;">
+                    <button class="btn-secondary w-100" onclick="nextStep(1)">Tentar novamente</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
         // ── Utilidades ─────────────────────────────────────────────────────────
@@ -614,8 +880,20 @@
 
             try {
                 const res = await fetch(`${apiBase}/api/v1/webhooks/evolution/status`, { headers: authHeaders });
+
+                // --- ONBOARDING TRIGGER ---
+                // If 404 or instance is explicitly "None", we might need onboarding
+                if (res.status === 404) {
+                    console.log("No instance found. Triggering onboarding...");
+                    showOnboarding();
+                }
+
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
+
+                if (!data || !data.instance) {
+                    showOnboarding();
+                }
 
                 const isConnected = data.status === 'connected';
                 const stateText = isConnected ? 'Conectado ✓' : 'Desconectado';
@@ -777,6 +1055,159 @@
                 loadConversations(),
             ]);
         })();
+
+        // ── ONBOARDING LOGIC ──────────────────────────────────────────────────
+        let currentStep = 1;
+        let createdInstanceName = '';
+        let pollingInterval = null;
+        let pollingTimeout = null;
+
+        function showOnboarding() {
+            document.getElementById('onboardingModal').style.display = 'flex';
+        }
+
+        function nextStep(step) {
+            document.querySelectorAll('.wizard-step').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.progress-dot').forEach(d => d.classList.remove('active'));
+
+            document.getElementById(`step${step}`).classList.add('active');
+            document.getElementById(`dot${step}`).classList.add('active');
+            currentStep = step;
+
+            if (step === 3) startPolling();
+            else clearPolling();
+        }
+
+        function clearPolling() {
+            if (pollingInterval) clearInterval(pollingInterval);
+            if (pollingTimeout) clearTimeout(pollingTimeout);
+        }
+
+        async function submitStep1() {
+            const nameInput = document.getElementById('obInstanceName');
+            const name = nameInput.value.trim();
+            if (!name) return alert('Por favor, dê um nome para sua instância.');
+
+            const btn = document.getElementById('btnStep1');
+            btn.disabled = true;
+            btn.textContent = 'Criando instância...';
+
+            try {
+                // Slugify name
+                const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+                const finalInstanceName = `${slug}-${Math.floor(Math.random() * 1000)}`;
+
+                const res = await fetch(`${apiBase}/api/v1/master/whatsapp`, {
+                    method: 'POST',
+                    headers: authHeaders,
+                    body: JSON.stringify({
+                        instance_name: finalInstanceName,
+                        display_name: name
+                    })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'Erro ao criar instância. Tente um nome diferente.');
+                }
+
+                createdInstanceName = finalInstanceName;
+                nextStep(2);
+            } catch (e) {
+                alert('Erro: ' + e.message);
+                btn.disabled = false;
+                btn.textContent = 'Começar Agora →';
+            }
+        }
+
+        async function getPairingCode() {
+            const phone = document.getElementById('obPhoneNumber').value.trim();
+            if (!phone) return alert('Digite o seu número de WhatsApp com DDI (ex: 5511...)');
+
+            const container = document.getElementById('pairingContainer');
+            const display = document.getElementById('displayPairingCode');
+            const footer = document.getElementById('footerStep2');
+
+            footer.innerHTML = '<button class="btn-secondary w-100" disabled>Gerando código...</button>';
+
+            try {
+                const res = await fetch(`${apiBase}/api/v1/master/whatsapp/${createdInstanceName}/pairing-code?phone=${phone}`, {
+                    headers: authHeaders
+                });
+
+                if (!res.ok) throw new Error('Não foi possível gerar o código. Verifique o número.');
+
+                const data = await res.json();
+                if (data.code) {
+                    display.textContent = data.code;
+                    container.style.display = 'block';
+                    footer.innerHTML = '<button class="btn-primary w-100" onclick="nextStep(3)">Já digitei o código! Próximo Passo →</button>';
+                } else {
+                    throw new Error('Código não recebido da API');
+                }
+            } catch (e) {
+                alert('Erro: ' + e.message);
+                footer.innerHTML = '<button class="btn-primary w-100" onclick="getPairingCode()">Tentar novamente</button>';
+            }
+        }
+
+        function copyPairingCode() {
+            const code = document.getElementById('displayPairingCode').textContent;
+            navigator.clipboard.writeText(code);
+            alert('Código copiado: ' + code);
+        }
+
+        function startPolling() {
+            clearPolling();
+            let seconds = 60;
+            const textEl = document.getElementById('pollingText');
+            const footer3 = document.getElementById('footerStep3');
+
+            footer3.style.display = 'none';
+            document.getElementById('pollingStatus').style.display = 'block';
+
+            pollingInterval = setInterval(async () => {
+                seconds -= 5;
+                if (textEl) textEl.textContent = `Aguardando sinal do seu celular... (${seconds}s)`;
+
+                try {
+                    const res = await fetch(`${apiBase}/api/v1/webhooks/evolution/status`, { headers: authHeaders });
+                    const data = await res.json();
+
+                    if (data.status === 'connected') {
+                        showSuccess();
+                    }
+                } catch (e) { console.error('Erro no polling:', e); }
+
+                if (seconds <= 0) {
+                    clearPolling();
+                    showTimeout();
+                }
+            }, 5000);
+        }
+
+        function showSuccess() {
+            clearPolling();
+            document.getElementById('step3Icon').textContent = '✅';
+            document.getElementById('step3Title').textContent = 'WhatsApp conectado!';
+            document.getElementById('step3Desc').textContent = 'Excelente! Sua IA já está ativa.';
+            document.getElementById('pollingStatus').innerHTML = '<div style="font-size:3rem; color:#10b981; margin-top:1rem;">🎉</div>';
+
+            setTimeout(() => finishOnboarding(), 3000);
+        }
+
+        function showTimeout() {
+            document.getElementById('step3Icon').textContent = '⚠️';
+            document.getElementById('step3Title').textContent = 'Tempo esgotado';
+            document.getElementById('step3Desc').textContent = 'Não detectamos a conexão a tempo. Deseja tentar novamente?';
+            document.getElementById('pollingStatus').style.display = 'none';
+            document.getElementById('footerStep3').style.display = 'flex';
+        }
+
+        function finishOnboarding() {
+            document.getElementById('onboardingModal').style.display = 'none';
+            refreshCurrentView();
+        }
     </script>
 </body>
 

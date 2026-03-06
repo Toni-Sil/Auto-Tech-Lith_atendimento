@@ -2,8 +2,8 @@
 Butler Worker — APScheduler background jobs for the Mordomo Digital.
 
 Jobs:
-  - infra_health_check   every 5 min
-  - quota_patrol         every 15 min
+  - infra_health_check   every 30 min
+  - quota_patrol         every 60 min
   - churn_scan           daily at 08:00
   - daily_report         daily at 07:00
   - log_rotation         daily at 03:00
@@ -34,7 +34,7 @@ def _get_settings():
 # ── Job functions ─────────────────────────────────────────────────────────────
 
 async def job_infra_health_check():
-    """Every 5 min: check infrastructure health, alert if degraded."""
+    """Every 30 min: check infrastructure health, alert if degraded."""
     logger.debug("[ButlerWorker] Running infra health check")
     try:
         settings = _get_settings()
@@ -47,7 +47,7 @@ async def job_infra_health_check():
 
 
 async def job_quota_patrol():
-    """Every 15 min: scan quota usage, alert on 80%+ consumption."""
+    """Every 60 min: scan quota usage, alert on 80%+ consumption."""
     logger.debug("[ButlerWorker] Running quota patrol")
     try:
         butler = _get_butler()
@@ -123,7 +123,7 @@ def create_butler_scheduler() -> AsyncIOScheduler:
 
     scheduler.add_job(
         job_infra_health_check,
-        trigger=IntervalTrigger(minutes=5),
+        trigger=IntervalTrigger(minutes=30),
         id="infra_health_check",
         name="Infrastructure Health Check",
         replace_existing=True,
@@ -131,7 +131,7 @@ def create_butler_scheduler() -> AsyncIOScheduler:
     )
     scheduler.add_job(
         job_quota_patrol,
-        trigger=IntervalTrigger(minutes=15),
+        trigger=IntervalTrigger(minutes=60),
         id="quota_patrol",
         name="Quota Patrol",
         replace_existing=True,

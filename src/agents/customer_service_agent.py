@@ -286,7 +286,34 @@ class CustomerServiceAgent(BaseAgent):
         if not messages or messages[-1].get("content") != message:
              messages.append({"role": "user", "content": message})
 
-        # 4. Chamar LLM
+        # ── TAREFA 5: Cache Redis para respostas da IA ───────────────────────
+        response_text = None
+        redis_client = None
+        # Usamos hashlib para gerar um hash estável (diferente do hash() nativo do Python)
+        import hashlib
+        cache_hash = hashlib.md5((system_prompt + message).encode()).hexdigest()
+        cache_key = f"ai_response:{cache_hash}"
+
+        try:
+            import redis
+            from src.config import settings
+            redis_client = redis.Redis(
+                host=settings.REDIS_HOST,
+                port=settings.REDIS_PORT,
+                password=settings.REDIS_PASSWORD,
+                db=0,
+                decode_responses=True,
+                socket_timeout=1
+            )
+            cached = redis_client.get(cache_key)
+            if cached:
+                logger.info(f"🚀 Cache HIT para {cache_key}")
+                await self._send_response(customer, cached, phone, instance_name=instance_name)
+                return cached
+        except Exception as e:
+            logger.warning(f"⚠️ Erro no cache Redis (ignorando): {e}")
+
+        # ── 4. Chamar LLM (se não houver cache) ──────────────────────────────
         response_msg = await self.llm.get_chat_response(messages, tools=self.tools)
         
         # 5. Processar Tool Calls (Loop único por enquanto, pode ser while se precisar re-entrar)
@@ -310,9 +337,18 @@ class CustomerServiceAgent(BaseAgent):
         else:
             response_text = response_msg.content
             
+        # ── TAREFA 5: Salvar no Cache ───────────────────────────────────────
+        if response_text and redis_client:
+            try:
+                redis_client.setex(cache_key, 3600, response_text)
+                logger.info(f"💾 Resposta salva no cache: {cache_key}")
+            except Exception as e:
+                logger.warning(f"⚠️ Erro ao salvar no Redis: {e}")
+
         # 6. Enviar Resposta
         await self._send_response(customer, response_text, phone, instance_name=instance_name)
         
         return response_text
+
 
 customer_agent = CustomerServiceAgent()
