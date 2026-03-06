@@ -190,6 +190,14 @@ if os.path.exists(frontend_path):
             return FileResponse(favicon_path)
         return FileResponse(os.path.join(frontend_path, "index.html"))
 
+    @app.get("/login", include_in_schema=False)
+    async def login_page():
+        return FileResponse(os.path.join(frontend_path, "login.html"))
+
+    @app.get("/", include_in_schema=False)  
+    async def index_page():
+        return FileResponse(os.path.join(frontend_path, "index.html"))
+
     # Mount root for HTML files only (or as final fallback)
     app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 else:
