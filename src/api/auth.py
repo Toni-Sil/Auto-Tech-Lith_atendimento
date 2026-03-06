@@ -397,6 +397,8 @@ async def read_users_me(current_user: Annotated[AdminUser, Depends(get_current_u
         "name": current_user.name, 
         "email": current_user.email,
         "role": current_user.custom_role.name if current_user.custom_role else current_user.role,
+        "base_role": current_user.role,
+        "tenant_id": current_user.tenant_id,
         "permissions": current_user.custom_role.permissions if current_user.custom_role else [],
         "avatar_url": current_user.avatar_url,
         "bio": current_user.bio,

@@ -33,7 +33,8 @@
         try {
             const b64 = localStorage.getItem('token').split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
             const p = JSON.parse(decodeURIComponent(escape(atob(b64))));
-            if ((p.role === 'owner' || p.role === 'master_admin' || p.role === 'admin' || p.role === 'master') && !p.tenant_id) {
+            const r = (p.role || '').toLowerCase();
+            if ((r === 'owner' || r === 'master_admin' || r === 'admin' || r === 'master') && !p.tenant_id) {
                 window.location.href = '/master.html';
             }
         } catch (_) { }

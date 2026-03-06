@@ -18,11 +18,25 @@ async function checkMasterAuth() {
     try {
         const user = await apiFetch('/auth/me');
         if (!user) { window.location.href = AUTH_URL; return false; }
-        const role = (user.role || '').toLowerCase();
-        const isMaster = (role === 'owner' || role === 'master_admin' || role === 'admin');
-        if (!isMaster) { window.location.href = AUTH_URL; return false; }
+
+        // Use base_role if available (it avoids custom role name overrides)
+        const role = (user.base_role || user.role || '').toLowerCase();
+        const tenantId = user.tenant_id;
+
+        const isMaster = (role === 'owner' || role === 'master_admin' || role === 'admin' || role === 'master')
+            && (!tenantId || tenantId === null);
+
+        if (!isMaster) {
+            console.warn('Access denied: not a master admin', { role, tenantId });
+            window.location.href = '/';
+            return false;
+        }
         return true;
-    } catch (_) { window.location.href = AUTH_URL; return false; }
+    } catch (e) {
+        console.error('checkMasterAuth error:', e);
+        window.location.href = AUTH_URL;
+        return false;
+    }
 }
 
 function authHeaders() {

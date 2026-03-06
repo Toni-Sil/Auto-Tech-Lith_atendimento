@@ -20,7 +20,8 @@
             try {
                 const b64 = t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
                 const p = JSON.parse(decodeURIComponent(escape(atob(b64))));
-                const ok = (p.role === 'owner' || p.role === 'master_admin' || p.role === 'admin' || p.role === 'master') && (!p.tenant_id);
+                const r = (p.role || '').toLowerCase();
+                const ok = (r === 'owner' || r === 'master_admin' || r === 'admin' || r === 'master') && (!p.tenant_id);
                 if (!ok) window.location.href = '/';
             } catch (_) { window.location.href = '/login.html'; }
         })();

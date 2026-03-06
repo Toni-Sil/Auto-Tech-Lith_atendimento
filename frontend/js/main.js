@@ -38,7 +38,7 @@ async function authFetch(url, options = {}) {
 // User Management
 async function loadUser() {
     try {
-        const response = await authFetch('/api/auth/me');
+        const response = await authFetch('/api/v1/auth/me');
         if (!response) return;
         const user = await response.json();
 
