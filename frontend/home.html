@@ -1,15 +1,14 @@
 <!DOCTYPE html>
 <html class="dark" lang="pt-BR">
-
 <head>
-    <meta charset="utf-8" />
-    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-    <title>Auto Tech Lith | Automação Inteligente com IA</title>
-    <meta name="description" content="Automatize seu atendimento com Inteligência Artificial. Agentes de IA 24/7 para WhatsApp, Telegram e Web." />
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&display=swap" rel="stylesheet" />
-    <script>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Auto Tech Lith | Automação Inteligente</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
         tailwind.config = {
             darkMode: "class",
             theme: {
@@ -19,284 +18,397 @@
                         "background-light": "#f6f7f8",
                         "background-dark": "#101a22",
                     },
-                    fontFamily: { "display": ["Inter"] },
-                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                    fontFamily: {
+                        "display": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
                 },
             },
         }
     </script>
-    <style>
+<style>
         .glass {
             background: rgba(25, 40, 51, 0.7);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
-
         .neon-glow {
             box-shadow: 0 0 15px rgba(19, 146, 236, 0.4);
         }
-
+    </style>
+<style>
         @keyframes float {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-20px); }
         }
-
         .animate-float {
             animation: float 6s ease-in-out infinite;
         }
-
         @keyframes pulse-glow {
             0%, 100% { box-shadow: 0 0 5px rgba(19, 146, 236, 0.4); }
             50% { box-shadow: 0 0 20px rgba(19, 146, 236, 0.8); }
         }
-
         .animate-pulse-glow {
             animation: pulse-glow 2s infinite;
         }
-
         @keyframes reveal {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
-
         .reveal {
             animation: reveal 0.8s ease-out forwards;
         }
-
         .delay-1 { animation-delay: 0.2s; }
         .delay-2 { animation-delay: 0.4s; }
     </style>
 </head>
-
 <body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 antialiased">
-    <!-- Sticky Header -->
-    <header class="sticky top-0 z-50 w-full glass border-b border-slate-200/10">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-20">
-                <div class="flex items-center gap-3">
-                    <span class="text-3xl">🤖</span>
-                    <span class="text-xl font-bold tracking-tight text-slate-900 dark:text-white">Auto Tech Lith</span>
-                </div>
-                <nav class="hidden md:flex items-center gap-8">
-                    <a class="text-sm font-medium hover:text-primary transition-colors" href="#">Início</a>
-                    <a class="text-sm font-medium hover:text-primary transition-colors" href="#solucoes">Soluções</a>
-                    <a class="text-sm font-medium hover:text-primary transition-colors" href="#sobre">Sobre</a>
-                    <a class="text-sm font-medium hover:text-primary transition-colors" href="#contato">Contato</a>
-                    <a class="bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all neon-glow" href="/login.html">
+<!-- Sticky Header -->
+<header class="sticky top-0 z-50 w-full glass border-b border-slate-200/10">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<div class="flex justify-between items-center h-20">
+<div class="flex items-center gap-3">
+<img alt="Auto Tech Lith Logo" class="size-10 rounded-lg" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD4BU1ViKEjEYRceh3BLJJDmKX3r-HBI6sliOt3qBwBGp9RZquhBGcwJ4Lx4_-X_BoZpcky5CFiT0pCPQ2EK_6ptQ44Z5CbFqLRfUpv-eOsr2WkTIcHzfyTFciwn89BqMpNXSorYQLLRsCcfnakIGzbVizPapwHOB210OH9QAr8ei6AQ2vR5_31kpuJm781oxNopz9dE9CiSMQ2fEHlWZnqsULyJX3jl7EScEnFPuVp7gzuByqbF8mwRRRLWVS9RkLIvKbZo5CiF5Nj"/>
+<span class="text-xl font-bold tracking-tight text-slate-900 dark:text-white">Auto Tech Lith</span>
+</div>
+<nav class="hidden md:flex items-center gap-8">
+<a class="text-sm font-medium hover:text-primary transition-colors" href="#">Início</a>
+<a class="text-sm font-medium hover:text-primary transition-colors" href="#solucoes">Soluções</a>
+<a class="text-sm font-medium hover:text-primary transition-colors" href="#sobre">Sobre</a>
+<a class="text-sm font-medium hover:text-primary transition-colors" href="#contato">Contato</a>
+<a class="bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all neon-glow" href="/login">
                         Login
                     </a>
-                </nav>
-                <div class="md:hidden">
-                    <span class="material-symbols-outlined text-3xl cursor-pointer">menu</span>
-                </div>
-            </div>
-        </div>
-    </header>
-
-    <main>
-        <!-- Hero Section -->
-        <section class="relative overflow-hidden pt-20 pb-32 reveal delay-1">
-            <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full opacity-20 pointer-events-none">
-                <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/30 blur-[120px] rounded-full"></div>
-                <div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/20 blur-[120px] rounded-full"></div>
-            </div>
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-                <div class="grid lg:grid-cols-2 gap-12 items-center">
-                    <div class="space-y-8">
-                        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-wider">
-                            <span class="relative flex h-2 w-2">
-                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                                <span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-                            </span>
+</nav>
+<div class="md:hidden">
+<span class="material-symbols-outlined text-3xl">menu</span>
+</div>
+</div>
+</div>
+</header>
+<main>
+<!-- Hero Section -->
+<section class="relative overflow-hidden pt-20 pb-32 reveal delay-1">
+<div class="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full opacity-20 pointer-events-none">
+<div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/30 blur-[120px] rounded-full"></div>
+<div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/20 blur-[120px] rounded-full"></div>
+</div>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+<div class="grid lg:grid-cols-2 gap-12 items-center">
+<div class="space-y-8">
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-wider">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+</span>
                             Liderando com IA
                         </div>
-                        <h1 class="text-5xl lg:text-7xl font-black leading-[1.1] tracking-tight text-slate-900 dark:text-white">
+<h1 class="text-5xl lg:text-7xl font-black leading-[1.1] tracking-tight text-slate-900 dark:text-white">
                             Automação <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-400">Inteligente</span> para Empresas
                         </h1>
-                        <p class="text-lg text-slate-600 dark:text-slate-400 max-w-xl leading-relaxed">
+<p class="text-lg text-slate-600 dark:text-slate-400 max-w-xl leading-relaxed">
                             Utilizamos Inteligência Artificial para automatizar processos complexos, humanizar o atendimento e simplificar radicalmente a gestão do seu negócio.
                         </p>
-                        <div class="flex flex-wrap gap-4">
-                            <a class="flex items-center gap-2 bg-primary hover:scale-105 transition-transform text-white px-8 py-4 rounded-xl font-bold neon-glow" href="https://wa.me/5519997126655">
-                                <span class="material-symbols-outlined">chat</span>
+<div class="flex flex-wrap gap-4">
+<a class="flex items-center gap-2 bg-primary hover:scale-105 transition-transform text-white px-8 py-4 rounded-xl font-bold neon-glow" href="https://wa.me/message/4WIN5BM3ST4FK1">
+<span class="material-symbols-outlined">chat</span>
                                 Falar pelo WhatsApp
                             </a>
-                            <a class="flex items-center gap-2 bg-slate-200 dark:bg-white/5 hover:bg-white/10 text-slate-900 dark:text-white px-8 py-4 rounded-xl font-bold border border-white/10 transition-all" href="/login.html">
-                                <span class="material-symbols-outlined">login</span>
-                                Acessar Painel
+<a class="flex items-center gap-2 bg-slate-200 dark:bg-white/5 hover:bg-white/10 text-slate-900 dark:text-white px-8 py-4 rounded-xl font-bold border border-white/10 transition-all" href="/login">
+<span class="material-symbols-outlined">login</span>
+                                Login do Sistema
                             </a>
-                        </div>
-                    </div>
-                    <div class="relative">
-                        <div class="aspect-square rounded-3xl overflow-hidden glass border-white/20 p-4 animate-float">
-                            <div class="w-full h-full rounded-2xl bg-gradient-to-br from-primary/20 to-purple-600/20 flex items-center justify-center">
-                                <span class="text-9xl">🤖</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Sobre -->
-        <section class="py-24 bg-slate-50 dark:bg-background-dark/50 reveal delay-2" id="sobre">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="text-center max-w-3xl mx-auto mb-16">
-                    <h2 class="text-3xl md:text-4xl font-black mb-6 text-slate-900 dark:text-white">Excelência em Inteligência Artificial</h2>
-                    <p class="text-slate-600 dark:text-slate-400">Nossa missão é transformar tecnologia de ponta em resultados práticos para o seu negócio, focando em três pilares fundamentais.</p>
-                </div>
-                <div class="grid md:grid-cols-3 gap-8">
-                    <div class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-colors group hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
-                        <div class="size-14 bg-primary/10 rounded-xl flex items-center justify-center text-primary mb-6 group-hover:scale-110 transition-transform">
-                            <span class="material-symbols-outlined text-3xl">precision_manufacturing</span>
-                        </div>
-                        <h3 class="text-xl font-bold mb-4 text-white">Automação de Processos</h3>
-                        <p class="text-slate-400 leading-relaxed text-sm">Elimine o gargalo operacional com fluxos de trabalho automáticos que aprendem e se adaptam.</p>
-                    </div>
-                    <div class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-colors group hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
-                        <div class="size-14 bg-purple-500/10 rounded-xl flex items-center justify-center text-purple-400 mb-6 group-hover:scale-110 transition-transform">
-                            <span class="material-symbols-outlined text-3xl">insights</span>
-                        </div>
-                        <h3 class="text-xl font-bold mb-4 text-white">Otimização Inteligente</h3>
-                        <p class="text-slate-400 leading-relaxed text-sm">Análise de dados em tempo real para tomada de decisões estratégicas baseadas em fatos, não intuições.</p>
-                    </div>
-                    <div class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-colors group hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
-                        <div class="size-14 bg-cyan-500/10 rounded-xl flex items-center justify-center text-cyan-400 mb-6 group-hover:scale-110 transition-transform">
-                            <span class="material-symbols-outlined text-3xl">smart_toy</span>
-                        </div>
-                        <h3 class="text-xl font-bold mb-4 text-white">Agentes de IA</h3>
-                        <p class="text-slate-400 leading-relaxed text-sm">Sistemas de atendimento humanizado 24/7 capazes de resolver problemas complexos autonomamente.</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Soluções -->
-        <section class="py-24 reveal" id="solucoes">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="text-center mb-12">
-                    <h2 class="text-4xl font-black mb-4 text-slate-900 dark:text-white">Soluções que Escalam seu Negócio</h2>
-                    <p class="text-slate-600 dark:text-slate-400">Desenvolvemos ferramentas personalizadas para cada setor, garantindo integração total e fluida.</p>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div class="relative h-96 group overflow-hidden rounded-2xl hover:scale-[1.02] transition-all duration-500 glass">
-                        <div class="absolute inset-0 flex items-center justify-center text-9xl opacity-20">🤖</div>
-                        <div class="absolute bottom-0 left-0 p-6 w-full">
-                            <h4 class="text-xl font-bold text-white mb-2">Automação com IA</h4>
-                            <p class="text-slate-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity">Sistemas autônomos de fluxo de trabalho.</p>
-                        </div>
-                    </div>
-                    <div class="relative h-96 group overflow-hidden rounded-2xl hover:scale-[1.02] transition-all duration-500 glass">
-                        <div class="absolute inset-0 flex items-center justify-center text-9xl opacity-20">💬</div>
-                        <div class="absolute bottom-0 left-0 p-6 w-full">
-                            <h4 class="text-xl font-bold text-white mb-2">Atendimento Automatizado</h4>
-                            <p class="text-slate-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity">Chatbots inteligentes de última geração.</p>
-                        </div>
-                    </div>
-                    <div class="relative h-96 group overflow-hidden rounded-2xl hover:scale-[1.02] transition-all duration-500 glass">
-                        <div class="absolute inset-0 flex items-center justify-center text-9xl opacity-20">🔗</div>
-                        <div class="absolute bottom-0 left-0 p-6 w-full">
-                            <h4 class="text-xl font-bold text-white mb-2">Integrações Inteligentes</h4>
-                            <p class="text-slate-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity">Conectividade total entre suas plataformas.</p>
-                        </div>
-                    </div>
-                    <div class="relative h-96 group overflow-hidden rounded-2xl hover:scale-[1.02] transition-all duration-500 glass">
-                        <div class="absolute inset-0 flex items-center justify-center text-9xl opacity-20">📈</div>
-                        <div class="absolute bottom-0 left-0 p-6 w-full">
-                            <h4 class="text-xl font-bold text-white mb-2">Gestão Inteligente</h4>
-                            <p class="text-slate-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity">Dashboards preditivos de performance.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Depoimentos -->
-        <section class="py-24 bg-background-dark reveal" id="depoimentos">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="text-center max-w-3xl mx-auto mb-16">
-                    <h2 class="text-4xl font-black mb-4 text-slate-900 dark:text-white">O que nossos clientes dizem</h2>
-                    <p class="text-slate-600 dark:text-slate-400">Histórias reais de empresas que alcançaram novos patamares com nossas soluções.</p>
-                </div>
-                <div class="grid md:grid-cols-3 gap-8">
-                    <div class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-all group hover:scale-[1.02] transition-all duration-500">
-                        <div class="flex items-center gap-4 mb-6">
-                            <div class="size-12 rounded-full bg-primary/20 flex items-center justify-center text-primary">
-                                <span class="material-symbols-outlined">person</span>
-                            </div>
-                            <div>
-                                <h4 class="font-bold text-white">Ricardo Silva</h4>
-                                <p class="text-xs text-slate-400">CEO, TechLogistics</p>
-                            </div>
-                        </div>
-                        <p class="text-slate-400 text-sm leading-relaxed">"A implementação da IA da Auto Tech Lith reduziu nosso tempo de resposta no suporte em 85%. Agora nossa equipe foca no que realmente importa."</p>
-                    </div>
-                    <div class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-all group hover:scale-[1.02] transition-all duration-500">
-                        <div class="flex items-center gap-4 mb-6">
-                            <div class="size-12 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400">
-                                <span class="material-symbols-outlined">person</span>
-                            </div>
-                            <div>
-                                <h4 class="font-bold text-white">Ana Paula Costa</h4>
-                                <p class="text-xs text-slate-400">Dir. Operacional, FinCorp</p>
-                            </div>
-                        </div>
-                        <p class="text-slate-400 text-sm leading-relaxed">"O dashboard preditivo transformou nossa gestão. Hoje conseguimos antecipar gargalos operacionais antes mesmo deles afetarem o faturamento."</p>
-                    </div>
-                    <div class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-all group hover:scale-[1.02] transition-all duration-500">
-                        <div class="flex items-center gap-4 mb-6">
-                            <div class="size-12 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400">
-                                <span class="material-symbols-outlined">person</span>
-                            </div>
-                            <div>
-                                <h4 class="font-bold text-white">Marcus Vinícius</h4>
-                                <p class="text-xs text-slate-400">Fundador, Innova Retail</p>
-                            </div>
-                        </div>
-                        <p class="text-slate-400 text-sm leading-relaxed">"Os agentes de IA humanizados lidam com 90% das nossas dúvidas de clientes de forma autônoma. É como ter uma equipe gigante trabalhando 24/7."</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- CTA Footer -->
-        <section class="py-24 px-4 reveal" id="contato">
-            <div class="max-w-5xl mx-auto rounded-[2.5rem] bg-gradient-to-br from-primary via-primary/80 to-purple-600 p-12 lg:p-20 text-center relative overflow-hidden">
-                <div class="relative z-10 space-y-8">
-                    <h2 class="text-4xl md:text-5xl font-black text-white leading-tight">Automatize sua empresa com Inteligência Artificial</h2>
-                    <p class="text-white/80 text-lg max-w-2xl mx-auto leading-relaxed">
+</div>
+</div>
+<div class="relative">
+<div class="aspect-square rounded-3xl overflow-hidden glass border-white/20 p-4 animate-float">
+<div class="w-full h-full rounded-2xl bg-cover bg-center" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBR0vD_J3a04UqOrwcDxusO_xVIbd36PkLw7skDpEgvpGnedNFfIMekjuhbf5USEkoI7Z1sreLFajb_8eHj8puqBN4OpuJ26AUTS5cF3ukmNvZbsxlV0uLDx9WJDNnUQzP3Tyz3NbWkbWPMZCcamrtcsQPlZr-Lp6JDfqPbKEFko1tJ4P4k5EPTCabNWXQq65xfd5obW_OKrHLUiEx3l0ZLvLy5-drZSR2fe_gl_HYBoSHZCbONtME3oEweKw7lqYn4PnMnIAWyWRqe')"></div>
+</div>
+<div class="absolute -bottom-6 -left-6 glass p-6 rounded-2xl border-white/10 hidden md:block">
+<div class="flex items-center gap-4">
+<div class="bg-primary/20 p-3 rounded-lg text-primary">
+<span class="material-symbols-outlined">bolt</span>
+</div>
+<div>
+<p class="text-xs text-slate-400 uppercase tracking-widest font-bold">Processamento</p>
+<p class="text-xl font-black text-white">99.9% Eficiente</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Sobre a Empresa -->
+<section class="py-24 bg-slate-50 dark:bg-background-dark/50 reveal delay-2" id="sobre">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<div class="text-center max-w-3xl mx-auto mb-16">
+<h2 class="text-3xl md:text-4xl font-black mb-6 text-slate-900 dark:text-white">Excelência em Inteligência Artificial</h2>
+<p class="text-slate-600 dark:text-slate-400">Nossa missão é transformar tecnologia de ponta em resultados práticos para o seu negócio, focando em três pilares fundamentais.</p>
+</div>
+<div class="grid md:grid-cols-3 gap-8">
+<div class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-colors group hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
+<div class="size-14 bg-primary/10 rounded-xl flex items-center justify-center text-primary mb-6 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">precision_manufacturing</span>
+</div>
+<h3 class="text-xl font-bold mb-4 text-white">Automação de Processos</h3>
+<p class="text-slate-400 leading-relaxed text-sm">Elimine o gargalo operacional com fluxos de trabalho automáticos que aprendem e se adaptam.</p>
+</div>
+<div class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-colors group hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
+<div class="size-14 bg-purple-500/10 rounded-xl flex items-center justify-center text-purple-400 mb-6 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">insights</span>
+</div>
+<h3 class="text-xl font-bold mb-4 text-white">Otimização Inteligente</h3>
+<p class="text-slate-400 leading-relaxed text-sm">Análise de dados em tempo real para tomada de decisões estratégicas baseadas em fatos, não intuições.</p>
+</div>
+<div class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-colors group hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
+<div class="size-14 bg-cyan-500/10 rounded-xl flex items-center justify-center text-cyan-400 mb-6 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">smart_toy</span>
+</div>
+<h3 class="text-xl font-bold mb-4 text-white">Agentes de IA</h3>
+<p class="text-slate-400 leading-relaxed text-sm">Sistemas de atendimento humanizado 24/7 capazes de resolver problemas complexos autonomamente.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Nossas Soluções -->
+<section class="py-24 reveal" id="solucoes">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<div class="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
+<div class="max-w-xl">
+<h2 class="text-4xl font-black mb-4 text-slate-900 dark:text-white">Soluções que Escalam seu Negócio</h2>
+<p class="text-slate-600 dark:text-slate-400">Desenvolvemos ferramentas personalizadas para cada setor, garantindo integração total e fluida.</p>
+</div>
+<div class="flex gap-2">
+<button class="size-12 rounded-full border border-white/10 flex items-center justify-center text-white hover:bg-white/5">
+<span class="material-symbols-outlined">chevron_left</span>
+</button>
+<button class="size-12 rounded-full bg-primary flex items-center justify-center text-white neon-glow">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+<div class="relative h-96 group overflow-hidden rounded-2xl hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDtmSLLoxBikYxYLpcFv5XuWNlH49HQi3cIYgNX556TKxqyTnXXHwfbHzDSss55IefoPaVKB8qqgKR3e-UQbdtvhFhIP-ElyvhS2QUW9E1d-CHBLxOi0wzp0IiRfl60wJQxNYHkawDxwBwc3IxuMtPXpONrIcE1n-Z7gObNaYMc2DDh16t-fhhN_933GR7Ov6WFJX96LMh7GQbAkIO9UyKUjZyzanXARjHlDUK6QxfGMULaw0R2BpmDT0sUPUdgfd_2QV7mJNLwtQMb')"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/20 to-transparent"></div>
+<div class="absolute bottom-0 left-0 p-6 w-full">
+<h4 class="text-xl font-bold text-white mb-2">Automação com IA</h4>
+<p class="text-slate-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity">Sistemas autônomos de fluxo de trabalho.</p>
+</div>
+</div>
+<div class="relative h-96 group overflow-hidden rounded-2xl hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA2AyKzRNN_yoMp7KIVXoJ-xAFSvGgzV6BapXnDw5IFvziMtceYyr198Kkkrbv6TRjSyC1bGgyLhSISLrxb8d_U-K6-kssum421Rbv07ppK4qYSzQtnwjjoV3XbgSLxfSWoAZq4bzPAQjfdfEATHgy0Dx4MbKM__O7dXG7xyGwImMav08pjxGWe3bm5HwilJ3TqIXX9MoY4SR8TFQnXy3BjObTi4TI-g_9y1vHIIx1cGWdj2aRGW4b0STu6-CSfLlKIOCR1pXNAxYNo')"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/20 to-transparent"></div>
+<div class="absolute bottom-0 left-0 p-6 w-full">
+<h4 class="text-xl font-bold text-white mb-2">Atendimento Automatizado</h4>
+<p class="text-slate-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity">Chatbots inteligentes de última geração.</p>
+</div>
+</div>
+<div class="relative h-96 group overflow-hidden rounded-2xl hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDjov7MDdhWdleHoVPMMQpjBY_R8RiW75ViDNb0kPjoIxHC98y4pe3JpG71Vp2qw4F2ZGjNxASMKJt4fPBlw-7SwsLLZZsrRMbi54-BP6FZ-pJPdz5ToESTmRjRkl-D23GwqGYZ2-5LV5T9H873KLoxTUS_uyajRR53EM0WkyKDPFW3adlttLr1_krHH0vKUUf1rKQnuI4JhMnak9jGFovly-TkG-fCI3R8Y_fV4oerv8w4VV13If6WmDhIIvznrlKTBzr7vC0FCj-h')"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/20 to-transparent"></div>
+<div class="absolute bottom-0 left-0 p-6 w-full">
+<h4 class="text-xl font-bold text-white mb-2">Integrações Inteligentes</h4>
+<p class="text-slate-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity">Conectividade total entre suas plataformas.</p>
+</div>
+</div>
+<div class="relative h-96 group overflow-hidden rounded-2xl hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuD5-Z-pICYujJ5zi8oRwnu-N76g_wzzM-dkAyBrnwxJJGd36ITs6_eUsxA-FgXip73CzsXjyT7Beda_AmBihN6srZJemCjoIUx5NHMMBEksJi4oITRrCvWzLU95cMji29OuueinROhC2JGGQjBB1voa4E3CZN4Zox82_g_aJ5DTunCk7vGsiL-H5nyl9dmBKtvWslsLa6rml48_iSgfz8clIZC0q--71RdMvq9yWeRD36WOH7D8TmSUNUNIo2xll5tbjZ32P33TeprK')"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/20 to-transparent"></div>
+<div class="absolute bottom-0 left-0 p-6 w-full">
+<h4 class="text-xl font-bold text-white mb-2">Gestão Inteligente</h4>
+<p class="text-slate-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity">Dashboards preditivos de performance.</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Como Funciona -->
+<section class="py-24 bg-slate-50 dark:bg-background-dark/50 overflow-hidden reveal">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<div class="text-center mb-16">
+<h2 class="text-4xl font-black text-slate-900 dark:text-white mb-4">Processo de Implementação</h2>
+<p class="text-slate-400">Do primeiro contato à operação plena em tempo recorde.</p>
+</div>
+<div class="relative">
+<div class="hidden lg:block absolute top-1/2 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-primary/30 to-transparent -translate-y-1/2"></div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 relative z-10">
+<div class="text-center space-y-4">
+<div class="size-16 mx-auto rounded-full bg-primary flex items-center justify-center text-white font-black text-xl neon-glow animate-pulse-glow">1</div>
+<h5 class="text-xl font-bold dark:text-white">Contato</h5>
+<p class="text-sm text-slate-400">Alinhamento de expectativas e objetivos iniciais.</p>
+</div>
+<div class="text-center space-y-4">
+<div class="size-16 mx-auto rounded-full glass border-primary/40 flex items-center justify-center text-primary font-black text-xl animate-pulse-glow">2</div>
+<h5 class="text-xl font-bold dark:text-white">Análise</h5>
+<p class="text-sm text-slate-400">Mapeamento detalhado de processos e gargalos.</p>
+</div>
+<div class="text-center space-y-4">
+<div class="size-16 mx-auto rounded-full glass border-primary/40 flex items-center justify-center text-primary font-black text-xl animate-pulse-glow">3</div>
+<h5 class="text-xl font-bold dark:text-white">Implementação</h5>
+<p class="text-sm text-slate-400">Desenvolvimento e integração da solução de IA.</p>
+</div>
+<div class="text-center space-y-4">
+<div class="size-16 mx-auto rounded-full glass border-primary/40 flex items-center justify-center text-primary font-black text-xl animate-pulse-glow">4</div>
+<h5 class="text-xl font-bold dark:text-white">Operação Automática</h5>
+<p class="text-sm text-slate-400">Monitoramento contínuo e ganhos de eficiência.</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Depoimentos -->
+<section class="py-24 bg-background-dark reveal" id="depoimentos">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<div class="text-center max-w-3xl mx-auto mb-16">
+<h2 class="text-4xl font-black mb-4 text-slate-900 dark:text-white">O que nossos clientes dizem</h2>
+<p class="text-slate-600 dark:text-slate-400">Histórias reais de empresas que alcançaram novos patamares com nossas soluções.</p>
+</div>
+<div class="grid md:grid-cols-3 gap-8">
+<!-- Testimonial 1 -->
+<div class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-all group hover:scale-[1.02] duration-500 hover:shadow-2xl hover:shadow-primary/10">
+<div class="flex items-center gap-4 mb-6">
+<div class="size-12 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">person</span>
+</div>
+<div>
+<h4 class="font-bold text-white">Ricardo Silva</h4>
+<p class="text-xs text-slate-400">CEO, TechLogistics</p>
+</div>
+</div>
+<div class="flex gap-1 mb-4 text-primary">
+<span class="material-symbols-outlined text-sm">star</span>
+<span class="material-symbols-outlined text-sm">star</span>
+<span class="material-symbols-outlined text-sm">star</span>
+<span class="material-symbols-outlined text-sm">star</span>
+<span class="material-symbols-outlined text-sm">star</span>
+</div>
+<p class="text-slate-400 text-sm leading-relaxed">"A implementação da IA da Auto Tech Lith reduziu nosso tempo de resposta no suporte em 85%. Agora nossa equipe foca no que realmente importa."</p>
+</div>
+<!-- Testimonial 2 -->
+<div class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-all group hover:scale-[1.02] duration-500 hover:shadow-2xl hover:shadow-primary/10">
+<div class="flex items-center gap-4 mb-6">
+<div class="size-12 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400">
+<span class="material-symbols-outlined">person</span>
+</div>
+<div>
+<h4 class="font-bold text-white">Ana Paula Costa</h4>
+<p class="text-xs text-slate-400">Dir. Operacional, FinCorp</p>
+</div>
+</div>
+<div class="flex gap-1 mb-4 text-primary">
+<span class="material-symbols-outlined text-sm">star</span>
+<span class="material-symbols-outlined text-sm">star</span>
+<span class="material-symbols-outlined text-sm">star</span>
+<span class="material-symbols-outlined text-sm">star</span>
+<span class="material-symbols-outlined text-sm">star</span>
+</div>
+<p class="text-slate-400 text-sm leading-relaxed">"O dashboard preditivo transformou nossa gestão. Hoje conseguimos antecipar gargalos operacionais antes mesmo deles afetarem o faturamento."</p>
+</div>
+<!-- Testimonial 3 -->
+<div class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-all group hover:scale-[1.02] duration-500 hover:shadow-2xl hover:shadow-primary/10">
+<div class="flex items-center gap-4 mb-6">
+<div class="size-12 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400">
+<span class="material-symbols-outlined">person</span>
+</div>
+<div>
+<h4 class="font-bold text-white">Marcus Vinícius</h4>
+<p class="text-xs text-slate-400">Fundador, Innova Retail</p>
+</div>
+</div>
+<div class="flex gap-1 mb-4 text-primary">
+<span class="material-symbols-outlined text-sm">star</span>
+<span class="material-symbols-outlined text-sm">star</span>
+<span class="material-symbols-outlined text-sm">star</span>
+<span class="material-symbols-outlined text-sm">star</span>
+<span class="material-symbols-outlined text-sm">star</span>
+</div>
+<p class="text-slate-400 text-sm leading-relaxed">"Os agentes de IA humanizados lidam com 90% das nossas dúvidas de clientes de forma autônoma. É como ter uma equipe gigante trabalhando 24/7."</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Benefícios -->
+<section class="py-24 reveal">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<div class="grid lg:grid-cols-3 gap-12">
+<div class="lg:col-span-1">
+<h2 class="text-4xl font-black mb-6 dark:text-white leading-tight">Por que escolher a Auto Tech Lith?</h2>
+<p class="text-slate-400 mb-8">Nossa tecnologia não é apenas moderna, ela é focada no seu ROI e na escalabilidade do seu negócio.</p>
+<a class="inline-flex items-center text-primary font-bold hover:gap-3 transition-all" href="#contato">
+                            Saiba mais sobre nós
+                            <span class="material-symbols-outlined ml-2">arrow_forward</span>
+</a>
+</div>
+<div class="lg:col-span-2 grid sm:grid-cols-2 gap-6">
+<div class="p-6 rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
+<span class="material-symbols-outlined text-primary mb-4 text-3xl">payments</span>
+<h6 class="text-lg font-bold mb-2 dark:text-white">Redução de Custos</h6>
+<p class="text-sm text-slate-500">Otimize recursos e elimine desperdícios operacionais significativos.</p>
+</div>
+<div class="p-6 rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
+<span class="material-symbols-outlined text-purple-400 mb-4 text-3xl">schedule</span>
+<h6 class="text-lg font-bold mb-2 dark:text-white">Atendimento 24h</h6>
+<p class="text-sm text-slate-500">Sua empresa nunca para. Suporte total a qualquer hora do dia ou da noite.</p>
+</div>
+<div class="p-6 rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
+<span class="material-symbols-outlined text-cyan-400 mb-4 text-3xl">trending_up</span>
+<h6 class="text-lg font-bold mb-2 dark:text-white">Produtividade</h6>
+<p class="text-sm text-slate-500">Libere sua equipe para tarefas criativas enquanto a IA cuida do repetitivo.</p>
+</div>
+<div class="p-6 rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
+<span class="material-symbols-outlined text-pink-400 mb-4 text-3xl">hub</span>
+<h6 class="text-lg font-bold mb-2 dark:text-white">Escalabilidade</h6>
+<p class="text-sm text-slate-500">Cresça sem aumentar proporcionalmente sua estrutura de custos fixos.</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- CTA Footer -->
+<section class="py-24 px-4 reveal" id="contato">
+<div class="max-w-5xl mx-auto rounded-[2.5rem] bg-gradient-to-br from-primary via-primary/80 to-purple-600 p-12 lg:p-20 text-center relative overflow-hidden">
+<div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20"></div>
+<div class="relative z-10 space-y-8">
+<h2 class="text-4xl md:text-5xl font-black text-white leading-tight">Automatize sua empresa com Inteligência Artificial</h2>
+<p class="text-white/80 text-lg max-w-2xl mx-auto leading-relaxed">
                         Junte-se a centenas de empresas que já estão transformando sua realidade operacional com a Auto Tech Lith.
                     </p>
-                    <div class="flex flex-wrap justify-center gap-4 pt-4">
-                        <a class="bg-white text-primary px-10 py-4 rounded-xl font-black hover:scale-105 transition-transform flex items-center gap-2" href="https://wa.me/5519997126655">
+<div class="flex flex-wrap justify-center gap-4 pt-4">
+<a class="bg-white text-primary px-10 py-4 rounded-xl font-black hover:scale-105 transition-transform flex items-center gap-2" href="https://wa.me/message/4WIN5BM3ST4FK1">
                             Começar agora no WhatsApp
                         </a>
-                        <a class="bg-background-dark/20 text-white border border-white/30 backdrop-blur-sm px-10 py-4 rounded-xl font-black hover:bg-white/10 transition-colors" href="/login.html">
+<a class="bg-background-dark/20 text-white border border-white/30 backdrop-blur-sm px-10 py-4 rounded-xl font-black hover:bg-white/10 transition-colors" href="/login">
                             Acessar Plataforma
                         </a>
-                    </div>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <footer class="py-12 border-t border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-background-dark">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex flex-col md:flex-row justify-between items-center gap-8">
-                <div class="flex items-center gap-3">
-                    <span class="text-3xl">🤖</span>
-                    <span class="text-slate-500 font-bold">Auto Tech Lith</span>
-                </div>
-                <div class="flex gap-8 text-sm text-slate-500 font-medium">
-                    <a class="hover:text-primary transition-colors" href="#">Privacidade</a>
-                    <a class="hover:text-primary transition-colors" href="#">Termos</a>
-                    <a class="hover:text-primary transition-colors" href="#">Suporte</a>
-                </div>
-                <p class="text-xs text-slate-500">© 2026 Auto Tech Lith. Todos os direitos reservados.</p>
-            </div>
-        </div>
-    </footer>
+</div>
+</div>
+</div>
+</section>
+</main>
+<footer class="py-12 border-t border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-background-dark">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<div class="flex flex-col md:flex-row justify-between items-center gap-8">
+<div class="flex items-center gap-3">
+<img alt="Auto Tech Lith Logo" class="size-8 opacity-50 grayscale" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCQmfDhEPbjkrR6llOnsjhpWQ_za3nbySf00Vc052X2OYK35k_HUtYRopL5bP3a6ksnfKpdENAC8U5gaBs7QgjqOYFnDtaY6dyp0wdcG5CLRw1GSFa5lAwKqhHGWA2W6kogKU5Iv22LWivIV1zKmpFm_Mxgzm3Qfe1JosABqd9CO7Eo8JUEnMveO9ffPNIH6s7RyfAQ5AQQ5aQf54_PfJU0fvuRr2dp7GFU1Y1vjTGdXiuHSPVKQ6D_i-IWzrcZ2nT7dBu_sQGHad6d"/>
+<span class="text-slate-500 font-bold">Auto Tech Lith</span>
+</div>
+<div class="flex gap-8 text-sm text-slate-500 font-medium">
+<a class="hover:text-primary transition-colors" href="#">Privacidade</a>
+<a class="hover:text-primary transition-colors" href="#">Termos</a>
+<a class="hover:text-primary transition-colors" href="#">Suporte</a>
+</div>
+<p class="text-xs text-slate-500">© 2026 Auto Tech Lith. Todos os direitos reservados.</p>
+</div>
+</div>
+</footer>
 </body>
-
 </html>
