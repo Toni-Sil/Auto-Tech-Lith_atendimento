@@ -31,7 +31,7 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
 
-# ── Ordem dos middlewares (aplicados de baixo para cima por Starlette) ────────
+# ── Ordem dos middlewares (aplicados de baixo para cima por Starlette) ────────────
 # 1. Métricas: captura latência e status de TODAS as requisições
 app.add_middleware(PrometheusMetricsMiddleware)
 # 2. Rate Limit global: bloqueia IPs abusivos antes de processar rotas
@@ -82,7 +82,7 @@ async def add_security_headers(request: Request, call_next):
     
     csp = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.tailwindcss.com; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com; "
         "img-src 'self' data: blob:; "
@@ -188,8 +188,30 @@ if os.path.exists(frontend_path):
         favicon_path = os.path.join(frontend_path, "favicon.ico")
         if os.path.exists(favicon_path):
             return FileResponse(favicon_path)
+        return FileResponse(os.path.join(frontend_path, "home.html"))
+
+    # ─── Landing Page (Public) ───
+    @app.get("/", include_in_schema=False)  
+    async def landing_page():
+        """Serve home.html as the public landing page"""
+        home_path = os.path.join(frontend_path, "home.html")
+        if os.path.exists(home_path):
+            return FileResponse(home_path)
+        # Fallback to index.html if home.html doesn't exist (backward compatibility)
         return FileResponse(os.path.join(frontend_path, "index.html"))
 
+    # ─── Admin Dashboard (Protected) ───
+    @app.get("/admin", include_in_schema=False)
+    async def admin_dashboard():
+        """Serve index.html as the admin dashboard"""
+        return FileResponse(os.path.join(frontend_path, "index.html"))
+
+    @app.get("/dashboard", include_in_schema=False)
+    async def dashboard_alias():
+        """Alias for /admin"""
+        return FileResponse(os.path.join(frontend_path, "index.html"))
+
+    # ─── Login Page ───
     @app.get("/login.html", include_in_schema=False)
     async def login_html_page():
         """Serve login.html explicitly to fix 400 error on autotechlith.com/login.html"""
@@ -199,10 +221,6 @@ if os.path.exists(frontend_path):
     async def login_page():
         return FileResponse(os.path.join(frontend_path, "login.html"))
 
-    @app.get("/", include_in_schema=False)  
-    async def index_page():
-        return FileResponse(os.path.join(frontend_path, "index.html"))
-
     # Mount root for HTML files only (or as final fallback)
     app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 else:
@@ -210,7 +228,7 @@ else:
 
 @app.on_event("startup")
 async def startup_event():
-    # ─── Automatic Database Initialization ─────────────────────────────────────
+    # ─── Automatic Database Initialization ─────────────────────────────
     from sqlalchemy.ext.asyncio import create_async_engine
     from src.models.database import Base
     
@@ -247,7 +265,7 @@ async def startup_event():
         logger.info("Database: Checking/creating tables...")
         await conn.run_sync(Base.metadata.create_all)
         
-        # ─── Auto-migrations: add new columns safely ──────────────────────────
+        # ─── Auto-migrations: add new columns safely ──────────────────────
         # Compatible with both SQLite and PostgreSQL.
         from sqlalchemy import text as sa_text, inspect
         
@@ -267,7 +285,7 @@ async def startup_event():
             await conn.run_sync(_run_migrations)
         except Exception as e:
             logger.warning(f"Auto-migration warning: {e}")
-        # ──────────────────────────────────────────────────────────────────────
+        # ──────────────────────────────────────────────────────────────────
 
         
     await engine.dispose()
@@ -307,6 +325,7 @@ async def startup_event():
     butler_scheduler.start()
     logger.info("Startup: Butler Agent scheduler started with 5 background jobs.")
     logger.info("Startup: SaaS multi-tenant architecture routes active.")
+    logger.info("✅ Landing page: / (home.html) | Admin: /admin or /dashboard (index.html)")
 
 if __name__ == "__main__":
     import uvicorn
