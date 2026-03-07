@@ -1,5 +1,5 @@
 from datetime import datetime, date, time
-from typing import Optional
+from typing import Optional, List
 from sqlalchemy import select
 from src.models.database import async_session
 from src.models.customer import Customer
@@ -203,6 +203,162 @@ async def check_availability(tenant_id: Optional[int], date_str: Optional[str] =
 
     return "\n".join(report)
 
+
+# ═══════════════════════════════════════════════════════════
+# NEW TOOLS - Product Catalog & Support Tickets
+# ═══════════════════════════════════════════════════════════
+
+async def search_products(
+    query: str,
+    tenant_id: Optional[int] = None,
+    category: Optional[str] = None,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None
+) -> str:
+    """
+    Busca produtos/serviços no catálogo.
+    
+    Args:
+        query: Termo de busca (nome, descrição)
+        category: Filtro por categoria
+        min_price/max_price: Faixa de preço
+    """
+    try:
+        from src.services.catalog_service import catalog_service
+        
+        products = await catalog_service.search_products(
+            query=query,
+            tenant_id=tenant_id,
+            category=category,
+            min_price=min_price,
+            max_price=max_price,
+            limit=5
+        )
+        
+        if not products:
+            return "Nenhum produto encontrado com os critérios informados."
+        
+        result_lines = [f"Encontrei {len(products)} produto(s):\n"]
+        for p in products:
+            price_str = f"R$ {p['price']:.2f}"
+            if not p.get('available', True):
+                price_str += " (Indisponível)"
+            
+            result_lines.append(
+                f"• **{p['name']}** - {price_str}\n"
+                f"  {p.get('description', '')[:100]}..."
+            )
+        
+        return "\n".join(result_lines)
+        
+    except Exception as e:
+        logger.error(f"Error searching products: {e}")
+        return "Erro ao buscar produtos. Tente novamente."
+
+
+async def get_product_details(product_id: int, tenant_id: Optional[int] = None) -> str:
+    """
+    Obtém detalhes completos de um produto específico.
+    """
+    try:
+        from src.services.catalog_service import catalog_service
+        
+        product = await catalog_service.get_product_by_id(product_id, tenant_id=tenant_id)
+        
+        if not product:
+            return "Produto não encontrado."
+        
+        details = [
+            f"**{product['name']}**",
+            f"Preço: R$ {product['price']:.2f}",
+            f"Categoria: {product.get('category', 'Geral')}",
+            "",
+            product.get('description', '')
+        ]
+        
+        if product.get('stock') is not None:
+            details.insert(3, f"Estoque: {product['stock']} unidades")
+        
+        return "\n".join(details)
+        
+    except Exception as e:
+        logger.error(f"Error getting product details: {e}")
+        return "Erro ao buscar detalhes do produto."
+
+
+async def list_categories(tenant_id: Optional[int] = None) -> str:
+    """
+    Lista todas as categorias de produtos disponíveis.
+    """
+    try:
+        from src.services.catalog_service import catalog_service
+        
+        categories = await catalog_service.get_categories(tenant_id=tenant_id)
+        
+        if not categories:
+            return "Nenhuma categoria disponível no momento."
+        
+        return "Categorias disponíveis:\n• " + "\n• ".join(categories)
+        
+    except Exception as e:
+        logger.error(f"Error listing categories: {e}")
+        return "Erro ao listar categorias."
+
+
+async def create_support_ticket(
+    customer_id: int,
+    subject: str,
+    description: str,
+    category: Optional[str] = None
+) -> str:
+    """
+    Cria um chamado de suporte técnico para o cliente.
+    
+    Args:
+        subject: Assunto do chamado
+        description: Descrição detalhada do problema
+        category: Categoria (technical, billing, integration, etc.)
+    """
+    try:
+        from src.services.ticket_service import ticket_service, TicketCategory
+        
+        # Get customer info for tenant_id
+        async with async_session() as session:
+            customer = await session.scalar(select(Customer).where(Customer.id == customer_id))
+            if not customer:
+                return "Erro: Cliente não encontrado."
+        
+        # Map category string to enum
+        category_enum = None
+        if category:
+            try:
+                category_enum = TicketCategory(category.lower())
+            except ValueError:
+                pass
+        
+        ticket = await ticket_service.create_ticket(
+            customer_id=customer_id,
+            subject=subject,
+            description=description,
+            category=category_enum,
+            tenant_id=customer.tenant_id
+        )
+        
+        if "error" in ticket:
+            return f"Erro ao criar chamado: {ticket['error']}"
+        
+        return (
+            f"Chamado #{ticket['id']} criado com sucesso!\n"
+            f"Prioridade: {ticket['priority'].upper()}\n"
+            f"SLA: Resposta até {ticket['sla_deadline'][:16]}\n\n"
+            f"Nossa equipe entrará em contato em breve."
+        )
+        
+    except Exception as e:
+        logger.error(f"Error creating ticket: {e}", exc_info=True)
+        return "Erro ao criar chamado. Tente novamente ou entre em contato direto."
+
+
 # Definição das ferramentas para o OpenAI
 AGENT_TOOLS = [
     {
@@ -256,6 +412,68 @@ AGENT_TOOLS = [
                 "required": ["meeting_type", "date_str", "time_str"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_products",
+            "description": "Busca produtos ou serviços no catálogo. Use quando o cliente perguntar sobre produtos, preços ou serviços disponíveis.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Termo de busca (nome do produto/serviço)"},
+                    "category": {"type": "string", "description": "Filtro por categoria (opcional)"},
+                    "min_price": {"type": "number", "description": "Preço mínimo (opcional)"},
+                    "max_price": {"type": "number", "description": "Preço máximo (opcional)"}
+                },
+                "required": ["query"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_product_details",
+            "description": "Obtém detalhes completos de um produto específico.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "product_id": {"type": "integer", "description": "ID do produto"}
+                },
+                "required": ["product_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_categories",
+            "description": "Lista todas as categorias de produtos disponíveis.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_support_ticket",
+            "description": "Cria um chamado de suporte técnico para problemas, bugs ou dúvidas que requerem atenção da equipe.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "subject": {"type": "string", "description": "Assunto/título do chamado"},
+                    "description": {"type": "string", "description": "Descrição detalhada do problema ou solicitação"},
+                    "category": {
+                        "type": "string",
+                        "enum": ["technical", "billing", "feature_request", "bug", "integration", "training", "other"],
+                        "description": "Categoria do chamado (opcional, será detectada automaticamente se não informado)"
+                    }
+                },
+                "required": ["subject", "description"]
+            }
+        }
     }
 ]
-
