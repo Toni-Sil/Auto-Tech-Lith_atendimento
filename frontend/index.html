@@ -1,549 +1,1706 @@
 <!DOCTYPE html>
-<html class="dark" lang="pt-BR">
+<html lang="pt-BR">
 
 <head>
-    <meta charset="utf-8" />
-    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-    <title>Auto Tech Lith | Automação Inteligente</title>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap"
-        rel="stylesheet" />
-    <link
-        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
-        rel="stylesheet" />
-    <script id="tailwind-config">
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "primary": "#1392ec",
-                        "background-light": "#f6f7f8",
-                        "background-dark": "#101a22",
-                    },
-                    fontFamily: {
-                        "display": ["Inter"]
-                    },
-                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
-                },
-            },
-        }
-    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title id="pageTabTitle">Admin · Auto Tech Lith · Antigravity</title>
+    <link rel="stylesheet" href="css/admin.css?v=3.0">
+    <link rel="stylesheet" href="css/style.css?v=1.5">
     <style>
-        .glass {
-            background: rgba(25, 40, 51, 0.7);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+        body {
+            display: flex;
+            flex-direction: row;
         }
 
-        .neon-glow {
-            box-shadow: 0 0 15px rgba(19, 146, 236, 0.4);
-        }
-
-        @keyframes float {
-
-            0%,
-            100% {
-                transform: translateY(0);
-            }
-
-            50% {
-                transform: translateY(-20px);
-            }
-        }
-
-        .animate-float {
-            animation: float 6s ease-in-out infinite;
-        }
-
-        @keyframes pulse-glow {
-
-            0%,
-            100% {
-                box-shadow: 0 0 5px rgba(19, 146, 236, 0.4);
-            }
-
-            50% {
-                box-shadow: 0 0 20px rgba(19, 146, 236, 0.8);
-            }
-        }
-
-        .animate-pulse-glow {
-            animation: pulse-glow 2s infinite;
-        }
-
-        @keyframes reveal {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .reveal {
-            animation: reveal 0.8s ease-out forwards;
-        }
-
-        .delay-1 {
-            animation-delay: 0.2s;
-        }
-
-        .delay-2 {
-            animation-delay: 0.4s;
+        .container {
+            max-width: none;
+            margin: 0;
+            padding: 0;
+            width: 100%;
         }
     </style>
 </head>
 
-<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 antialiased">
-    <!-- Sticky Header -->
-    <header class="sticky top-0 z-50 w-full glass border-b border-slate-200/10">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-20">
-                <div class="flex items-center gap-3">
-                    <img alt="Auto Tech Lith Logo" class="size-10 rounded-lg"
-                        data-alt="Auto Tech Lith corporate tech logo"
-                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuD4BU1ViKEjEYRceh3BLJJDmKX3r-HBI6sliOt3qBwBGp9RZquhBGcwJ4Lx4_-X_BoZpcky5CFiT0pCPQ2EK_6ptQ44Z5CbFqLRfUpv-eOsr2WkTIcHzfyTFciwn89BqMpNXSorYQLLRsCcfnakIGzbVizPapwHOB210OH9QAr8ei6AQ2vR5_31kpuJm781oxNopz9dE9CiSMQ2fEHlWZnqsULyJX3jl7EScEnFPuVp7gzuByqbF8mwRRRLWVS9RkLIvKbZo5CiF5Nj" />
-                    <span class="text-xl font-bold tracking-tight text-slate-900 dark:text-white">Auto Tech Lith</span>
+<body>
+    <script>
+        // Redirect to login if not authenticated
+        if (!localStorage.getItem('token')) { window.location.href = '/login.html'; }
+        // Redirect Master Admin (no tenant_id) to their portal
+        try {
+            const b64 = localStorage.getItem('token').split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+            const p = JSON.parse(decodeURIComponent(escape(atob(b64))));
+            const r = (p.role || '').toLowerCase();
+            const masterRoles = ['owner', 'master_admin', 'admin', 'master', 'super admin', 'superadmin'];
+            if (masterRoles.includes(r) && !p.tenant_id) {
+                window.location.href = '/master.html';
+            }
+        } catch (_) { }
+    </script>
+
+    <!-- ═══════════════════════════ SIDEBAR ═══════════════════════════ -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h2><span id="sidebarEmoji">🤖</span> <span id="sidebarName">Auto Tech Lith</span></h2>
+            <div class="sidebar-version">Antigravity Admin v3.0</div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-group-label">Soluções</div>
+            <a class="nav-item active" data-target="dashboard">
+                <span class="nav-icon">📊</span> Dashboard
+            </a>
+            <a class="nav-item" data-target="customers">
+                <span class="nav-icon">👥</span> Clientes
+            </a>
+            <a class="nav-item" data-target="meetings">
+                <span class="nav-icon">📅</span> Reuniões
+            </a>
+            <a class="nav-item" data-target="tickets">
+                <span class="nav-icon">🎫</span> Tickets
+            </a>
+            <a class="nav-item" data-target="conversations">
+                <span class="nav-icon">💬</span> Conversas
+            </a>
+
+            <div class="sidebar-divider"></div>
+            <div class="nav-group-label">Canais</div>
+            <a class="nav-item" data-target="canais">
+                <span class="nav-icon">📡</span> Status de Canais
+            </a>
+            <a class="nav-item" data-target="profiles">
+                <span class="nav-icon">🤖</span> Agentes &amp; Perfis
+            </a>
+            <a class="nav-item" data-target="chat-test">
+                <span class="nav-icon">🧪</span> Testar Agente
+            </a>
+
+            <div class="sidebar-divider"></div>
+            <div class="nav-group-label">Analytics</div>
+            <a class="nav-item" data-target="analytics">
+                <span class="nav-icon">📈</span> Analytics
+            </a>
+            <a class="nav-item" data-target="automations">
+                <span class="nav-icon">⚡</span> Automações
+            </a>
+
+            <div class="sidebar-divider" id="saasDivider"></div>
+            <div class="nav-group-label" id="saasGroupLabel">IA &amp; Funil</div>
+            <a class="nav-item" data-target="ai-config" id="navAiConfig">
+                <span class="nav-icon">🔐</span> Configuração de IA
+            </a>
+            <a class="nav-item" data-target="workflow" id="navWorkflow">
+                <span class="nav-icon">🔄</span> Funil de Vendas
+            </a>
+
+            <div class="sidebar-divider"></div>
+            <div class="nav-group-label">Faturamento</div>
+            <a class="nav-item" data-target="usage" id="navUsage">
+                <span class="nav-icon">💳</span> Uso &amp; Faturamento
+            </a>
+
+            <div class="sidebar-divider"></div>
+            <div class="nav-group-label">Configurações</div>
+            <a class="nav-item" data-target="settings">
+                <span class="nav-icon">⚙️</span> Configurações
+            </a>
+            <a class="nav-item" data-target="ajuda">
+                <span class="nav-icon">📚</span> Ajuda
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar" id="userAvatar">U</div>
+                <div class="user-details">
+                    <div class="user-name" id="userNameDisplay">Carregando...</div>
+                    <div class="user-role" id="userRoleDisplay">...</div>
                 </div>
-                <nav class="hidden md:flex items-center gap-8">
-                    <a class="text-sm font-medium hover:text-primary transition-colors" href="#">Início</a>
-                    <a class="text-sm font-medium hover:text-primary transition-colors" href="#solucoes">Soluções</a>
-                    <a class="text-sm font-medium hover:text-primary transition-colors" href="#sobre">Sobre</a>
-                    <a class="text-sm font-medium hover:text-primary transition-colors" href="#contato">Contato</a>
-                    <a class="bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all neon-glow transition-all duration-300"
-                        href="/login.html">
-                        Login
-                    </a>
-                </nav>
-                <div class="md:hidden">
-                    <span class="material-symbols-outlined text-3xl">menu</span>
-                </div>
+                <button onclick="logout()" class="btn-logout" title="Sair">🚪</button>
             </div>
         </div>
-    </header>
-    <main>
-        <!-- Hero Section -->
-        <section class="relative overflow-hidden pt-20 pb-32 reveal delay-1">
-            <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full opacity-20 pointer-events-none">
-                <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/30 blur-[120px] rounded-full">
-                </div>
-                <div
-                    class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/20 blur-[120px] rounded-full">
-                </div>
+    </aside>
+
+    <!-- ═══════════════════════════ MAIN ═══════════════════════════ -->
+    <main class="main-content">
+        <header class="top-bar">
+            <h1 class="page-title" id="pageTitle">Dashboard</h1>
+            <div class="top-actions">
+                <button class="btn-secondary btn-sm" onclick="loadStats()">🔄 Atualizar</button>
             </div>
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-                <div class="grid lg:grid-cols-2 gap-12 items-center">
-                    <div class="space-y-8">
-                        <div
-                            class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-wider">
-                            <span class="relative flex h-2 w-2">
-                                <span
-                                    class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                                <span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-                            </span>
-                            Liderando com IA
-                        </div>
-                        <h1
-                            class="text-5xl lg:text-7xl font-black leading-[1.1] tracking-tight text-slate-900 dark:text-white">
-                            Automação <span
-                                class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-400">Inteligente</span>
-                            para Empresas
-                        </h1>
-                        <p class="text-lg text-slate-600 dark:text-slate-400 max-w-xl leading-relaxed">
-                            Utilizamos Inteligência Artificial para automatizar processos complexos, humanizar o
-                            atendimento e simplificar radicalmente a gestão do seu negócio.
-                        </p>
-                        <div class="flex flex-wrap gap-4">
-                            <a class="flex items-center gap-2 bg-primary hover:scale-105 transition-transform text-white px-8 py-4 rounded-xl font-bold neon-glow transition-all duration-300"
-                                href="https://wa.me/message/4WIN5BM3ST4FK1">
-                                <span class="material-symbols-outlined">chat</span>
-                                Falar pelo WhatsApp
-                            </a>
-                            <a class="flex items-center gap-2 bg-slate-200 dark:bg-white/5 hover:bg-white/10 text-slate-900 dark:text-white px-8 py-4 rounded-xl font-bold border border-white/10 transition-all transition-all duration-300"
-                                href="/login.html">
-                                <span class="material-symbols-outlined">login</span>
-                                Login do Sistema
-                            </a>
+        </header>
+
+        <div class="content-wrapper">
+
+            <!-- ─────────────── DASHBOARD ─────────────── -->
+            <section id="dashboard" class="view-section active">
+                <div class="grid-4" style="margin-bottom:1.75rem;">
+                    <div class="stat-card">
+                        <h3>Clientes Ativos</h3>
+                        <div class="value" id="activeCustomers">0</div>
+                    </div>
+                    <div class="stat-card success">
+                        <h3>Tickets Abertos</h3>
+                        <div class="value" id="openTickets">0</div>
+                    </div>
+                    <div class="stat-card warning">
+                        <h3>Reuniões Agendadas</h3>
+                        <div class="value" id="scheduledMeetings">0</div>
+                    </div>
+                    <div class="stat-card danger">
+                        <h3>Conversas Hoje</h3>
+                        <div class="value" id="todayConversations">0</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ─────────────── CLIENTES ─────────────── -->
+            <section id="customers" class="view-section">
+                <div class="flex-between mb-2">
+                    <div>
+                        <h2 style="margin:0;font-size:1.1rem;font-weight:700;">Clientes</h2>
+                        <p class="text-muted mt-1">Gerencie seus clientes cadastrados no sistema.</p>
+                    </div>
+                    <div style="display: flex; gap: 0.75rem;">
+                        <button class="btn-secondary" onclick="exportCustomersCSV()">📥 Exportar CSV</button>
+                        <button class="btn-primary" onclick="openCustomerModal()">+ Novo Cliente</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table id="customersTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nome</th>
+                                <th>Empresa</th>
+                                <th>Telefone</th>
+                                <th>Email</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customersBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ─────────────── REUNIÕES ─────────────── -->
+            <section id="meetings" class="view-section">
+                <div class="flex-between mb-2">
+                    <div>
+                        <h2 style="margin:0;font-size:1.1rem;font-weight:700;">Reuniões</h2>
+                        <p class="text-muted mt-1">Gerencie as reuniões agendadas pelo agente.</p>
+                    </div>
+                    <button class="btn-primary" onclick="openMeetingModal()">+ Agendar Reunião</button>
+                </div>
+                <div class="table-responsive">
+                    <table id="meetingsTable">
+                        <thead>
+                            <tr>
+                                <th>Cliente</th>
+                                <th>Tipo</th>
+                                <th>Data</th>
+                                <th>Hora</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="meetingsBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ─────────────── TICKETS ─────────────── -->
+            <section id="tickets" class="view-section">
+                <div class="flex-between mb-2">
+                    <h2 style="margin:0;font-size:1.1rem;font-weight:700;">Tickets</h2>
+                </div>
+                <div class="table-responsive">
+                    <table id="ticketsTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Cliente</th>
+                                <th>Assunto</th>
+                                <th>Status</th>
+                                <th>Prioridade</th>
+                                <th>Data</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ticketsBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ─────────────── CONVERSAS ─────────────── -->
+            <section id="conversations" class="view-section">
+                <div id="conversationsList">
+                    <p class="text-muted" style="text-align:center;margin-top:3rem;">Carregando conversas...</p>
+                </div>
+            </section>
+
+            <!-- ─────────────── TESTAR AGENTE ─────────────── -->
+            <section id="chat-test" class="view-section">
+                <div class="chat-container">
+                    <div class="chat-messages" id="chatTestMessages">
+                        <div class="message agent">
+                            Olá! Sou o agente de atendimento. Como posso ajudar você hoje? Faça um teste aqui!
                         </div>
                     </div>
-                    <div class="relative">
-                        <div class="aspect-square rounded-3xl overflow-hidden glass border-white/20 p-4 animate-float">
-                            <div class="w-full h-full rounded-2xl bg-cover bg-center"
-                                data-alt="Futuristic AI brain visualization circuit patterns"
-                                style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBR0vD_J3a04UqOrwcDxusO_xVIbd36PkLw7skDpEgvpGnedNFfIMekjuhbf5USEkoI7Z1sreLFajb_8eHj8puqBN4OpuJ26AUTS5cF3ukmNvZbsxlV0uLDx9WJDNnUQzP3Tyz3NbWkbWPMZCcamrtcsQPlZr-Lp6JDfqPbKEFko1tJ4P4k5EPTCabNWXQq65xfd5obW_OKrHLUiEx3l0ZLvLy5-drZSR2fe_gl_HYBoSHZCbONtME3oEweKw7lqYn4PnMnIAWyWRqe')">
+                    <div class="chat-input-area">
+                        <input type="text" class="chat-input" id="chatTestInput"
+                            placeholder="Digite sua mensagem para testar o agente..."
+                            onkeydown="if(event.key==='Enter') sendTestMessage()">
+                        <button class="btn-primary" onclick="sendTestMessage()">Enviar</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ─────────────── ANALYTICS ─────────────── -->
+            <section id="analytics" class="view-section">
+                <div class="grid-4" style="margin-bottom:1.5rem;">
+                    <div class="stat-card">
+                        <h3>Taxa de Automação</h3>
+                        <div class="value" id="stat-automation-rate">0%</div>
+                    </div>
+                    <div class="stat-card success">
+                        <h3>CSAT Médio</h3>
+                        <div class="value" id="stat-csat">0.0</div>
+                    </div>
+                    <div class="stat-card warning">
+                        <h3>Novos Leads (30d)</h3>
+                        <div class="value" id="stat-leads">0</div>
+                    </div>
+                    <div class="stat-card danger">
+                        <h3>Tickets Hoje</h3>
+                        <div class="value" id="stat-tickets-today">0</div>
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div class="panel-card">
+                        <div class="panel-card-header">
+                            <h3>Canais de Atendimento</h3>
+                        </div>
+                        <div class="panel-card-body">
+                            <div style="position:relative;height:280px;"><canvas id="channelsChart"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="panel-card">
+                        <div class="panel-card-header">
+                            <h3>Funil de Vendas</h3>
+                        </div>
+                        <div class="panel-card-body">
+                            <div style="position:relative;height:280px;"><canvas id="funnelChart"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ─────────────── AUTOMAÇÕES ─────────────── -->
+            <section id="automations" class="view-section">
+                <div class="flex-between mb-2">
+                    <div>
+                        <h2 style="margin:0;font-size:1.1rem;font-weight:700;">⚡ Automações</h2>
+                        <p class="text-muted mt-1">Configure regras de "Se isso acontecer, então faça aquilo".</p>
+                    </div>
+                    <button class="btn-primary" onclick="openAutomationModal()">+ Nova Regra</button>
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ativo</th>
+                                <th>Nome</th>
+                                <th>Gatilho (Evento)</th>
+                                <th>Ação</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="automationsBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ═══════════════════════════════════════════════════════
+                 AGENTES & PERFIS
+            ══════════════════════════════════════════════════════════ -->
+            <section id="profiles" class="view-section">
+                <div class="flex-between mb-3">
+                    <div>
+                        <h2 style="margin:0;font-size:1.1rem;font-weight:700;">🤖 Agentes & Perfis</h2>
+                        <p class="text-muted mt-1">Cada perfil é um agente independente com personalidade, canal e
+                            prompt próprios. Ative o que deve responder agora.</p>
+                    </div>
+                    <button class="btn-primary" onclick="openProfileModal()">+ Novo Agente</button>
+                </div>
+                <div id="profilesList"
+                    style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.25rem;">
+                </div>
+            </section>
+
+
+
+            <!-- ═══════════════════════════════════════════════════════
+                 CONFIGURAÇÕES
+            ══════════════════════════════════════════════════════════ -->
+            <section id="settings" class="view-section">
+                <h2 style="margin-bottom:1.5rem;font-size:1.1rem;font-weight:700;">⚙️ Configurações</h2>
+
+                <!-- Abas -->
+                <div class="inner-tabs mb-3">
+                    <button class="inner-tab active" id="tabMyProfile" onclick="switchSettingsTab('profile')">
+                        👤 Meu Perfil
+                    </button>
+                    <button class="inner-tab" id="tabBranding" onclick="switchSettingsTab('branding')">
+                        🎨 Marca & Tema
+                    </button>
+                    <button class="inner-tab" id="tabSettingsWebhooks" onclick="switchSettingsTab('webhooks')">
+                        🔗 Webhooks & APIs
+                    </button>
+                    <button class="inner-tab" id="tabSettingsPrompt" onclick="switchSettingsTab('prompt')">
+                        ✨ Gerador de Prompts
+                    </button>
+                </div>
+
+                <!-- Painel: MEU PERFIL -->
+                <div id="settingsProfilePanel">
+                    <div class="panel-card mb-3">
+                        <div class="panel-card-header">
+                            <h3>👤 Informações do Perfil</h3>
+                        </div>
+                        <div class="panel-card-body">
+                            <form onsubmit="saveMyProfile(event)">
+                                <div class="grid-2">
+                                    <div class="form-group">
+                                        <label>Nome</label>
+                                        <input type="text" id="myProfileName" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Cargo / Função</label>
+                                        <input type="text" id="myProfileRole" placeholder="Ex: Diretor(a), Atendimento">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Avatar (URL ou Upload)</label>
+                                    <div class="upload-group" style="display: flex; gap: 10px;">
+                                        <input type="text" id="myProfileAvatarUrl"
+                                            placeholder="https://exemplo.com/avatar.png ou /static/assets/..."
+                                            style="flex: 1;">
+                                        <input type="file" id="myProfileAvatarFile" accept="image/*,application/pdf"
+                                            style="width: auto;">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Bio / Descrição</label>
+                                    <textarea id="myProfileBio" rows="3"
+                                        placeholder="Fale um pouco sobre você..."></textarea>
+                                </div>
+                                <button type="submit" class="btn-primary">💾 Salvar Perfil</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Painel: PERSONALIZAÇÃO -->
+                <div id="settingsBrandingPanel" style="display:none;">
+                    <div class="panel-card mb-3">
+                        <div class="panel-card-header">
+                            <h3>🎨 Personalização da Marca (White-label)</h3>
+                        </div>
+                        <div class="panel-card-body">
+                            <p class="text-muted text-sm mb-3">Defina a aparência global do seu sistema administrativo.
+                                Todos os usuários verão esta configuração.</p>
+
+                            <div class="settings-section-title">Cor de Destaque</div>
+                            <div class="color-swatch-row" id="colorSwatches">
+                                <!-- preenchido por JS -->
+                            </div>
+                            <div class="flex-center mt-2 mb-3" style="gap:0.75rem;">
+                                <label style="margin:0;font-size:0.8rem;">Cor personalizada:</label>
+                                <input type="color" id="customAccent" value="#6366f1"
+                                    style="width:40px;height:32px;padding:2px;cursor:pointer;border-radius:6px;"
+                                    oninput="applyAccentColor(this.value)">
+                            </div>
+
+                            <div class="settings-section-title">Identidade do Sistema</div>
+                            <div class="form-group">
+                                <label>Logotipo (URL ou Upload)</label>
+                                <div class="upload-group" style="display: flex; gap: 10px;">
+                                    <input type="text" id="panelLogoUrl"
+                                        placeholder="https://exemplo.com/logo.png ou /static/..." style="flex: 1;"
+                                        oninput="updateSidebarLogo()">
+                                    <input type="file" id="panelLogoFile" accept="image/*,application/pdf"
+                                        style="width: auto;">
+                                </div>
+                            </div>
+                            <div class="settings-grid">
+                                <div class="form-group">
+                                    <label>Nome do Sistema</label>
+                                    <input type="text" id="panelName" placeholder="Auto Tech Lith"
+                                        oninput="document.getElementById('sidebarName').textContent = this.value || 'Auto Tech Lith'">
+                                </div>
+                                <div class="form-group">
+                                    <label>Emoji/Ícone Secundário</label>
+                                    <input type="text" id="panelEmoji" placeholder="🤖" maxlength="4"
+                                        oninput="document.getElementById('sidebarEmoji').textContent = this.value || '🤖'">
+                                </div>
+                            </div>
+
+                            <hr style="margin:1.5rem 0; border:0; border-top:1px solid #e5e7eb;">
+
+                            <button class="btn-primary" onclick="saveThemePreferences()">🎨 Salvar Marca Glocal</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Painel: WEBHOOKS & APIs -->
+                <div id="settingsWebhooksPanel" style="display:none;">
+                    <div class="flex-between mb-2">
+                        <div>
+                            <h3 style="margin:0;font-size:1.1rem;font-weight:700;">🔗 Webhooks & APIs</h3>
+                            <p class="text-muted mt-1">Configure notificações de saída e integrações de entrada com
+                                sistemas externos.</p>
+                        </div>
+                        <button class="btn-primary" id="btnNewWebhook" onclick="openWebhookModal()">+ Novo
+                            Webhook</button>
+                    </div>
+
+                    <!-- Sub-abas Webhooks -->
+                    <div class="inner-tabs mb-2">
+                        <button class="inner-tab active" id="tabWebhooks" onclick="switchWebhookTab('webhooks')">
+                            🔔 Webhooks <span style="font-size:0.7rem;opacity:0.7;">(Saída)</span>
+                        </button>
+                        <button class="inner-tab" id="tabApis" onclick="switchWebhookTab('apis')">
+                            🔌 APIs & Integrações <span style="font-size:0.7rem;opacity:0.7;">(Entrada)</span>
+                        </button>
+                    </div>
+
+                    <!-- Sub-painel: WEBHOOK -->
+                    <div id="webhookPanel">
+                        <div class="info-banner blue">
+                            <div class="info-banner-icon">🔔</div>
+                            <div>
+                                <div class="info-banner-title">O que é um Webhook?</div>
+                                <div class="info-banner-desc">
+                                    Um <strong>Webhook (Saída)</strong> é uma notificação automática que <strong>este
+                                        sistema envia para você</strong> quando algo acontece — como uma nova mensagem,
+                                    reunião agendada ou ticket aberto. Você configura a URL do seu sistema e nós
+                                    chamamos
+                                    ela com os dados do evento.
+                                    <br><br>
+                                    <strong>Exemplo:</strong> "Quando um lead novo entrar, avise meu CRM em
+                                    <em>https://meucrm.com/webhook</em>"
+                                </div>
                             </div>
                         </div>
-                        <div class="absolute -bottom-6 -left-6 glass p-6 rounded-2xl border-white/10 hidden md:block">
-                            <div class="flex items-center gap-4">
-                                <div class="bg-primary/20 p-3 rounded-lg text-primary">
-                                    <span class="material-symbols-outlined">bolt</span>
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Nome</th>
+                                        <th>URL de Destino</th>
+                                        <th>Método</th>
+                                        <th>Status</th>
+                                        <th>Último Teste</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="webhooksBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Sub-painel: API -->
+                    <div id="apiPanel" style="display:none;">
+                        <div class="info-banner purple">
+                            <div class="info-banner-icon">🔌</div>
+                            <div>
+                                <div class="info-banner-title">O que é uma API de Integração?</div>
+                                <div class="info-banner-desc">
+                                    Uma <strong>API (Entrada)</strong> é um endpoint que <strong>sistemas externos
+                                        chamam
+                                        para enviar dados a este agente</strong>. Ao registrar uma integração aqui, você
+                                    documenta de onde vêm os dados — como um CRM, formulário do site, ou plataforma de
+                                    e-commerce.
+                                    <br><br>
+                                    <strong>Exemplo:</strong> "Meu formulário do site envia o lead para
+                                    <em>https://meuagente.com/api/webhook</em> — registre aqui para controlar esse
+                                    fluxo."
+                                </div>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Nome</th>
+                                        <th>URL de Origem/Destino</th>
+                                        <th>Método</th>
+                                        <th>Status</th>
+                                        <th>Último Teste</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="apisBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Painel: GERADOR DE PROMPTS -->
+                <div id="settingsPromptPanel" style="display:none;">
+                    <h3 style="margin-bottom:0.5rem;font-size:1.1rem;font-weight:700;">✨ Gerador Inteligente de Prompts
+                    </h3>
+                    <p class="text-muted mb-3">Responda as perguntas para gerar automaticamente o prompt ideal para o
+                        seu
+                        nicho.</p>
+                    <div id="wizardContainer" style="max-width:700px;margin:0 auto;">
+                        <div id="wizardProgress"
+                            style="background:#e5e7eb;border-radius:99px;height:6px;margin-bottom:1.5rem;">
+                            <div id="wizardProgressBar"
+                                style="background:linear-gradient(90deg,#6366f1,#8b5cf6);height:6px;border-radius:99px;width:12.5%;transition:width 0.4s;">
+                            </div>
+                        </div>
+                        <div id="wizardStep"
+                            style="background:white;border-radius:var(--radius-lg);padding:2rem;box-shadow:var(--card-shadow);border:1px solid var(--card-border);">
+                        </div>
+                        <div style="display:flex;gap:1rem;margin-top:1.2rem;justify-content:space-between;">
+                            <button class="btn-secondary" id="wizardBack" onclick="wizardBack()" style="display:none;">←
+                                Anterior</button>
+                            <div style="flex:1"></div>
+                            <button class="btn-primary" id="wizardNext" onclick="wizardNext()">Próximo →</button>
+                        </div>
+                        <div id="wizardPreview"
+                            style="display:none;margin-top:1.5rem;background:#1e293b;border-radius:var(--radius-lg);padding:1.5rem;">
+                            <div
+                                style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+                                <h3 style="margin:0;color:#e2e8f0;font-size:1rem;">Prompt Gerado</h3>
+                                <div style="display:flex;gap:0.5rem;">
+                                    <button class="btn-secondary btn-sm" onclick="copyWizardPrompt()">📋 Copiar</button>
+                                    <button class="btn-primary btn-sm" onclick="saveWizardAsProfile()">💾 Salvar como
+                                        Agente</button>
+                                </div>
+                            </div>
+                            <pre id="wizardPromptOutput"
+                                style="white-space:pre-wrap;color:#94a3b8;font-size:0.83rem;line-height:1.7;margin:0;"></pre>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- ─────────────── AI CONFIG (Client Portal) ─────────────── -->
+            <section id="ai-config" class="view-section">
+                <div class="flex-between mb-3">
+                    <div>
+                        <h2 style="margin:0;font-size:1.1rem;font-weight:700;">🔐 Configuração de IA</h2>
+                        <p class="text-muted mt-1">Conecte seu próprio modelo de IA. As chaves são criptografadas e
+                            nunca expostas.</p>
+                    </div>
+                    <button class="btn-primary" onclick="openAIConfigModal()">+ Adicionar Provedor</button>
+                </div>
+
+                <!-- MFA Warning Banner -->
+                <div id="mfaWarning"
+                    style="display:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;
+                    border-radius:12px;padding:1rem 1.25rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:0.75rem;">
+                    <span style="font-size:1.5rem;">⚠️</span>
+                    <div>
+                        <strong>MFA não habilitado!</strong> Por segurança, ative a autenticação em dois fatores antes
+                        de configurar chaves de API.
+                        <a href="#" onclick="switchTab('settings')"
+                            style="color:white;text-decoration:underline;margin-left:0.5rem;">Ativar agora →</a>
+                    </div>
+                </div>
+
+                <div id="aiConfigList" style="display:grid;gap:1rem;"></div>
+
+                <div id="aiConfigEmpty" style="text-align:center;padding:3rem;color:#6b7280;display:none;">
+                    <div style="font-size:3rem;margin-bottom:1rem;">🤖</div>
+                    <h3>Nenhum provedor configurado</h3>
+                    <p>Adicione sua chave da OpenAI, Anthropic ou outro provedor para usar modelos customizados.</p>
+                </div>
+            </section>
+
+            <!-- ─────────────── FUNIL DE VENDAS (Workflow Editor) ─────────────── -->
+            <section id="workflow" class="view-section">
+                <div class="flex-between mb-3">
+                    <div>
+                        <h2 style="margin:0;font-size:1.1rem;font-weight:700;">🔄 Funil de Vendas</h2>
+                        <p class="text-muted mt-1">Defina as etapas do seu processo de vendas. O agente usará estas
+                            etapas para guiar conversas.</p>
+                    </div>
+                    <button class="btn-primary" onclick="openWorkflowModal()">+ Nova Etapa</button>
+                </div>
+                <div id="workflowList" style="display:flex;flex-direction:column;gap:0.75rem;"></div>
+                <div id="workflowEmpty" style="text-align:center;padding:3rem;color:#6b7280;display:none;">
+                    <div style="font-size:3rem;margin-bottom:1rem;">🔄</div>
+                    <h3>Funil não configurado</h3>
+                    <p>Crie suas etapas de vendas para estruturar as conversas do agente.</p>
+                    <button class="btn-primary mt-2" onclick="createDefaultWorkflow()">🚀 Criar Funil Padrão</button>
+                </div>
+            </section>
+
+            <!-- ─────────────── USO & FATURAMENTO ─────────────── -->
+            <section id="usage" class="view-section">
+                <h2 style="margin-bottom:1.5rem;font-size:1.1rem;font-weight:700;">📊 Uso & Faturamento</h2>
+
+                <!-- KPI cards -->
+                <div class="grid-4" style="margin-bottom:1.75rem;">
+                    <div class="stat-card">
+                        <h3>Mensagens (30d)</h3>
+                        <div class="value" id="kpiMessages">—</div>
+                    </div>
+                    <div class="stat-card success">
+                        <h3>Conversas (30d)</h3>
+                        <div class="value" id="kpiConversations">—</div>
+                    </div>
+                    <div class="stat-card warning">
+                        <h3>Tokens Totais</h3>
+                        <div class="value" id="kpiTokens">—</div>
+                    </div>
+                    <div class="stat-card danger">
+                        <h3>Custo Estimado (USD)</h3>
+                        <div class="value" id="kpiCost">—</div>
+                    </div>
+                </div>
+
+                <!-- Projected cost banner -->
+                <div id="costProjection"
+                    style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;
+                    border-radius:12px;padding:1rem 1.5rem;margin-bottom:1.75rem;display:flex;align-items:center;justify-content:space-between;">
+                    <div>
+                        <div style="font-size:0.85rem;opacity:0.85;">Projeção Mensal (baseado nos últimos 30 dias)</div>
+                        <div style="font-size:1.75rem;font-weight:700;" id="kpiMonthlyProjection">USD $0.00</div>
+                    </div>
+                    <span style="font-size:2.5rem;">💡</span>
+                </div>
+
+                <!-- Daily usage chart -->
+                <div class="panel-card">
+                    <div class="panel-card-header">
+                        <h3>Tokens por Dia (últimos 30 dias)</h3>
+                    </div>
+                    <div class="panel-card-body">
+                        <div style="position:relative;height:240px;"><canvas id="usageChart"></canvas></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══════════════════════════════════════════════════════
+                 MASTER ADMIN — PAINEL GLOBAL (platform-level only)
+            ══════════════════════════════════════════════════════════ -->
+            <section id="master-admin" class="view-section">
+                <div style="background:linear-gradient(135deg,#1e1b4b,#312e81);color:white;border-radius:16px;
+                    padding:1.5rem 2rem;margin-bottom:1.75rem;display:flex;align-items:center;gap:1rem;">
+                    <span style="font-size:2rem;">🛡</span>
+                    <div>
+                        <h2 style="margin:0;font-size:1.2rem;font-weight:700;">Master Admin — Painel Global</h2>
+                        <p style="margin:0;opacity:0.75;font-size:0.85rem;">Visão consolidada de todos os tenants.
+                            Acesso restrito à administração da plataforma.</p>
+                    </div>
+                </div>
+
+                <!-- Global KPI cards -->
+                <div class="grid-4" style="margin-bottom:1.75rem;">
+                    <div class="stat-card">
+                        <h3>Total Tenants</h3>
+                        <div class="value" id="masterTotalTenants">—</div>
+                    </div>
+                    <div class="stat-card success">
+                        <h3>Tenants Ativos</h3>
+                        <div class="value" id="masterActiveTenants">—</div>
+                    </div>
+                    <div class="stat-card warning">
+                        <h3>Interações (30d)</h3>
+                        <div class="value" id="masterInteractions">—</div>
+                    </div>
+                    <div class="stat-card danger">
+                        <h3>Alertas de Churn</h3>
+                        <div class="value" id="masterChurnAlerts">—</div>
+                    </div>
+                </div>
+
+                <!-- Charts row -->
+                <div class="grid-2" style="margin-bottom:1.75rem;">
+                    <div class="panel-card">
+                        <div class="panel-card-header">
+                            <h3>🏆 Ranking por Uso (tokens 30d)</h3>
+                        </div>
+                        <div class="panel-card-body">
+                            <div style="position:relative;height:260px;"><canvas id="masterRankingChart"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="panel-card">
+                        <div class="panel-card-header">
+                            <h3>⚠️ Alertas de Churn</h3>
+                        </div>
+                        <div class="panel-card-body" id="masterChurnList">
+                            <p class="text-muted" style="text-align:center;padding:2rem;">Carregando...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- All tenants table -->
+                <div class="panel-card">
+                    <div class="panel-card-header">
+                        <h3>📋 Todos os Tenants</h3>
+                    </div>
+                    <div class="panel-card-body" style="padding:0;">
+                        <div class="table-responsive">
+                            <table id="masterTenantsTable">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Nome</th>
+                                        <th>Subdomínio</th>
+                                        <th>Status</th>
+                                        <th>Interações (30d)</th>
+                                        <th>Tokens (30d)</th>
+                                        <th>Custo USD</th>
+                                        <th>Última Atividade</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="masterTenantsBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══════════ STATUS DE CANAIS ═══════════════════ -->
+            <section id="canais" class="view-section">
+                <div style="margin-bottom:1.5rem;">
+                    <h2 style="font-size:1.05rem;font-weight:700;">📡 Status de Canais</h2>
+                    <p style="color:var(--text-muted);font-size:0.85rem;margin-top:0.25rem;">Conexões de canais de
+                        atendimento em tempo real.</p>
+                </div>
+
+                <div class="grid-2" style="margin-bottom:1.5rem;">
+                    <!-- WhatsApp Card -->
+                    <div class="panel-card">
+                        <div class="panel-card-header">
+                            <h3>📱 WhatsApp (Evolution API)</h3>
+                            <span class="badge" id="waStatus"
+                                style="background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3);">Verificando...</span>
+                        </div>
+                        <div class="panel-card-body">
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+                                <div>
+                                    <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">
+                                        Instância</div>
+                                    <div style="font-weight:700;" id="waInstance">—</div>
                                 </div>
                                 <div>
-                                    <p class="text-xs text-slate-400 uppercase tracking-widest font-bold">Processamento
-                                    </p>
-                                    <p class="text-xl font-black text-white">99.9% Eficiente</p>
+                                    <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">Número
+                                    </div>
+                                    <div style="font-weight:700;" id="waNumber">—</div>
+                                </div>
+                                <div>
+                                    <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">Uptime
+                                    </div>
+                                    <div style="font-weight:700;" id="waUptime">—</div>
+                                </div>
+                                <div>
+                                    <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">Msgs
+                                        Hoje</div>
+                                    <div style="font-weight:700;" id="waMsgsToday">—</div>
                                 </div>
                             </div>
+                            <button class="btn-secondary" onclick="checkWhatsAppStatus()"
+                                style="width:100%;padding:0.6rem;">
+                                🔍 Verificar Conexão
+                            </button>
                         </div>
                     </div>
-                </div>
-            </div>
-        </section>
-        <!-- Sobre a Empresa -->
-        <section class="py-24 bg-slate-50 dark:bg-background-dark/50 reveal delay-2" id="sobre">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="text-center max-w-3xl mx-auto mb-16">
-                    <h2 class="text-3xl md:text-4xl font-black mb-6 text-slate-900 dark:text-white">Excelência em
-                        Inteligência Artificial</h2>
-                    <p class="text-slate-600 dark:text-slate-400">Nossa missão é transformar tecnologia de ponta em
-                        resultados práticos para o seu negócio, focando em três pilares fundamentais.</p>
-                </div>
-                <div class="grid md:grid-cols-3 gap-8">
-                    <div
-                        class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-colors group hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
-                        <div
-                            class="size-14 bg-primary/10 rounded-xl flex items-center justify-center text-primary mb-6 group-hover:scale-110 transition-transform">
-                            <span class="material-symbols-outlined text-3xl">precision_manufacturing</span>
+
+                    <!-- Telegram Card -->
+                    <div class="panel-card">
+                        <div class="panel-card-header">
+                            <h3>✈️ Telegram Bot</h3>
+                            <span class="badge" id="tgStatus"
+                                style="background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3);">Verificando...</span>
                         </div>
-                        <h3 class="text-xl font-bold mb-4 text-white">Automação de Processos</h3>
-                        <p class="text-slate-400 leading-relaxed text-sm">Elimine o gargalo operacional com fluxos de
-                            trabalho automáticos que aprendem e se adaptam.</p>
-                    </div>
-                    <div
-                        class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-colors group hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
-                        <div
-                            class="size-14 bg-purple-500/10 rounded-xl flex items-center justify-center text-purple-400 mb-6 group-hover:scale-110 transition-transform">
-                            <span class="material-symbols-outlined text-3xl">insights</span>
-                        </div>
-                        <h3 class="text-xl font-bold mb-4 text-white">Otimização Inteligente</h3>
-                        <p class="text-slate-400 leading-relaxed text-sm">Análise de dados em tempo real para tomada de
-                            decisões estratégicas baseadas em fatos, não intuições.</p>
-                    </div>
-                    <div
-                        class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-colors group hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
-                        <div
-                            class="size-14 bg-cyan-500/10 rounded-xl flex items-center justify-center text-cyan-400 mb-6 group-hover:scale-110 transition-transform">
-                            <span class="material-symbols-outlined text-3xl">smart_toy</span>
-                        </div>
-                        <h3 class="text-xl font-bold mb-4 text-white">Agentes de IA</h3>
-                        <p class="text-slate-400 leading-relaxed text-sm">Sistemas de atendimento humanizado 24/7
-                            capazes de resolver problemas complexos autonomamente.</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-        <!-- Nossas Soluções -->
-        <section class="py-24 reveal" id="solucoes">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
-                    <div class="max-w-xl">
-                        <h2 class="text-4xl font-black mb-4 text-slate-900 dark:text-white">Soluções que Escalão seu
-                            Negócio</h2>
-                        <p class="text-slate-600 dark:text-slate-400">Desenvolvemos ferramentas personalizadas para cada
-                            setor, garantindo integração total e fluida.</p>
-                    </div>
-                    <div class="flex gap-2">
-                        <button
-                            class="size-12 rounded-full border border-white/10 flex items-center justify-center text-white hover:bg-white/5">
-                            <span class="material-symbols-outlined">chevron_left</span>
-                        </button>
-                        <button
-                            class="size-12 rounded-full bg-primary flex items-center justify-center text-white neon-glow transition-all duration-300">
-                            <span class="material-symbols-outlined">chevron_right</span>
-                        </button>
-                    </div>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div
-                        class="relative h-96 group overflow-hidden rounded-2xl hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
-                        <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
-                            data-alt="Abstract glowing microchips and circuits"
-                            style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDtmSLLoxBikYxYLpcFv5XuWNlH49HQi3cIYgNX556TKxqyTnXXHwfbHzDSss55IefoPaVKB8qqgKR3e-UQbdtvhFhIP-ElyvhS2QUW9E1d-CHBLxOi0wzp0IiRfl60wJQxNYHkawDxwBwc3IxuMtPXpONrIcE1n-Z7gObNaYMc2DDh16t-fhhN_933GR7Ov6WFJX96LMh7GQbAkIO9UyKUjZyzanXARjHlDUK6QxfGMULaw0R2BpmDT0sUPUdgfd_2QV7mJNLwtQMb')">
-                        </div>
-                        <div
-                            class="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/20 to-transparent">
-                        </div>
-                        <div class="absolute bottom-0 left-0 p-6 w-full">
-                            <h4 class="text-xl font-bold text-white mb-2">Automação com IA</h4>
-                            <p class="text-slate-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity">
-                                Sistemas autônomos de fluxo de trabalho.</p>
-                        </div>
-                    </div>
-                    <div
-                        class="relative h-96 group overflow-hidden rounded-2xl hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
-                        <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
-                            data-alt="Digital robot hand touching a screen"
-                            style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA2AyKzRNN_yoMp7KIVXoJ-xAFSvGgzV6BapXnDw5IFvziMtceYyr198Kkkrbv6TRjSyC1bGgyLhSISLrxb8d_U-K6-kssum421Rbv07ppK4qYSzQtnwjjoV3XbgSLxfSWoAZq4bzPAQjfdfEATHgy0Dx4MbKM__O7dXG7xyGwImMav08pjxGWe3bm5HwilJ3TqIXX9MoY4SR8TFQnXy3BjObTi4TI-g_9y1vHIIx1cGWdj2aRGW4b0STu6-CSfLlKIOCR1pXNAxYNo')">
-                        </div>
-                        <div
-                            class="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/20 to-transparent">
-                        </div>
-                        <div class="absolute bottom-0 left-0 p-6 w-full">
-                            <h4 class="text-xl font-bold text-white mb-2">Atendimento Automatizado</h4>
-                            <p class="text-slate-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity">
-                                Chatbots inteligentes de última geração.</p>
-                        </div>
-                    </div>
-                    <div
-                        class="relative h-96 group overflow-hidden rounded-2xl hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
-                        <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
-                            data-alt="Global network data visualization background"
-                            style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDjov7MDdhWdleHoVPMMQpjBY_R8RiW75ViDNb0kPjoIxHC98y4pe3JpG71Vp2qw4F2ZGjNxASMKJt4fPBlw-7SwsLLZZsrRMbi54-BP6FZ-pJPdz5ToESTmRjRkl-D23GwqGYZ2-5LV5T9H873KLoxTUS_uyajRR53EM0WkyKDPFW3adlttLr1_krHH0vKUUf1rKQnuI4JhMnak9jGFovly-TkG-fCI3R8Y_fV4oerv8w4VV13If6WmDhIIvznrlKTBzr7vC0FCj-h')">
-                        </div>
-                        <div
-                            class="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/20 to-transparent">
-                        </div>
-                        <div class="absolute bottom-0 left-0 p-6 w-full">
-                            <h4 class="text-xl font-bold text-white mb-2">Integrações Inteligentes</h4>
-                            <p class="text-slate-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity">
-                                Conectividade total entre suas plataformas.</p>
-                        </div>
-                    </div>
-                    <div
-                        class="relative h-96 group overflow-hidden rounded-2xl hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
-                        <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
-                            data-alt="High tech dashboard with data charts"
-                            style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuD5-Z-pICYujJ5zi8oRwnu-N76g_wzzM-dkAyBrnwxJJGd36ITs6_eUsxA-FgXip73CzsXjyT7Beda_AmBihN6srZJemCjoIUx5NHMMBEksJi4oITRrCvWzLU95cMji29OuueinROhC2JGGQjBB1voa4E3CZN4Zox82_g_aJ5DTunCk7vGsiL-H5nyl9dmBKtvWslsLa6rml48_iSgfz8clIZC0q--71RdMvq9yWeRD36WOH7D8TmSUNUNIo2xll5tbjZ32P33TeprK')">
-                        </div>
-                        <div
-                            class="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/20 to-transparent">
-                        </div>
-                        <div class="absolute bottom-0 left-0 p-6 w-full">
-                            <h4 class="text-xl font-bold text-white mb-2">Gestão Inteligente</h4>
-                            <p class="text-slate-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity">
-                                Dashboards preditivos de performance.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-        <!-- Como Funciona -->
-        <section class="py-24 bg-slate-50 dark:bg-background-dark/50 overflow-hidden reveal">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="text-center mb-16">
-                    <h2 class="text-4xl font-black text-slate-900 dark:text-white mb-4">Processo de Implementação</h2>
-                    <p class="text-slate-400">Do primeiro contato à operação plena em tempo recorde.</p>
-                </div>
-                <div class="relative">
-                    <div
-                        class="hidden lg:block absolute top-1/2 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-primary/30 to-transparent -translate-y-1/2">
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 relative z-10">
-                        <div class="text-center space-y-4">
-                            <div
-                                class="size-16 mx-auto rounded-full bg-primary flex items-center justify-center text-white font-black text-xl neon-glow animate-pulse-glow">
-                                1</div>
-                            <h5 class="text-xl font-bold dark:text-white">Contato</h5>
-                            <p class="text-sm text-slate-400">Alinhamento de expectativas e objetivos iniciais.</p>
-                        </div>
-                        <div class="text-center space-y-4">
-                            <div
-                                class="size-16 mx-auto rounded-full glass border-primary/40 flex items-center justify-center text-primary font-black text-xl animate-pulse-glow">
-                                2</div>
-                            <h5 class="text-xl font-bold dark:text-white">Análise</h5>
-                            <p class="text-sm text-slate-400">Mapeamento detalhado de processos e gargalos.</p>
-                        </div>
-                        <div class="text-center space-y-4">
-                            <div
-                                class="size-16 mx-auto rounded-full glass border-primary/40 flex items-center justify-center text-primary font-black text-xl animate-pulse-glow">
-                                3</div>
-                            <h5 class="text-xl font-bold dark:text-white">Implementação</h5>
-                            <p class="text-sm text-slate-400">Desenvolvimento e integração da solução de IA.</p>
-                        </div>
-                        <div class="text-center space-y-4">
-                            <div
-                                class="size-16 mx-auto rounded-full glass border-primary/40 flex items-center justify-center text-primary font-black text-xl animate-pulse-glow">
-                                4</div>
-                            <h5 class="text-xl font-bold dark:text-white">Operação Automática</h5>
-                            <p class="text-sm text-slate-400">Monitoramento contínuo e ganhos de eficiência.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-        <section class="py-24 bg-background-dark reveal" id="depoimentos">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="text-center max-w-3xl mx-auto mb-16">
-                    <h2 class="text-4xl font-black mb-4 text-slate-900 dark:text-white">O que nossos clientes dizem</h2>
-                    <p class="text-slate-600 dark:text-slate-400">Histórias reais de empresas que alcançaram novos
-                        patamares com nossas soluções.</p>
-                </div>
-                <div class="grid md:grid-cols-3 gap-8">
-                    <!-- Testimonial 1 -->
-                    <div
-                        class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-all group hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
-                        <div class="flex items-center gap-4 mb-6">
-                            <div
-                                class="size-12 rounded-full bg-primary/20 flex items-center justify-center text-primary">
-                                <span class="material-symbols-outlined">person</span>
+                        <div class="panel-card-body">
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+                                <div>
+                                    <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">Bot
+                                        Name</div>
+                                    <div style="font-weight:700;" id="tgBotName">—</div>
+                                </div>
+                                <div>
+                                    <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">
+                                        @Username</div>
+                                    <div style="font-weight:700;" id="tgUsername">—</div>
+                                </div>
+                                <div>
+                                    <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">Chat
+                                        ID</div>
+                                    <div style="font-weight:700;" id="tgChatId">—</div>
+                                </div>
+                                <div>
+                                    <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem;">
+                                        Updates</div>
+                                    <div style="font-weight:700;" id="tgUpdates">—</div>
+                                </div>
                             </div>
-                            <div>
-                                <h4 class="font-bold text-white">Ricardo Silva</h4>
-                                <p class="text-xs text-slate-400">CEO, TechLogistics</p>
+                            <button class="btn-secondary" onclick="checkTelegramStatus()"
+                                style="width:100%;padding:0.6rem;">
+                                🔍 Verificar Conexão
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Channel Performance Metrics -->
+                <div class="panel-card">
+                    <div class="panel-card-header">
+                        <h3>📊 Métricas de Desempenho</h3>
+                        <span style="font-size:0.78rem;color:var(--text-muted);">Últimos 30 dias</span>
+                    </div>
+                    <div class="panel-card-body">
+                        <div class="grid-4">
+                            <div class="stat-card">
+                                <h3>TMA</h3>
+                                <div class="value" id="metricTMA">—</div>
+                                <div class="stat-label">Tempo Médio de Atendimento</div>
+                            </div>
+                            <div class="stat-card success">
+                                <h3>CSAT (IA)</h3>
+                                <div class="value" id="metricCSAT">—</div>
+                                <div class="stat-label">Score de Satisfação</div>
+                            </div>
+                            <div class="stat-card warning">
+                                <h3>Agendamentos</h3>
+                                <div class="value" id="metricScheduled">—</div>
+                                <div class="stat-label">Automáticos (30d)</div>
+                            </div>
+                            <div class="stat-card">
+                                <h3>Conversões</h3>
+                                <div class="value" id="metricConversions">—</div>
+                                <div class="stat-label">Por etapa do funil</div>
                             </div>
                         </div>
-                        <div class="flex gap-1 mb-4 text-primary">
-                            <span class="material-symbols-outlined text-sm">star</span>
-                            <span class="material-symbols-outlined text-sm">star</span>
-                            <span class="material-symbols-outlined text-sm">star</span>
-                            <span class="material-symbols-outlined text-sm">star</span>
-                            <span class="material-symbols-outlined text-sm">star</span>
-                        </div>
-                        <p class="text-slate-400 text-sm leading-relaxed">"A implementação da IA da Auto Tech Lith
-                            reduziu nosso tempo de resposta no suporte em 85%. Agora nossa equipe foca no que realmente
-                            importa."</p>
-                    </div>
-                    <!-- Testimonial 2 -->
-                    <div
-                        class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-all group hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
-                        <div class="flex items-center gap-4 mb-6">
-                            <div
-                                class="size-12 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400">
-                                <span class="material-symbols-outlined">person</span>
-                            </div>
-                            <div>
-                                <h4 class="font-bold text-white">Ana Paula Costa</h4>
-                                <p class="text-xs text-slate-400">Dir. Operacional, FinCorp</p>
-                            </div>
-                        </div>
-                        <div class="flex gap-1 mb-4 text-primary">
-                            <span class="material-symbols-outlined text-sm">star</span>
-                            <span class="material-symbols-outlined text-sm">star</span>
-                            <span class="material-symbols-outlined text-sm">star</span>
-                            <span class="material-symbols-outlined text-sm">star</span>
-                            <span class="material-symbols-outlined text-sm">star</span>
-                        </div>
-                        <p class="text-slate-400 text-sm leading-relaxed">"O dashboard preditivo transformou nossa
-                            gestão. Hoje conseguimos antecipar gargalos operacionais antes mesmo deles afetarem o
-                            faturamento."</p>
-                    </div>
-                    <!-- Testimonial 3 -->
-                    <div
-                        class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-all group hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
-                        <div class="flex items-center gap-4 mb-6">
-                            <div
-                                class="size-12 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400">
-                                <span class="material-symbols-outlined">person</span>
-                            </div>
-                            <div>
-                                <h4 class="font-bold text-white">Marcus Vinícius</h4>
-                                <p class="text-xs text-slate-400">Fundador, Innova Retail</p>
-                            </div>
-                        </div>
-                        <div class="flex gap-1 mb-4 text-primary">
-                            <span class="material-symbols-outlined text-sm">star</span>
-                            <span class="material-symbols-outlined text-sm">star</span>
-                            <span class="material-symbols-outlined text-sm">star</span>
-                            <span class="material-symbols-outlined text-sm">star</span>
-                            <span class="material-symbols-outlined text-sm">star</span>
-                        </div>
-                        <p class="text-slate-400 text-sm leading-relaxed">"Os agentes de IA humanizados lidam com 90%
-                            das nossas dúvidas de clientes de forma autônoma. É como ter uma equipe gigante trabalhando
-                            24/7."</p>
                     </div>
                 </div>
-            </div>
-        </section>
-        <!-- Benefícios -->
-        <section class="py-24 reveal">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="grid lg:grid-cols-3 gap-12">
-                    <div class="lg:col-span-1">
-                        <h2 class="text-4xl font-black mb-6 dark:text-white leading-tight">Por que escolher a Auto Tech
-                            Lith?</h2>
-                        <p class="text-slate-400 mb-8">Nossa tecnologia não é apenas moderna, ela é focada no seu ROI e
-                            na escalabilidade do seu negócio.</p>
-                        <a class="inline-flex items-center text-primary font-bold hover:gap-3 transition-all"
-                            href="#contato">
-                            Saiba mais sobre nós
-                            <span class="material-symbols-outlined ml-2">arrow_forward</span>
-                        </a>
+            </section>
+
+            <!-- ═══════════ AJUDA ════════════════════════════════ -->
+            <section id="ajuda" class="view-section">
+                <div style="margin-bottom:1.5rem;">
+                    <h2 style="font-size:1.05rem;font-weight:700;">📚 Ajuda & Base de Conhecimento</h2>
+                    <p style="color:var(--text-muted);font-size:0.85rem;margin-top:0.25rem;">Guias rápidos de
+                        configuração e uso da plataforma.</p>
+                </div>
+
+                <!-- Quick Links -->
+                <div class="grid-3" style="margin-bottom:1.5rem;">
+                    <div class="panel-card" style="cursor:pointer;" onclick="openAjudaTopic('whatsapp')">
+                        <div class="panel-card-body" style="text-align:center;padding:1.5rem;">
+                            <div style="font-size:2rem;margin-bottom:0.75rem;">📱</div>
+                            <div style="font-weight:700;margin-bottom:0.35rem;">WhatsApp</div>
+                            <div style="font-size:0.8rem;color:var(--text-muted);">Conectar QR Code e configurar
+                                instância</div>
+                        </div>
                     </div>
-                    <div class="lg:col-span-2 grid sm:grid-cols-2 gap-6">
-                        <div
-                            class="p-6 rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
-                            <span class="material-symbols-outlined text-primary mb-4 text-3xl">payments</span>
-                            <h6 class="text-lg font-bold mb-2 dark:text-white">Redução de Custos</h6>
-                            <p class="text-sm text-slate-500">Otimize recursos e elimine desperdícios operacionais
-                                significativos.</p>
+                    <div class="panel-card" style="cursor:pointer;" onclick="openAjudaTopic('ia')">
+                        <div class="panel-card-body" style="text-align:center;padding:1.5rem;">
+                            <div style="font-size:2rem;margin-bottom:0.75rem;">🤖</div>
+                            <div style="font-weight:700;margin-bottom:0.35rem;">Configuração de IA</div>
+                            <div style="font-size:0.8rem;color:var(--text-muted);">Adicionar chaves e escolher modelo
+                            </div>
                         </div>
-                        <div
-                            class="p-6 rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
-                            <span class="material-symbols-outlined text-purple-400 mb-4 text-3xl">schedule</span>
-                            <h6 class="text-lg font-bold mb-2 dark:text-white">Atendimento 24h</h6>
-                            <p class="text-sm text-slate-500">Sua empresa nunca para. Suporte total a qualquer hora do
-                                dia ou da noite.</p>
-                        </div>
-                        <div
-                            class="p-6 rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
-                            <span class="material-symbols-outlined text-cyan-400 mb-4 text-3xl">trending_up</span>
-                            <h6 class="text-lg font-bold mb-2 dark:text-white">Produtividade</h6>
-                            <p class="text-sm text-slate-500">Libere sua equipe para tarefas criativas enquanto a IA
-                                cuida do repetitivo.</p>
-                        </div>
-                        <div
-                            class="p-6 rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
-                            <span class="material-symbols-outlined text-pink-400 mb-4 text-3xl">hub</span>
-                            <h6 class="text-lg font-bold mb-2 dark:text-white">Escalabilidade</h6>
-                            <p class="text-sm text-slate-500">Cresça sem aumentar proporcionalmente sua estrutura de
-                                custos fixos.</p>
+                    </div>
+                    <div class="panel-card" style="cursor:pointer;" onclick="openAjudaTopic('funil')">
+                        <div class="panel-card-body" style="text-align:center;padding:1.5rem;">
+                            <div style="font-size:2rem;margin-bottom:0.75rem;">🔄</div>
+                            <div style="font-weight:700;margin-bottom:0.35rem;">Funil de Vendas</div>
+                            <div style="font-size:0.8rem;color:var(--text-muted);">Criar e ordenar etapas do processo
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </section>
-        <!-- CTA Footer -->
-        <section class="py-24 px-4 reveal" id="contato">
-            <div
-                class="max-w-5xl mx-auto rounded-[2.5rem] bg-gradient-to-br from-primary via-primary/80 to-purple-600 p-12 lg:p-20 text-center relative overflow-hidden">
-                <div
-                    class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20">
-                </div>
-                <div class="relative z-10 space-y-8">
-                    <h2 class="text-4xl md:text-5xl font-black text-white leading-tight">Automatize sua empresa com
-                        Inteligência Artificial</h2>
-                    <p class="text-white/80 text-lg max-w-2xl mx-auto leading-relaxed">
-                        Junte-se a centenas de empresas que já estão transformando sua realidade operacional com a Auto
-                        Tech Lith.
-                    </p>
-                    <div class="flex flex-wrap justify-center gap-4 pt-4">
-                        <a class="bg-white text-primary px-10 py-4 rounded-xl font-black hover:scale-105 transition-transform flex items-center gap-2 transition-all duration-300"
-                            href="https://wa.me/message/4WIN5BM3ST4FK1">
-                            Começar agora no WhatsApp
-                        </a>
-                        <a class="bg-background-dark/20 text-white border border-white/30 backdrop-blur-sm px-10 py-4 rounded-xl font-black hover:bg-white/10 transition-colors transition-all duration-300"
-                            href="/login.html">
-                            Acessar Plataforma
-                        </a>
+
+                <!-- FAQ Accordion -->
+                <div class="panel-card">
+                    <div class="panel-card-header">
+                        <h3>❓ Perguntas Frequentes</h3>
+                    </div>
+                    <div class="panel-card-body" style="padding:0;">
+                        <div id="faqAccordion">
+                            <!-- Filled by JS -->
+                        </div>
                     </div>
                 </div>
-            </div>
-        </section>
+            </section>
+
+
+            <!-- Canais section -->
+
+            <!-- Ajuda section -->
+
+        </div><!-- /content-wrapper -->
     </main>
-    <footer class="py-12 border-t border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-background-dark">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex flex-col md:flex-row justify-between items-center gap-8">
-                <div class="flex items-center gap-3">
-                    <img alt="Auto Tech Lith Logo Gray" class="size-8 opacity-50 grayscale"
-                        data-alt="Auto Tech Lith corporate logo grayscale"
-                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuCQmfDhEPbjkrR6llOnsjhpWQ_za3nbySf00Vc052X2OYK35k_HUtYRopL5bP3a6ksnfKpdENAC8U5gaBs7QgjqOYFnDtaY6dyp0wdcG5CLRw1GSFa5lAwKqhHGWA2W6kogKU5Iv22LWivIV1zKmpFm_Mxgzm3Qfe1JosABqd9CO7Eo8JUEnMveO9ffPNIH6s7RyfAQ5AQQ5aQf54_PfJU0fvuRr2dp7GFU1Y1vjTGdXiuHSPVKQ6D_i-IWzrcZ2nT7dBu_sQGHad6d" />
-                    <span class="text-slate-500 font-bold">Auto Tech Lith</span>
-                </div>
-                <div class="flex gap-8 text-sm text-slate-500 font-medium">
-                    <a class="hover:text-primary transition-colors transition-all duration-300" href="#">Privacidade</a>
-                    <a class="hover:text-primary transition-colors transition-all duration-300" href="#">Termos</a>
-                    <a class="hover:text-primary transition-colors transition-all duration-300" href="#">Suporte</a>
-                </div>
-                <p class="text-xs text-slate-500">© 2024 Auto Tech Lith. Todos os direitos reservados.</p>
+
+    <!-- Toast container -->
+    <div id="alertContainer"
+        style="position:fixed;top:20px;right:20px;z-index:9999;max-width:400px;display:flex;flex-direction:column;gap:0.5rem;">
+    </div>
+
+    <!-- ═══════════════════════════ MODAIS ═══════════════════════════ -->
+
+    <!-- MODAL: AGENTE/PERFIL -->
+    <div class="modal" id="profileModal">
+        <div class="modal-content" style="max-width:620px;">
+            <div class="modal-header">
+                <span style="font-size:1.5rem;" id="profileModalEmoji">🤖</span>
+                <h2 id="profileModalTitle">Novo Agente</h2>
             </div>
+            <form onsubmit="saveProfile(event)">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Emoji / Avatar do Agente</label>
+                        <input type="text" id="profileAvatar" placeholder="🤖" maxlength="4" value="🤖"
+                            oninput="document.getElementById('profileModalEmoji').textContent = this.value || '🤖'">
+                    </div>
+                    <div class="form-group">
+                        <label>Nome do Agente *</label>
+                        <input type="text" id="profileAgentName" required placeholder="Ex: Max, Sofia, Luna">
+                    </div>
+                    <div class="form-group">
+                        <label>Nome do Perfil / Nicho *</label>
+                        <input type="text" id="profileName" required placeholder="Ex: Agente Imobiliário">
+                    </div>
+                    <div class="form-group">
+                        <label>Canal de Atendimento</label>
+                        <select id="profileChannel">
+                            <option value="whatsapp">📱 WhatsApp</option>
+                            <option value="telegram">✈️ Telegram</option>
+                            <option value="web">🌐 Web Chat</option>
+                            <option value="instagram">📸 Instagram</option>
+                            <option value="email">📧 E-mail</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Nicho de Atuação *</label>
+                        <select id="profileNiche">
+                            <option value="geral">Geral</option>
+                            <option value="imobiliario">🏠 Imobiliário</option>
+                            <option value="saude">⚕️ Saúde e Bem-estar</option>
+                            <option value="educacao">📚 Educação e Cursos</option>
+                            <option value="ecommerce">🛒 E-commerce e Varejo</option>
+                            <option value="tecnologia">💻 Tecnologia / SaaS</option>
+                            <option value="financeiro">💰 Financeiro e Seguros</option>
+                            <option value="juridico">⚖️ Jurídico / Advocacia</option>
+                            <option value="restaurante">🍽️ Restaurante / Food</option>
+                            <option value="automacao">🤖 Automação e IA</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Tom de Comunicação</label>
+                        <select id="profileTone">
+                            <option value="neutro">Neutro</option>
+                            <option value="formal">Formal</option>
+                            <option value="semi-formal">Semi-formal</option>
+                            <option value="amigavel">Amigável</option>
+                            <option value="jovem">Jovem / Informal</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Formalidade</label>
+                        <select id="profileFormality">
+                            <option value="muito_informal">Muito Informal (Gírias, emojis, descontraído)</option>
+                            <option value="informal">Informal (Casual, próximo, coloquial)</option>
+                            <option value="equilibrado" selected>Equilibrado (Profissional mas acessível)</option>
+                            <option value="formal">Formal (Respeitoso, vocabulário culto, sem gírias)</option>
+                            <option value="muito_formal">Muito Formal (Estritamente corporativo/corporativo tradicional)
+                            </option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Autonomia do Agente</label>
+                        <select id="profileAutonomy">
+                            <option value="estrita">Estrita (Apenas responde o que foi perguntado, não sai do script)
+                            </option>
+                            <option value="orientada">Orientada (Pode fazer pequenas sugestões dentro do tema)</option>
+                            <option value="equilibrada" selected>Equilibrada (Resolve problemas comuns e guia a
+                                conversa)</option>
+                            <option value="proativa">Proativa (Toma iniciativa para resolver problemas e oferecer
+                                soluções)</option>
+                            <option value="independente">Independente (Toma decisões complexas, negocia e improvisa com
+                                alta liberdade)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Objetivo Principal</label>
+                    <input type="text" id="profileObjective"
+                        placeholder="Ex: Qualificar leads e agendar reuniões de briefing">
+                </div>
+                <div class="form-group">
+                    <label>Público-alvo</label>
+                    <input type="text" id="profileAudience" placeholder="Ex: Donos de pequenas e médias empresas">
+                </div>
+                <div class="form-group">
+                    <label>Dados a Coletar (separados por vírgula)</label>
+                    <input type="text" id="profileDataCollect" placeholder="Ex: Nome, E-mail, Empresa, Demanda">
+                </div>
+                <div class="form-group">
+                    <label>Restrições / Temas Proibidos</label>
+                    <textarea id="profileConstraints" rows="2"
+                        placeholder="Ex: Não discutir preços sem confirmar interesse"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Prompt Base do Agente</label>
+                    <textarea id="profilePrompt" rows="6"
+                        placeholder="Deixe em branco para usar o gerador automático, ou cole um prompt aqui..."></textarea>
+                </div>
+                <div class="modal-footer" style="justify-content:space-between;">
+                    <button type="button" id="btnDeleteProfile" class="btn-danger" style="display:none;"
+                        onclick="deleteProfileFromModal()">🗑️ Excluir</button>
+                    <div class="flex" style="gap:0.5rem;">
+                        <button type="button" class="btn-secondary" onclick="closeProfileModal()">Cancelar</button>
+                        <button type="submit" class="btn-primary" id="btnSaveProfile">💾 Salvar Agente</button>
+                    </div>
+                </div>
+            </form>
         </div>
-    </footer>
+    </div>
+
+    <!-- MODAL: WEBHOOK / API -->
+    <div class="modal" id="webhookModal">
+        <div class="modal-content" style="max-width:560px;">
+            <div class="modal-header">
+                <span id="webhookModalIcon">🔔</span>
+                <h2 id="webhookModalTitle">Novo Webhook</h2>
+            </div>
+            <form onsubmit="saveWebhook(event)">
+                <div class="form-group">
+                    <label>Tipo de Integração</label>
+                    <select id="webhookType" onchange="updateWebhookModalType()">
+                        <option value="webhook">🔔 Webhook (Saída — enviar notificações)</option>
+                        <option value="api">🔌 API / Integração (Entrada — documentar origem)</option>
+                    </select>
+                </div>
+                <div id="webhookTypeHint" class="info-banner blue"
+                    style="padding:0.75rem 1rem;font-size:0.82rem;margin-bottom:1rem;"></div>
+                <div class="form-group"><label>Nome *</label><input type="text" id="webhookName" required
+                        placeholder="Ex: Notificação de Lead para CRM"></div>
+                <div class="form-group"><label>URL *</label><input type="url" id="webhookUrl" required
+                        placeholder="https://api.exemplo.com/webhook"></div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Método HTTP</label>
+                        <select id="webhookMethod">
+                            <option value="POST">POST</option>
+                            <option value="GET">GET</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Token Bearer (Autenticação)</label><input type="password"
+                            id="webhookToken" placeholder="Opcional"></div>
+                </div>
+                <div class="form-group"><label>Eventos (separados por vírgula)</label><input type="text"
+                        id="webhookEvents" placeholder="Ex: message.new, meeting.scheduled"></div>
+                <div class="form-group flex-center" style="gap:0.5rem;">
+                    <input type="checkbox" id="webhookActive" checked style="width:auto;">
+                    <label for="webhookActive" style="margin:0;">Ativo</label>
+                </div>
+                <div id="webhookTestResult"
+                    style="display:none;margin-top:0.5rem;padding:0.75rem;border-radius:8px;font-size:0.85rem;"></div>
+                <div class="modal-footer" style="justify-content:space-between;">
+                    <div class="flex" style="gap:0.5rem;">
+                        <button type="button" id="btnDeleteWebhook" class="btn-danger" style="display:none;"
+                            onclick="deleteWebhookFromModal()">🗑️ Excluir</button>
+                        <button type="button" class="btn-secondary" onclick="testCurrentWebhook()"
+                            id="btnTestWebhook">🔌 Testar</button>
+                    </div>
+                    <div class="flex" style="gap:0.5rem;">
+                        <button type="button" class="btn-secondary" onclick="closeWebhookModal()">Cancelar</button>
+                        <button type="submit" class="btn-primary">💾 Salvar</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: CLIENTE -->
+    <div class="modal" id="customerModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Novo Cliente</h2>
+            </div>
+            <form onsubmit="saveCustomer(event)">
+                <div class="form-group"><label>Nome Completo *</label><input type="text" id="customerName" required>
+                </div>
+                <div class="form-group"><label>Telefone (WhatsApp) *</label><input type="tel" id="customerPhone"
+                        required></div>
+                <div class="form-group"><label>Email</label><input type="email" id="customerEmail"></div>
+                <div class="form-group"><label>Empresa</label><input type="text" id="customerCompany"></div>
+                <div class="form-group"><label>Descrição da Demanda</label><textarea id="customerDemand"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="customerStatus">
+                        <option value="em_processo">Em Processo</option>
+                        <option value="briefing">Briefing</option>
+                        <option value="proposal">Proposta</option>
+                        <option value="monthly">Mensal</option>
+                        <option value="completed">Finalizado</option>
+                    </select>
+                </div>
+                <div class="modal-footer" style="justify-content:space-between;">
+                    <button type="button" id="btnDeleteCustomer" class="btn-danger" style="display:none;"
+                        onclick="deleteCustomerFromModal()">🗑️ Excluir</button>
+                    <div class="flex" style="gap:0.5rem;">
+                        <button type="button" class="btn-secondary" onclick="closeCustomerModal()">Cancelar</button>
+                        <button type="submit" class="btn-primary" id="btnSaveCustomer">Salvar</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: REUNIÃO -->
+    <div class="modal" id="meetingModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Agendar Reunião</h2>
+            </div>
+            <form onsubmit="saveMeeting(event)">
+                <div class="form-group"><label>Cliente *</label><select id="meetingCustomer" required>
+                        <option value="">Selecione...</option>
+                    </select></div>
+                <div class="form-group"><label>Tipo *</label>
+                    <select id="meetingType" required>
+                        <option value="briefing">Briefing</option>
+                        <option value="proposal">Proposta</option>
+                        <option value="follow-up">Follow-up</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Data *</label><input type="date" id="meetingDate" required></div>
+                <div class="form-group"><label>Hora *</label><input type="time" id="meetingTime" required></div>
+                <div class="form-group"><label>Notas</label><textarea id="meetingNotes"></textarea></div>
+                <div class="modal-footer" style="justify-content:space-between;">
+                    <button type="button" id="btnDeleteMeeting" class="btn-danger" style="display:none;"
+                        onclick="deleteMeetingFromModal()">🗑️ Excluir</button>
+                    <div class="flex" style="gap:0.5rem;">
+                        <button type="button" class="btn-secondary" onclick="closeMeetingModal()">Cancelar</button>
+                        <button type="submit" class="btn-primary" id="btnSaveMeeting">Agendar</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/main.js?v=3.2"></script>
+    <script src="js/profiles_webhooks.js?v=2.2"></script>
+
+    <!-- MODAL: AUTOMAÇÃO -->
+    <div class="modal" id="automationModal">
+        <div class="modal-content" style="max-width:500px;">
+            <div class="modal-header">
+                <h2>Nova Regra de Automação</h2>
+            </div>
+            <form onsubmit="saveAutomation(event)">
+                <div class="form-group">
+                    <label>Nome da Regra *</label>
+                    <input type="text" id="autoName" required placeholder="Ex: Boas-vindas">
+                </div>
+                <div class="form-group">
+                    <label>Gatilho (Trigger Event) *</label>
+                    <select id="autoTrigger" required>
+                        <option value="customer_added">👥 Cliente Adicionado</option>
+                        <option value="ticket_created">🎫 Ticket Criado</option>
+                        <option value="meeting_scheduled">📅 Reunião Agendada</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Ação (Action) *</label>
+                    <select id="autoAction" required>
+                        <option value="send_email">📧 Enviar E-mail</option>
+                        <option value="send_sms">📱 Enviar SMS (Interno)</option>
+                        <option value="webhook">🔗 Chamar Webhook</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Payload (JSON configuration)</label>
+                    <textarea id="autoPayload" rows="4"
+                        placeholder='{"subject": "Bem-vindo!", "body": "..."}'></textarea>
+                </div>
+                <div class="form-group flex-center" style="gap:0.5rem;">
+                    <input type="checkbox" id="autoActive" checked style="width:auto;">
+                    <label for="autoActive" style="margin:0;">Ativa</label>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeAutomationModal()">Cancelar</button>
+                    <button type="submit" class="btn-primary">Salvar Regra</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </body>
+
+<!-- ═══════════════ SaaS ARCHITECTURE SCRIPTS ═══════════════ -->
+<script>
+    // ── Role-based Nav Reveal ──────────────────────────────────────────────────
+    // Called by the existing auth flow after decoding the JWT/user profile.
+    // Exposes sidebar items based on role and tenant context.
+    function revealSaasNav(user) {
+        const isMaster = user.role === 'owner' && !user.tenant_id;
+        const isOwner = user.role === 'owner' && !!user.tenant_id;
+        const isAdmin = ['owner', 'admin'].includes(user.role);
+
+        // SaaS nav items (visible to all tenant users incl. owner)
+        const showSaas = !isMaster;
+        document.getElementById('saasDivider').style.display = showSaas ? '' : 'none';
+        document.getElementById('saasGroupLabel').style.display = showSaas ? '' : 'none';
+        document.getElementById('navAiConfig').style.display = isOwner ? '' : 'none';
+        document.getElementById('navWorkflow').style.display = isAdmin ? '' : 'none';
+        document.getElementById('navUsage').style.display = showSaas ? '' : 'none';
+
+        // Master Admin nav (only platform-level admins with no tenant)
+        document.getElementById('masterDivider').style.display = isMaster ? '' : 'none';
+        document.getElementById('masterGroupLabel').style.display = isMaster ? '' : 'none';
+        document.getElementById('navMaster').style.display = isMaster ? '' : 'none';
+
+        // Check MFA status for AI config warning
+        if (showSaas) checkMFAWarning(user);
+    }
+
+    function checkMFAWarning(user) {
+        const banner = document.getElementById('mfaWarning');
+        if (banner) {
+            banner.style.display = user.mfa_enabled ? 'none' : 'flex';
+        }
+    }
+
+    // Hook into the existing onLoad / auth flow — look for where 'userRoleDisplay' is set
+    // and call revealSaasNav(userData) there. As a fallback, we poll for it:
+    (function pollForUser() {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            // Build minimal user object from JWT claims
+            const user = {
+                role: payload.role || payload.sub_role || 'viewer',
+                tenant_id: payload.tenant_id || null,
+                mfa_enabled: payload.mfa_enabled || false,
+            };
+            revealSaasNav(user);
+        } catch (e) {
+            // JWT decode failed — wait for the existing loadUserInfo to populate userRoleDisplay
+            const observer = new MutationObserver(() => {
+                const roleEl = document.getElementById('userRoleDisplay');
+                if (roleEl && roleEl.textContent !== '...') {
+                    observer.disconnect();
+                    // Re-read from API
+                    fetch('/api/v1/auth/me', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+                        .then(r => r.json())
+                        .then(u => revealSaasNav(u))
+                        .catch(() => { });
+                }
+            });
+            observer.observe(document.getElementById('userRoleDisplay'), { childList: true, characterData: true, subtree: true });
+        }
+    })();
+
+    // ── Lazy section loaders ───────────────────────────────────────────────────
+    // Hook into the existing nav click handler to trigger data loads
+    const _origNavClick = window.__navClick;  // preserve if exists
+    document.querySelectorAll('.nav-item[data-target]').forEach(el => {
+        el.addEventListener('click', () => {
+            const target = el.getAttribute('data-target');
+            if (target === 'ai-config') loadAIConfigs();
+            if (target === 'workflow') loadWorkflow();
+            if (target === 'usage') loadUsage();
+            if (target === 'master-admin') loadMasterAdmin();
+        });
+    });
+
+    // ── Common helpers ─────────────────────────────────────────────────────────
+    function authHeader() {
+        return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` };
+    }
+    async function apiFetch(path, opts = {}) {
+        opts.headers = { ...authHeader(), ...(opts.headers || {}) };
+        const r = await fetch('/api/v1' + path, opts);
+        if (!r.ok) throw new Error(`API ${r.status}: ${await r.text()}`);
+        return r.json();
+    }
+    function fmt(n) { return Number(n).toLocaleString('pt-BR'); }
+
+    // ── AI CONFIG ──────────────────────────────────────────────────────────────
+    let _aiConfigModalMode = 'create', _aiConfigEditId = null;
+
+    async function loadAIConfigs() {
+        try {
+            const configs = await apiFetch('/ai-config');
+            const list = document.getElementById('aiConfigList');
+            const empty = document.getElementById('aiConfigEmpty');
+            list.innerHTML = '';
+            if (!configs.length) { empty.style.display = 'block'; list.style.display = 'none'; return; }
+            empty.style.display = 'none'; list.style.display = 'grid';
+            configs.forEach(c => {
+                list.innerHTML += `
+            <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+                <div style="display:flex;align-items:center;gap:1rem;">
+                    <div style="font-size:2rem;">${providerIcon(c.provider)}</div>
+                    <div>
+                        <div style="font-weight:700;">${c.provider.toUpperCase()} — ${c.model_name}</div>
+                        <div style="font-size:0.82rem;color:#6b7280;">Chave: <code>${c.masked_key}</code> ${c.base_url ? '· ' + c.base_url : ''}</div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:0.5rem;align-items:center;">
+                    <span style="background:${c.is_active ? '#dcfce7' : '#fee2e2'};color:${c.is_active ? '#166534' : '#991b1b'};
+                        padding:2px 10px;border-radius:99px;font-size:0.78rem;">${c.is_active ? 'Ativo' : 'Inativo'}</span>
+                    <button onclick="editAIConfig(${c.id})" class="btn-secondary btn-sm">✏️ Editar</button>
+                    <button onclick="deleteAIConfig(${c.id})" class="btn-danger btn-sm">🗑️</button>
+                </div>
+            </div>`;
+            });
+        } catch (e) { console.error('loadAIConfigs', e); showAlert('Erro ao carregar configurações de IA', 'error'); }
+    }
+
+    function providerIcon(p) {
+        return { openai: '🟢', anthropic: '🟣', groq: '🔵', google: '🔴', mistral: '🟡', custom: '⚙️' }[p] || '🤖';
+    }
+
+    function openAIConfigModal(prefill = {}) {
+        const providers = ['openai', 'anthropic', 'groq', 'google', 'mistral', 'custom'];
+        const models = {
+            openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+            anthropic: ['claude-3-5-sonnet-20241022', 'claude-3-opus-20240229', 'claude-3-haiku-20240307'],
+            groq: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'],
+            google: ['gemini-1.5-flash', 'gemini-1.5-pro'],
+            mistral: ['mistral-large-latest', 'mistral-small-latest'],
+            custom: ['custom-model'],
+        };
+        const modal = document.createElement('div');
+        modal.className = 'modal'; modal.style.display = 'flex'; modal.id = 'aiConfigModal';
+        modal.innerHTML = `<div class="modal-content" style="max-width:500px;">
+        <div class="modal-header"><h2>🔐 Provedor de IA</h2></div>
+        <form onsubmit="saveAIConfig(event)">
+            <div class="form-group"><label>Provedor *</label>
+                <select id="aiProvider" onchange="updateModelList()" required>
+                    ${providers.map(p => `<option value="${p}" ${prefill.provider === p ? 'selected' : ''}>${p.toUpperCase()}</option>`).join('')}
+                </select></div>
+            <div class="form-group"><label>Modelo *</label>
+                <select id="aiModel" required>${(models[prefill.provider || 'openai'] || []).map(m => `<option value="${m}" ${prefill.model_name === m ? 'selected' : ''}>${m}</option>`).join('')}</select></div>
+            <div class="form-group"><label>Chave de API *<span style="font-size:0.75rem;color:#6b7280;margin-left:0.5rem;">Nunca será exibida após salvar</span></label>
+                <input type="password" id="aiKey" placeholder="sk-..." required autocomplete="off"></div>
+            <div class="form-group"><label>URL Base (opcional)</label>
+                <input type="url" id="aiBaseUrl" placeholder="https://api.openai.com/v1" value="${prefill.base_url || ''}"></div>
+            <div class="modal-footer"><button type="button" class="btn-secondary" onclick="document.getElementById('aiConfigModal').remove()">Cancelar</button>
+                <button type="submit" class="btn-primary">💾 Salvar Chave</button></div>
+        </form></div>`;
+        document.body.appendChild(modal);
+        window._aiModelMap = models;
+    }
+
+    function updateModelList() {
+        const prov = document.getElementById('aiProvider').value;
+        const opts = (window._aiModelMap || {})[prov] || ['custom-model'];
+        document.getElementById('aiModel').innerHTML = opts.map(m => `<option value="${m}">${m}</option>`).join('');
+    }
+
+    async function saveAIConfig(e) {
+        e.preventDefault();
+        try {
+            const body = {
+                provider: document.getElementById('aiProvider').value,
+                model_name: document.getElementById('aiModel').value,
+                api_key: document.getElementById('aiKey').value,
+                base_url: document.getElementById('aiBaseUrl').value || null,
+            };
+            await apiFetch('/ai-config', { method: 'POST', body: JSON.stringify(body) });
+            document.getElementById('aiConfigModal').remove();
+            showAlert('✅ Provedor de IA configurado com sucesso!', 'success');
+            loadAIConfigs();
+        } catch (e) { showAlert('Erro ao salvar: ' + e.message, 'error'); }
+    }
+
+    async function deleteAIConfig(id) {
+        if (!confirm('Remover esta configuração de IA?')) return;
+        try {
+            await fetch('/api/v1/ai-config/' + id, { method: 'DELETE', headers: authHeader() });
+            showAlert('Configuração removida.', 'success');
+            loadAIConfigs();
+        } catch (e) { showAlert('Erro: ' + e.message, 'error'); }
+    }
+
+    function editAIConfig(id) { /* Future: patch endpoint */ showAlert('Edição disponível em breve.', 'info'); }
+
+    // ── WORKFLOW EDITOR ────────────────────────────────────────────────────────
+    async function loadWorkflow() {
+        try {
+            const stages = await apiFetch('/workflow');
+            const list = document.getElementById('workflowList');
+            const empty = document.getElementById('workflowEmpty');
+            list.innerHTML = '';
+            if (!stages.length) { empty.style.display = 'block'; return; }
+            empty.style.display = 'none';
+            stages.forEach((s, i) => {
+                list.innerHTML += `
+            <div style="background:white;border:1px solid #e5e7eb;border-radius:10px;padding:1rem 1.25rem;
+                display:flex;align-items:center;gap:1rem;cursor:grab;" draggable="true">
+                <span style="font-size:1.25rem;color:#9ca3af;">⠿</span>
+                <div style="background:#6366f1;color:white;width:28px;height:28px;border-radius:50%;display:flex;
+                    align-items:center;justify-content:center;font-size:0.85rem;font-weight:700;">${s.stage_order + 1}</div>
+                <div style="flex:1;">
+                    <div style="font-weight:700;">${s.stage_name}</div>
+                    ${s.description ? `<div style="font-size:0.82rem;color:#6b7280;">${s.description}</div>` : ''}
+                </div>
+                <div style="display:flex;gap:0.5rem;">
+                    <span style="background:${s.is_active ? '#dcfce7' : '#f3f4f6'};color:${s.is_active ? '#166534' : '#6b7280'};
+                        padding:2px 10px;border-radius:99px;font-size:0.78rem;">${s.is_active ? '✓ Ativa' : 'Inativa'}</span>
+                    <button onclick="deleteWorkflowStage(${s.id})" class="btn-danger btn-sm">🗑️</button>
+                </div>
+            </div>`;
+            });
+        } catch (e) { console.error('loadWorkflow', e); }
+    }
+
+    function openWorkflowModal() {
+        const modal = document.createElement('div');
+        modal.className = 'modal'; modal.style.display = 'flex'; modal.id = 'wfModal';
+        modal.innerHTML = `<div class="modal-content" style="max-width:480px;">
+        <div class="modal-header"><h2>🔄 Nova Etapa do Funil</h2></div>
+        <form onsubmit="saveWorkflowStage(event)">
+            <div class="form-group"><label>Nome da Etapa *</label><input type="text" id="wfName" required placeholder="Ex: Qualificação"></div>
+            <div class="form-group"><label>Ordem</label><input type="number" id="wfOrder" min="0" value="0"></div>
+            <div class="form-group"><label>Descrição (para o agente)</label>
+                <textarea id="wfDesc" rows="3" placeholder="Ex: Confirmar interesse e entender a dor do cliente"></textarea></div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="document.getElementById('wfModal').remove()">Cancelar</button>
+                <button type="submit" class="btn-primary">💾 Salvar Etapa</button>
+            </div>
+        </form></div>`;
+        document.body.appendChild(modal);
+    }
+
+    async function saveWorkflowStage(e) {
+        e.preventDefault();
+        try {
+            await apiFetch('/workflow', {
+                method: 'POST', body: JSON.stringify({
+                    stage_name: document.getElementById('wfName').value,
+                    stage_order: parseInt(document.getElementById('wfOrder').value) || 0,
+                    description: document.getElementById('wfDesc').value || null,
+                })
+            });
+            document.getElementById('wfModal').remove();
+            showAlert('✅ Etapa criada!', 'success');
+            loadWorkflow();
+        } catch (e) { showAlert('Erro: ' + e.message, 'error'); }
+    }
+
+    async function deleteWorkflowStage(id) {
+        if (!confirm('Remover esta etapa?')) return;
+        try {
+            await fetch('/api/v1/workflow/' + id, { method: 'DELETE', headers: authHeader() });
+            showAlert('Etapa removida.', 'success'); loadWorkflow();
+        } catch (e) { showAlert('Erro: ' + e.message, 'error'); }
+    }
+
+    async function createDefaultWorkflow() {
+        const defaults = [
+            { stage_name: 'Lead', stage_order: 0, description: 'Primeiro contato — coletar nome e interesse.' },
+            { stage_name: 'Qualificação', stage_order: 1, description: 'Entender a dor e o orçamento do lead.' },
+            { stage_name: 'Proposta', stage_order: 2, description: 'Apresentar solução e valor.' },
+            { stage_name: 'Negociação', stage_order: 3, description: 'Contornar objeções e acertar condições.' },
+            { stage_name: 'Fechamento', stage_order: 4, description: 'Confirmar compra e onboarding.' },
+        ];
+        try {
+            for (const s of defaults) { await apiFetch('/workflow', { method: 'POST', body: JSON.stringify(s) }); }
+            showAlert('🚀 Funil padrão criado!', 'success'); loadWorkflow();
+        } catch (e) { showAlert('Erro: ' + e.message, 'error'); }
+    }
+
+    // ── USAGE & BILLING ────────────────────────────────────────────────────────
+    let _usageChart = null;
+
+    async function loadUsage() {
+        try {
+            const [kpi, daily] = await Promise.all([
+                apiFetch('/billing/kpis?days=30'),
+                apiFetch('/usage/daily?days=30'),
+            ]);
+            document.getElementById('kpiMessages').textContent = fmt(kpi.total_messages);
+            document.getElementById('kpiConversations').textContent = fmt(kpi.total_conversations);
+            document.getElementById('kpiTokens').textContent = fmt(kpi.total_tokens);
+            document.getElementById('kpiCost').textContent = 'USD $' + kpi.total_cost_usd.toFixed(4);
+            document.getElementById('kpiMonthlyProjection').textContent = 'USD $' + kpi.projected_monthly_cost_usd.toFixed(4);
+
+            // Daily chart
+            const ctx = document.getElementById('usageChart');
+            if (!ctx) return;
+            if (_usageChart) _usageChart.destroy();
+            if (typeof Chart === 'undefined') return; // Chart.js not loaded
+            _usageChart = new Chart(ctx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: daily.map(d => d.date.slice(5)), // MM-DD
+                    datasets: [{
+                        label: 'Tokens',
+                        data: daily.map(d => d.tokens),
+                        backgroundColor: 'rgba(99,102,241,0.7)',
+                        borderRadius: 4,
+                    }],
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } },
+            });
+        } catch (e) {
+            // New installation — no usage yet, show zeros gracefully
+            ['kpiMessages', 'kpiConversations', 'kpiTokens'].forEach(id => document.getElementById(id).textContent = '0');
+            document.getElementById('kpiCost').textContent = 'USD $0.00';
+            document.getElementById('kpiMonthlyProjection').textContent = 'USD $0.00';
+        }
+    }
+
+    // ── MASTER ADMIN ───────────────────────────────────────────────────────────
+    let _masterRankChart = null;
+
+    async function loadMasterAdmin() {
+        try {
+            const [kpis, tenants, churn] = await Promise.all([
+                apiFetch('/master/kpis'),
+                apiFetch('/master/tenants'),
+                apiFetch('/master/churn-alerts'),
+            ]);
+            document.getElementById('masterTotalTenants').textContent = kpis.total_tenants;
+            document.getElementById('masterActiveTenants').textContent = kpis.active_tenants;
+            document.getElementById('masterInteractions').textContent = fmt(kpis.total_interactions_30d);
+            document.getElementById('masterChurnAlerts').textContent = kpis.churn_alert_count;
+
+            // Ranking chart
+            const topN = tenants.slice().sort((a, b) => b.tokens_30d - a.tokens_30d).slice(0, 10);
+            const ctx = document.getElementById('masterRankingChart');
+            if (ctx && typeof Chart !== 'undefined') {
+                if (_masterRankChart) _masterRankChart.destroy();
+                _masterRankChart = new Chart(ctx.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: topN.map(t => t.name),
+                        datasets: [{
+                            label: 'Tokens (30d)', data: topN.map(t => t.tokens_30d),
+                            backgroundColor: 'rgba(99,102,241,0.75)', borderRadius: 5
+                        }],
+                    },
+                    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } },
+                });
+            }
+
+            // Churn alerts
+            const churnList = document.getElementById('masterChurnList');
+            churnList.innerHTML = churn.length ? churn.map(c => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:0.75rem 0;
+                border-bottom:1px solid #f3f4f6;">
+                <div><strong>Tenant #${c.tenant_id}</strong>
+                    <span style="font-size:0.8rem;color:#6b7280;margin-left:0.5rem;">
+                        ${c.last_week_interactions} → ${c.this_week_interactions} interações</span></div>
+                <span style="background:#fee2e2;color:#991b1b;padding:2px 10px;border-radius:99px;
+                    font-size:0.82rem;font-weight:700;">-${c.drop_percent}%</span>
+            </div>`).join('') :
+                '<p style="text-align:center;color:#6b7280;padding:2rem;">✅ Nenhum alerta de churn esta semana!</p>';
+
+            // Tenants table
+            const tbody = document.getElementById('masterTenantsBody');
+            tbody.innerHTML = tenants.map(t => `
+            <tr>
+                <td>${t.id}</td>
+                <td><strong>${t.name}</strong></td>
+                <td>${t.subdomain || '—'}</td>
+                <td><span style="background:${t.is_active ? '#dcfce7' : '#fee2e2'};color:${t.is_active ? '#166534' : '#991b1b'};
+                    padding:2px 8px;border-radius:99px;font-size:0.78rem;">${t.is_active ? 'Ativo' : 'Inativo'}</span></td>
+                <td>${fmt(t.interactions_30d)}</td>
+                <td>${fmt(t.tokens_30d)}</td>
+                <td>$${t.cost_usd_30d.toFixed(4)}</td>
+                <td style="font-size:0.8rem;">${t.last_active ? t.last_active.slice(0, 16) : '—'}</td>
+            </tr>`).join('');
+        } catch (e) {
+            console.error('loadMasterAdmin', e);
+            if (e.message.includes('403')) {
+                showAlert('⛔ Acesso negado — apenas Master Admin pode visualizar este painel.', 'error');
+            }
+        }
+    }
+
+    // ── Channel Status (Canais section) ─────────────────────────────
+    async function checkWhatsAppStatus() {
+        const statusEl = document.getElementById('waStatus');
+        try {
+            const r = await authFetch('/api/v1/webhooks/evolution/status');
+            if (r && r.ok) {
+                const d = await r.json();
+                if (statusEl) statusEl.innerHTML = '<span style="color:#10b981;">&#x2713; Conectado</span>';
+                const setText = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+                setText('waInstance', d.instance || '—');
+                setText('waNumber', d.number || '—');
+                setText('waUptime', d.uptime || '—');
+                setText('waMsgsToday', d.msgs_today || '—');
+            } else {
+                if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">&#x2717; Desconectado</span>';
+            }
+        } catch (e) {
+            if (statusEl) statusEl.innerHTML = '<span style="color:#f59e0b;">API indispon&#237;vel</span>';
+        }
+    }
+
+    async function checkTelegramStatus() {
+        const statusEl = document.getElementById('tgStatus');
+        try {
+            const r = await authFetch('/api/webhooks/telegram/status');
+            if (r && r.ok) {
+                const d = await r.json();
+                if (statusEl) statusEl.innerHTML = '<span style="color:#10b981;">&#x2713; Ativo</span>';
+                const setText = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+                setText('tgBotName', d.bot_name || '—');
+                setText('tgUsername', d.username || '—');
+                setText('tgChatId', d.chat_id || '—');
+                setText('tgUpdates', d.update_count || '—');
+            } else {
+                if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">&#x2717; Inativo</span>';
+            }
+        } catch (e) {
+            if (statusEl) statusEl.innerHTML = '<span style="color:#f59e0b;">API indispon&#237;vel</span>';
+        }
+    }
+
+    async function loadChannelMetrics() {
+        try {
+            const r = await authFetch('/api/analytics/dashboard');
+            if (!r || !r.ok) return;
+            const d = await r.json();
+            if (d.performance) {
+                const setText = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+                setText('metricTMA', d.performance.avg_response_time || d.performance.tma || '—');
+                setText('metricCSAT', d.performance.csat || '—');
+                setText('metricScheduled', d.performance.scheduled_meetings_30d || d.business?.new_leads_30d || '—');
+                setText('metricConversions', d.business?.funnel_conversions || '—');
+            }
+        } catch (e) { console.error('loadChannelMetrics', e); }
+    }
+
+
+    // Patch canais nav item to load metrics
+    document.addEventListener('DOMContentLoaded', () => {
+        const canaisItem = document.querySelector('[data-target="canais"]');
+        if (canaisItem) {
+            canaisItem.addEventListener('click', () => {
+                checkWhatsAppStatus();
+                checkTelegramStatus();
+                loadChannelMetrics();
+            });
+        }
+    });
+
+</script>
 
 </html>
