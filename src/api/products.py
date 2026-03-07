@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
 from typing import List, Optional
 from pydantic import BaseModel
-from src.models.database import get_session
+from src.models.database import get_db  # ✅ FIXED: was get_session
 from src.models.product import Product
 from src.middleware.auth import require_auth
 from src.utils.logger import setup_logger
@@ -48,7 +48,7 @@ class ProductUpdate(BaseModel):
 
 @router.get("/")
 async def list_products(
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_db),  # ✅ FIXED
     user = Depends(require_auth),
     category: Optional[str] = None,
     search: Optional[str] = None,
@@ -121,7 +121,7 @@ async def list_products(
 
 @router.get("/categories")
 async def list_categories(
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_db),  # ✅ FIXED
     user = Depends(require_auth)
 ):
     """Get list of all product categories."""
@@ -149,7 +149,7 @@ async def list_categories(
 @router.get("/{product_id}")
 async def get_product(
     product_id: int,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_db),  # ✅ FIXED
     user = Depends(require_auth)
 ):
     """Get a specific product by ID."""
@@ -198,7 +198,7 @@ async def get_product(
 @router.post("/")
 async def create_product(
     product: ProductCreate,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_db),  # ✅ FIXED
     user = Depends(require_auth)
 ):
     """Create a new product."""
@@ -242,7 +242,7 @@ async def create_product(
 async def update_product(
     product_id: int,
     product: ProductUpdate,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_db),  # ✅ FIXED
     user = Depends(require_auth)
 ):
     """Update an existing product."""
@@ -279,7 +279,7 @@ async def update_product(
 @router.delete("/{product_id}")
 async def delete_product(
     product_id: int,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_db),  # ✅ FIXED
     user = Depends(require_auth)
 ):
     """Delete a product (soft delete by setting is_active=False)."""
@@ -313,7 +313,7 @@ async def delete_product(
 @router.post("/import")
 async def import_products_csv(
     file: UploadFile = File(...),
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_db),  # ✅ FIXED
     user = Depends(require_auth)
 ):
     """Import products from CSV file.
