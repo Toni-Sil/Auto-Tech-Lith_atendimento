@@ -118,6 +118,7 @@ from src.api.leads import leads_router
 from src.api.tenant_quota import quota_router
 from src.api.webhooks import webhooks_router
 from src.api.butler import butler_router
+from src.api.products import router as products_router
 
 from src.api.metrics import metrics_router
 
@@ -141,6 +142,7 @@ app.include_router(leads_router,  prefix=f"{settings.API_V1_STR}/master", tags=[
 app.include_router(quota_router,  prefix=f"{settings.API_V1_STR}/master", tags=["master-quotas"])
 app.include_router(butler_router,  prefix=f"{settings.API_V1_STR}/master", tags=["butler-agent"])
 app.include_router(webhooks_router, prefix=f"{settings.API_V1_STR}/webhooks", tags=["webhooks"])
+app.include_router(products_router, tags=["products"])  # Products API
 app.include_router(metrics_router, prefix=f"{settings.API_V1_STR}", tags=["observability"])
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
@@ -259,6 +261,7 @@ async def startup_event():
     import src.models.webhook_config
     import src.models.whatsapp
     import src.models.config_model
+    import src.models.product  # ✅ NEW: Product model
 
     engine = create_async_engine(settings.DATABASE_URL)
     async with engine.begin() as conn:
@@ -326,6 +329,7 @@ async def startup_event():
     logger.info("Startup: Butler Agent scheduler started with 5 background jobs.")
     logger.info("Startup: SaaS multi-tenant architecture routes active.")
     logger.info("✅ Landing page: / (home.html) | Admin: /admin or /dashboard (index.html)")
+    logger.info("✅ Products API: /api/products (CRUD for products/plans)")
 
 if __name__ == "__main__":
     import uvicorn
