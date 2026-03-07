@@ -33,3 +33,4 @@ class Tenant(Base):
     automation_rules = relationship("AutomationRule", back_populates="tenant", cascade="all, delete-orphan")
     meetings = relationship("Meeting", back_populates="tenant", cascade="all, delete-orphan")
     conversations = relationship("Conversation", back_populates="tenant", cascade="all, delete-orphan")
+    products = relationship("Product", back_populates="tenant", cascade="all, delete-orphan")
