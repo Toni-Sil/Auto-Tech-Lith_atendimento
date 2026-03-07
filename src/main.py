@@ -179,7 +179,8 @@ if os.path.exists(frontend_path):
             logger.info(f"✅ Mounted /{folder} from {folder_path}")
 
     # Standard /static mount for assets/uploads
-    app.mount("/static", StaticFiles(directory=frontend_path), name="static")
+    app.mount("/login.html", StaticFiles(directory="frontend/dist"), name="static")
+    app.mount("/static", StaticFiles(directory=frontend_path), name="static_old")
     
     # Serve favicon explicitly
     from fastapi.responses import FileResponse
