@@ -179,7 +179,6 @@ if os.path.exists(frontend_path):
             logger.info(f"✅ Mounted /{folder} from {folder_path}")
 
     # Standard /static mount for assets/uploads
-    app.mount("/login.html", StaticFiles(directory="frontend/dist"), name="static")
     app.mount("/static", StaticFiles(directory=frontend_path), name="static_old")
     
     # Serve favicon explicitly
@@ -190,6 +189,11 @@ if os.path.exists(frontend_path):
         if os.path.exists(favicon_path):
             return FileResponse(favicon_path)
         return FileResponse(os.path.join(frontend_path, "index.html"))
+
+    @app.get("/login.html", include_in_schema=False)
+    async def login_html_page():
+        """Serve login.html explicitly to fix 400 error on autotechlith.com/login.html"""
+        return FileResponse(os.path.join(frontend_path, "login.html"))
 
     @app.get("/login", include_in_schema=False)
     async def login_page():
