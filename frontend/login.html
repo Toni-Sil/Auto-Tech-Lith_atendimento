@@ -378,7 +378,7 @@
 
                 // ── RBAC Portal Routing ──────────────────────────────────
                 // Decode JWT to determine which portal to show
-                let targetPortal = '/';  // default: lojista
+                let targetPortal = '/admin';  // ✅ FIXED: default tenant admin goes to /admin
                 try {
                     const tokenParts = data.access_token.split('.');
                     // Base64URL decode: replace chars and add padding if needed
@@ -398,7 +398,7 @@
                     } else if (isTenant) {
                         targetPortal = '/client.html';
                     } else {
-                        targetPortal = '/'; // admin de tenant → index.html
+                        targetPortal = '/admin'; // ✅ FIXED: tenant admin → /admin (not /)
                     }
 
                     // Show redirect badge
@@ -416,8 +416,11 @@
 
                 } catch (e) {
                     console.error('JWT Decode Error:', e);
-                    // JWT decode failed — go to lojista by default
+                    // JWT decode failed — go to admin by default
+                    targetPortal = '/admin';
                 }
+
+                console.log('Redirecting to:', targetPortal); // ✅ Debug log
 
                 // Short delay to show badge, then redirect
                 setTimeout(() => { window.location.href = targetPortal; }, 800);
