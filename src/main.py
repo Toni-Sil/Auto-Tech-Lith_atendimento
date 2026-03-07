@@ -183,8 +183,12 @@ if os.path.exists(frontend_path):
     # Standard /static mount for assets/uploads
     app.mount("/static", StaticFiles(directory=frontend_path), name="static_old")
     
+    # ═══════════════════════════════════════════════════════════════════
+    # ⚠️ CRITICAL: Explicit routes MUST be defined BEFORE app.mount("/", ...)
+    # Otherwise StaticFiles catches all requests and returns 404
+    # ═══════════════════════════════════════════════════════════════════
+    
     # Serve favicon explicitly
-    from fastapi.responses import FileResponse
     @app.get("/favicon.ico", include_in_schema=False)
     async def favicon():
         favicon_path = os.path.join(frontend_path, "favicon.ico")
@@ -192,15 +196,22 @@ if os.path.exists(frontend_path):
             return FileResponse(favicon_path)
         return FileResponse(os.path.join(frontend_path, "home.html"))
 
-    # ─── Landing Page (Public) ───
-    @app.get("/", include_in_schema=False)  
-    async def landing_page():
-        """Serve home.html as the public landing page"""
-        home_path = os.path.join(frontend_path, "home.html")
-        if os.path.exists(home_path):
-            return FileResponse(home_path)
-        # Fallback to index.html if home.html doesn't exist (backward compatibility)
-        return FileResponse(os.path.join(frontend_path, "index.html"))
+    # ─── Login Page ───
+    @app.get("/login.html", include_in_schema=False)
+    async def login_html_page():
+        """Serve login.html explicitly"""
+        login_path = os.path.join(frontend_path, "login.html")
+        if os.path.exists(login_path):
+            return FileResponse(login_path)
+        raise HTTPException(status_code=404, detail="Login page not found")
+
+    @app.get("/login", include_in_schema=False)
+    async def login_page():
+        """Alias for login.html"""
+        login_path = os.path.join(frontend_path, "login.html")
+        if os.path.exists(login_path):
+            return FileResponse(login_path)
+        raise HTTPException(status_code=404, detail="Login page not found")
 
     # ─── Admin Dashboard (Protected) ───
     @app.get("/admin", include_in_schema=False)
@@ -213,16 +224,37 @@ if os.path.exists(frontend_path):
         """Alias for /admin"""
         return FileResponse(os.path.join(frontend_path, "index.html"))
 
-    # ─── Login Page ───
-    @app.get("/login.html", include_in_schema=False)
-    async def login_html_page():
-        """Serve login.html explicitly to fix 400 error on autotechlith.com/login.html"""
-        return FileResponse(os.path.join(frontend_path, "login.html"))
+    # ─── Master Admin Portal ───
+    @app.get("/master.html", include_in_schema=False)
+    async def master_portal():
+        """Serve master.html explicitly"""
+        master_path = os.path.join(frontend_path, "master.html")
+        if os.path.exists(master_path):
+            return FileResponse(master_path)
+        raise HTTPException(status_code=404, detail="Master portal not found")
 
-    @app.get("/login", include_in_schema=False)
-    async def login_page():
-        return FileResponse(os.path.join(frontend_path, "login.html"))
+    # ─── Client Portal ───
+    @app.get("/client.html", include_in_schema=False)
+    async def client_portal():
+        """Serve client.html explicitly"""
+        client_path = os.path.join(frontend_path, "client.html")
+        if os.path.exists(client_path):
+            return FileResponse(client_path)
+        raise HTTPException(status_code=404, detail="Client portal not found")
 
+    # ─── Landing Page (Public) ───
+    @app.get("/", include_in_schema=False)  
+    async def landing_page():
+        """Serve home.html as the public landing page"""
+        home_path = os.path.join(frontend_path, "home.html")
+        if os.path.exists(home_path):
+            return FileResponse(home_path)
+        # Fallback to index.html if home.html doesn't exist (backward compatibility)
+        return FileResponse(os.path.join(frontend_path, "index.html"))
+
+    # ═══════════════════════════════════════════════════════════════════
+    # ⚠️ Mount root LAST - it should only catch routes not defined above
+    # ═══════════════════════════════════════════════════════════════════
     # Mount root for HTML files only (or as final fallback)
     app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 else:
@@ -329,6 +361,7 @@ async def startup_event():
     logger.info("Startup: Butler Agent scheduler started with 5 background jobs.")
     logger.info("Startup: SaaS multi-tenant architecture routes active.")
     logger.info("✅ Landing page: / (home.html) | Admin: /admin or /dashboard (index.html)")
+    logger.info("✅ Login: /login or /login.html")
     logger.info("✅ Products API: /api/products (CRUD for products/plans)")
 
 if __name__ == "__main__":
