@@ -40,6 +40,10 @@ services:
   backend:
     build: .
     restart: always
+    # ✅ FIXED: Use expose instead of ports for Dokploy compatibility
+    # Ref: https://docs.dokploy.com/docs/core/troubleshooting#docker-compose-domain-not-working
+    expose:
+      - 8000
     environment:
       - ENV=production
       - APP_DEBUG=False
@@ -68,7 +72,6 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      # ✅ FIXED: Use curl (installed in Dockerfile)
       test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
       interval: 30s
       timeout: 10s
@@ -80,9 +83,6 @@ services:
     networks:
       - auto_tech_network
       - dokploy-network
-    # ⚠️ REMOVED: Traefik labels managed by Dokploy automatically
-    # Manual labels cause router conflicts ("cannot be linked automatically with multiple Services")
-    # Configure domains in Dokploy Dashboard instead
 
   # ─── pgAdmin (Gerenciador visual do banco) ────────────────────────────────────
   pgadmin:
@@ -127,6 +127,9 @@ services:
   evolution-api:
     image: evoapicloud/evolution-api:v2.3.7
     restart: always
+    # ✅ FIXED: Use expose instead of ports for Dokploy
+    expose:
+      - 8080
     environment:
       - SERVER_URL=${EVOLUTION_SERVER_URL:-https://evolution.autotechlith.com}
       - AUTHENTICATION_TYPE=apikey
@@ -163,8 +166,6 @@ services:
     networks:
       - auto_tech_network
       - dokploy-network
-    # ⚠️ REMOVED: Traefik labels managed by Dokploy automatically
-    # Configure domains in Dokploy Dashboard instead
 
 volumes:
   backend_logs:
