@@ -124,6 +124,9 @@
                     <a class="nav-item" data-target="configuracao" tabindex="0">
                         <span class="nav-icon" aria-hidden="true">⚙️</span> Configuração
                     </a>
+                    <a class="nav-item" data-target="system-config" tabindex="0">
+                        <span class="nav-icon" aria-hidden="true">🔧</span> Configuração do Sistema
+                    </a>
                 </div>
             </div>
         </nav>
@@ -415,7 +418,6 @@
                     </div>
                 </div>
 
-                <!-- SLA summary -->
                 <div class="grid-3 mb-3">
                     <div class="stat-card green">
                         <h3>Resolvidos</h3>
@@ -553,7 +555,6 @@
                 </div>
 
                 <div class="infra-grid" id="infraGrid">
-                    <!-- Filled by JS -->
                     <div class="infra-card"
                         style="grid-column:1/-1;text-align:center;padding:2rem;color:var(--text-muted);">Carregando...
                     </div>
@@ -568,13 +569,10 @@
                 </div>
                 <div class="card">
                     <div class="card-body" style="padding:0;">
-                        <div class="kb-accordion" id="kbList">
-                            <!-- Filled by JS -->
-                        </div>
+                        <div class="kb-accordion" id="kbList"></div>
                     </div>
                 </div>
             </section>
-
 
             <!-- ─────────── IA INTERNA ──────────────────────────── -->
             <section id="internal-ai" class="view-section">
@@ -588,9 +586,7 @@
                 </div>
                 <div class="ai-config-panel">
                     <div class="card">
-                        <div class="card-header">
-                            <h3>⚙️ Configurações do Agente</h3>
-                        </div>
+                        <div class="card-header"><h3>⚙️ Configurações do Agente</h3></div>
                         <div class="card-body">
                             <div class="form-group">
                                 <label>Prompt Base do Sistema</label>
@@ -604,12 +600,8 @@
                         <div class="ai-name-display" id="aiPreviewName">Max</div>
                         <div class="ai-tone-display" id="aiPreviewTone">Tom: Profissional</div>
                         <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid rgba(255,255,255,0.1)">
-                            <div
-                                style="font-size:0.72rem;color:#a5b4fc;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.75rem">
-                                Preview — Persona</div>
-                            <div id="aiPreviewPersona"
-                                style="font-size:0.82rem;color:var(--text-secondary);line-height:1.6">Preencha os campos
-                                ao lado...</div>
+                            <div style="font-size:0.72rem;color:#a5b4fc;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.75rem">Preview — Persona</div>
+                            <div id="aiPreviewPersona" style="font-size:0.82rem;color:var(--text-secondary);line-height:1.6">Preencha os campos ao lado...</div>
                         </div>
                         <div style="margin-top:1.25rem;display:flex;gap:0.5rem;flex-wrap:wrap">
                             <span class="badge active">🔒 Tenant Interno</span>
@@ -637,81 +629,31 @@
                     </div>
                 </div>
                 <div id="leadsKanban" class="kanban-board">
-                    <div class="kanban-col col-contact">
-                        <div class="kanban-col-header">📞 Contato<span class="nav-badge" id="cCont">0</span></div>
-                        <div class="kanban-col-body" id="colContact"></div>
-                    </div>
-                    <div class="kanban-col col-briefing">
-                        <div class="kanban-col-header">📝 Briefing<span class="nav-badge" id="cBrief">0</span></div>
-                        <div class="kanban-col-body" id="colBriefing"></div>
-                    </div>
-                    <div class="kanban-col col-proposal">
-                        <div class="kanban-col-header">📄 Proposta<span class="nav-badge" id="cProp">0</span></div>
-                        <div class="kanban-col-body" id="colProposal"></div>
-                    </div>
-                    <div class="kanban-col col-nego">
-                        <div class="kanban-col-header">🤝 Negociação<span class="nav-badge" id="cNego">0</span></div>
-                        <div class="kanban-col-body" id="colNego"></div>
-                    </div>
-                    <div class="kanban-col col-won">
-                        <div class="kanban-col-header">✅ Ganho<span class="nav-badge" id="cWon">0</span></div>
-                        <div class="kanban-col-body" id="colWon"></div>
-                    </div>
-                    <div class="kanban-col col-lost">
-                        <div class="kanban-col-header">❌ Perdido<span class="nav-badge" id="cLost">0</span></div>
-                        <div class="kanban-col-body" id="colLost"></div>
-                    </div>
+                    <div class="kanban-col col-contact"><div class="kanban-col-header">📞 Contato<span class="nav-badge" id="cCont">0</span></div><div class="kanban-col-body" id="colContact"></div></div>
+                    <div class="kanban-col col-briefing"><div class="kanban-col-header">📝 Briefing<span class="nav-badge" id="cBrief">0</span></div><div class="kanban-col-body" id="colBriefing"></div></div>
+                    <div class="kanban-col col-proposal"><div class="kanban-col-header">📄 Proposta<span class="nav-badge" id="cProp">0</span></div><div class="kanban-col-body" id="colProposal"></div></div>
+                    <div class="kanban-col col-nego"><div class="kanban-col-header">🤝 Negociação<span class="nav-badge" id="cNego">0</span></div><div class="kanban-col-body" id="colNego"></div></div>
+                    <div class="kanban-col col-won"><div class="kanban-col-header">✅ Ganho<span class="nav-badge" id="cWon">0</span></div><div class="kanban-col-body" id="colWon"></div></div>
+                    <div class="kanban-col col-lost"><div class="kanban-col-header">❌ Perdido<span class="nav-badge" id="cLost">0</span></div><div class="kanban-col-body" id="colLost"></div></div>
                 </div>
                 <div id="leadsListView" style="display:none">
                     <div class="card">
                         <div class="table-wrap">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Nome</th>
-                                        <th>Telefone</th>
-                                        <th>E-mail</th>
-                                        <th>Empresa</th>
-                                        <th>Status</th>
-                                        <th>MRR Est.</th>
-                                        <th>Responsável</th>
-                                        <th>Ação</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="leadsListBody"></tbody>
-                            </table>
+                            <table><thead><tr><th>Nome</th><th>Telefone</th><th>E-mail</th><th>Empresa</th><th>Status</th><th>MRR Est.</th><th>Responsável</th><th>Ação</th></tr></thead>
+                            <tbody id="leadsListBody"></tbody></table>
                         </div>
                     </div>
                 </div>
                 <div id="leadsMetricsView" style="display:none">
                     <div class="grid-4 mb-3">
-                        <div class="stat-card blue">
-                            <h3>Contato</h3>
-                            <div class="value" id="mContact">—</div>
-                        </div>
-                        <div class="stat-card purple">
-                            <h3>Briefing</h3>
-                            <div class="value" id="mBriefing">—</div>
-                        </div>
-                        <div class="stat-card yellow">
-                            <h3>Proposta</h3>
-                            <div class="value" id="mProposal">—</div>
-                        </div>
-                        <div class="stat-card green">
-                            <h3>Conversão</h3>
-                            <div class="value" id="mConversion">—</div>
-                            <div class="trend">% Ganhos / Fechamentos</div>
-                        </div>
+                        <div class="stat-card blue"><h3>Contato</h3><div class="value" id="mContact">—</div></div>
+                        <div class="stat-card purple"><h3>Briefing</h3><div class="value" id="mBriefing">—</div></div>
+                        <div class="stat-card yellow"><h3>Proposta</h3><div class="value" id="mProposal">—</div></div>
+                        <div class="stat-card green"><h3>Conversão</h3><div class="value" id="mConversion">—</div><div class="trend">% Ganhos / Fechamentos</div></div>
                     </div>
                     <div class="grid-2">
-                        <div class="stat-card green">
-                            <h3>✅ Ganhos</h3>
-                            <div class="value" id="mWon">—</div>
-                        </div>
-                        <div class="stat-card red">
-                            <h3>❌ Perdidos</h3>
-                            <div class="value" id="mLost">—</div>
-                        </div>
+                        <div class="stat-card green"><h3>✅ Ganhos</h3><div class="value" id="mWon">—</div></div>
+                        <div class="stat-card red"><h3>❌ Perdidos</h3><div class="value" id="mLost">—</div></div>
                     </div>
                 </div>
             </section>
@@ -721,83 +663,35 @@
                 <div class="flex-between mb-3">
                     <div>
                         <h2 style="font-size:1.05rem;font-weight:700;">💸 Financeiro Interno</h2>
-                        <p class="text-muted text-sm mt-1">Rateio de custos de API/IA e CAC por tenant — últimos 30
-                            dias.</p>
+                        <p class="text-muted text-sm mt-1">Rateio de custos de API/IA e CAC por tenant — últimos 30 dias.</p>
                     </div>
                     <button class="btn btn-ghost btn-sm" onclick="loadFinancial()">🔄 Atualizar</button>
                 </div>
                 <div class="grid-4 mb-3">
-                    <div class="stat-card yellow">
-                        <h3>Custo Total (30d)</h3>
-                        <div class="value" id="finTotalCost">—</div>
-                        <div class="trend">USD</div>
-                    </div>
-                    <div class="stat-card">
-                        <h3>Interações</h3>
-                        <div class="value" id="finInteractions">—</div>
-                    </div>
-                    <div class="stat-card purple">
-                        <h3>Tokens</h3>
-                        <div class="value" id="finTokens">—</div>
-                    </div>
-                    <div class="stat-card green">
-                        <h3>CAC Estimado</h3>
-                        <div class="value" id="finCAC">—</div>
-                    </div>
+                    <div class="stat-card yellow"><h3>Custo Total (30d)</h3><div class="value" id="finTotalCost">—</div><div class="trend">USD</div></div>
+                    <div class="stat-card"><h3>Interações</h3><div class="value" id="finInteractions">—</div></div>
+                    <div class="stat-card purple"><h3>Tokens</h3><div class="value" id="finTokens">—</div></div>
+                    <div class="stat-card green"><h3>CAC Estimado</h3><div class="value" id="finCAC">—</div></div>
                 </div>
                 <div class="grid-2">
                     <div class="card">
                         <div class="card-header flex-between mb-3">
                             <h3>💰 Rateio por Tenant</h3>
                             <div>
-                                <button class="btn btn-ghost btn-sm"
-                                    onclick="exportTableToCSV('billingTable', 'Faturamento_Tenants')">📥 Exportar
-                                    CSV</button>
+                                <button class="btn btn-ghost btn-sm" onclick="exportTableToCSV('billingTable', 'Faturamento_Tenants')">📥 Exportar CSV</button>
                                 <button class="btn btn-ghost btn-sm" onclick="loadBilling()">🔄 Atualizar</button>
                             </div>
                         </div>
                         <div class="table-wrap">
-                            <table id="billingTable">
-                                <thead>
-                                    <tr>
-                                        <th>Tenant</th>
-                                        <th>Interações</th>
-                                        <th>Tokens</th>
-                                        <th>Custo USD</th>
-                                        <th>%</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="finBreakdownBody">
-                                    <tr>
-                                        <td colspan="5" style="text-align:center;color:var(--text-muted);padding:2rem">
-                                            Carregando...</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                            <table id="billingTable"><thead><tr><th>Tenant</th><th>Interações</th><th>Tokens</th><th>Custo USD</th><th>%</th></tr></thead>
+                            <tbody id="finBreakdownBody"><tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:2rem">Carregando...</td></tr></tbody></table>
                         </div>
                     </div>
                     <div class="card">
-                        <div class="card-header">
-                            <h3>📋 Últimas Transações</h3>
-                        </div>
+                        <div class="card-header"><h3>📋 Últimas Transações</h3></div>
                         <div class="table-wrap">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Tenant</th>
-                                        <th>Modelo</th>
-                                        <th>Tokens</th>
-                                        <th>Custo</th>
-                                        <th>Data</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="finTransBody">
-                                    <tr>
-                                        <td colspan="5" style="text-align:center;color:var(--text-muted);padding:2rem">
-                                            Carregando...</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                            <table><thead><tr><th>Tenant</th><th>Modelo</th><th>Tokens</th><th>Custo</th><th>Data</th></tr></thead>
+                            <tbody id="finTransBody"><tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:2rem">Carregando...</td></tr></tbody></table>
                         </div>
                     </div>
                 </div>
@@ -814,25 +708,8 @@
                 </div>
                 <div class="card">
                     <div class="table-wrap">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Tenant</th>
-                                    <th>Plano</th>
-                                    <th>WhatsApp</th>
-                                    <th>Msgs/Dia</th>
-                                    <th>Msgs/Mês</th>
-                                    <th>Status</th>
-                                    <th>Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="quotasBody">
-                                <tr>
-                                    <td colspan="7" style="text-align:center;color:var(--text-muted);padding:2rem">
-                                        Carregando...</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                        <table><thead><tr><th>Tenant</th><th>Plano</th><th>WhatsApp</th><th>Msgs/Dia</th><th>Msgs/Mês</th><th>Status</th><th>Ações</th></tr></thead>
+                        <tbody id="quotasBody"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:2rem">Carregando...</td></tr></tbody></table>
                     </div>
                 </div>
             </section>
@@ -842,30 +719,17 @@
                 <div class="flex-between mb-3">
                     <div>
                         <h2 style="font-size:1.05rem;font-weight:700;">🚨 Monitoramento de Abuso</h2>
-                        <p class="text-muted text-sm mt-1">Tenants ≥80% das cotas. Alertas automáticos com sugestão de
-                            upgrade.</p>
+                        <p class="text-muted text-sm mt-1">Tenants ≥80% das cotas. Alertas automáticos com sugestão de upgrade.</p>
                     </div>
                     <button class="btn btn-ghost btn-sm" onclick="loadAbuseAlerts()">🔄 Atualizar</button>
                 </div>
                 <div class="grid-3 mb-3">
-                    <div class="stat-card yellow">
-                        <h3>⚠️ Warning</h3>
-                        <div class="value" id="abuseWarnCount">—</div>
-                        <div class="trend">≥80% da cota</div>
-                    </div>
-                    <div class="stat-card red">
-                        <h3>🔴 Crítico</h3>
-                        <div class="value" id="abuseCritCount">—</div>
-                        <div class="trend">≥90% da cota</div>
-                    </div>
-                    <div class="stat-card purple">
-                        <h3>🚫 Suspensos</h3>
-                        <div class="value" id="abuseSuspCount">—</div>
-                    </div>
+                    <div class="stat-card yellow"><h3>⚠️ Warning</h3><div class="value" id="abuseWarnCount">—</div><div class="trend">≥80% da cota</div></div>
+                    <div class="stat-card red"><h3>🔴 Crítico</h3><div class="value" id="abuseCritCount">—</div><div class="trend">≥90% da cota</div></div>
+                    <div class="stat-card purple"><h3>🚫 Suspensos</h3><div class="value" id="abuseSuspCount">—</div></div>
                 </div>
                 <div class="abuse-grid" id="abuseGrid">
-                    <div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--text-muted)">Carregando
-                        alertas...</div>
+                    <div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--text-muted)">Carregando alertas...</div>
                 </div>
             </section>
 
@@ -874,43 +738,19 @@
                 <div class="flex-between mb-3">
                     <div>
                         <h2 style="font-size:1.05rem;font-weight:700;">🖥️ Status & Infraestrutura</h2>
-                        <p class="text-muted text-sm mt-1">Snapshot em tempo real de containers, banco de dados e API.
-                        </p>
+                        <p class="text-muted text-sm mt-1">Snapshot em tempo real de containers, banco de dados e API.</p>
                     </div>
                     <button class="btn btn-primary btn-sm" onclick="loadButlerStatus()">🔄 Verificar Agora</button>
                 </div>
                 <div class="grid-3 mb-3">
-                    <div class="stat-card" id="bsSummary">
-                        <h3>Status Global</h3>
-                        <div class="value" id="bsOverall">—</div>
-                    </div>
-                    <div class="stat-card green">
-                        <h3>Serviços OK</h3>
-                        <div class="value" id="bsOkCount">—</div>
-                    </div>
-                    <div class="stat-card red">
-                        <h3>Degradados/Down</h3>
-                        <div class="value" id="bsBadCount">—</div>
-                    </div>
+                    <div class="stat-card" id="bsSummary"><h3>Status Global</h3><div class="value" id="bsOverall">—</div></div>
+                    <div class="stat-card green"><h3>Serviços OK</h3><div class="value" id="bsOkCount">—</div></div>
+                    <div class="stat-card red"><h3>Degradados/Down</h3><div class="value" id="bsBadCount">—</div></div>
                 </div>
                 <div class="card">
                     <div class="table-wrap">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Serviço</th>
-                                    <th>Status</th>
-                                    <th>Latência</th>
-                                    <th>Detalhe</th>
-                                </tr>
-                            </thead>
-                            <tbody id="bsServicesBody">
-                                <tr>
-                                    <td colspan="4" style="text-align:center;color:var(--text-muted);padding:2rem">
-                                        Clique em "Verificar Agora" para iniciar o diagnóstico.</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                        <table><thead><tr><th>Serviço</th><th>Status</th><th>Latência</th><th>Detalhe</th></tr></thead>
+                        <tbody id="bsServicesBody"><tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:2rem">Clique em "Verificar Agora" para iniciar o diagnóstico.</td></tr></tbody></table>
                     </div>
                 </div>
             </section>
@@ -930,32 +770,14 @@
                             <option value="medium">🟡 Medium</option>
                             <option value="low">🟢 Low</option>
                         </select>
-                        <button class="btn btn-ghost btn-sm"
-                            onclick="exportTableToCSV('butlerLogsTable', 'Logs_Mordomo')">📥 Export</button>
+                        <button class="btn btn-ghost btn-sm" onclick="exportTableToCSV('butlerLogsTable', 'Logs_Mordomo')">📥 Export</button>
                         <button class="btn btn-ghost btn-sm" onclick="loadButlerLogs()">🔄 Atualizar</button>
                     </div>
                 </div>
                 <div class="card">
                     <div class="table-wrap">
-                        <table id="butlerLogsTable">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Data/Hora</th>
-                                    <th>Ação</th>
-                                    <th>Severidade</th>
-                                    <th>Tenant</th>
-                                    <th>Resultado</th>
-                                    <th>Descrição</th>
-                                </tr>
-                            </thead>
-                            <tbody id="blBody">
-                                <tr>
-                                    <td colspan="7" style="text-align:center;color:var(--text-muted);padding:2rem">
-                                        Carregando...</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                        <table id="butlerLogsTable"><thead><tr><th>#</th><th>Data/Hora</th><th>Ação</th><th>Severidade</th><th>Tenant</th><th>Resultado</th><th>Descrição</th></tr></thead>
+                        <tbody id="blBody"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:2rem">Carregando...</td></tr></tbody></table>
                     </div>
                 </div>
             </section>
@@ -965,30 +787,14 @@
                 <div class="flex-between mb-3">
                     <div>
                         <h2 style="font-size:1.05rem;font-weight:700;">🛡️ Validação de Registro</h2>
-                        <p class="text-muted text-sm mt-1">Como o agente identifica e valida cada pessoa (Admin ou
-                            Lead).</p>
+                        <p class="text-muted text-sm mt-1">Como o agente identifica e valida cada pessoa.</p>
                     </div>
                     <button class="btn btn-ghost btn-sm" onclick="loadRegistrations()">🔄 Atualizar</button>
                 </div>
                 <div class="card">
                     <div class="table-wrap">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Data/Hora</th>
-                                    <th>Tipo de Evento</th>
-                                    <th>Usuário/Identificador</th>
-                                    <th>IP/Origem</th>
-                                    <th>Detalhes da Validação</th>
-                                </tr>
-                            </thead>
-                            <tbody id="registrationsBody">
-                                <tr>
-                                    <td colspan="5" style="text-align:center;color:var(--text-muted);padding:2rem">
-                                        Carregando...</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                        <table><thead><tr><th>Data/Hora</th><th>Tipo de Evento</th><th>Usuário/Identificador</th><th>IP/Origem</th><th>Detalhes da Validação</th></tr></thead>
+                        <tbody id="registrationsBody"><tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:2rem">Carregando...</td></tr></tbody></table>
                     </div>
                 </div>
             </section>
@@ -1003,39 +809,14 @@
                     <button class="btn btn-ghost btn-sm" onclick="loadButlerChurn()">🔄 Atualizar</button>
                 </div>
                 <div class="grid-3 mb-3">
-                    <div class="stat-card red">
-                        <h3>🔴 Crítico</h3>
-                        <div class="value" id="bChurnCritical">—</div>
-                    </div>
-                    <div class="stat-card yellow">
-                        <h3>🟠 Alto</h3>
-                        <div class="value" id="bChurnHigh">—</div>
-                    </div>
-                    <div class="stat-card">
-                        <h3>📊 Médio/Baixo</h3>
-                        <div class="value" id="bChurnMedLow">—</div>
-                    </div>
+                    <div class="stat-card red"><h3>🔴 Crítico</h3><div class="value" id="bChurnCritical">—</div></div>
+                    <div class="stat-card yellow"><h3>🟠 Alto</h3><div class="value" id="bChurnHigh">—</div></div>
+                    <div class="stat-card"><h3>📊 Médio/Baixo</h3><div class="value" id="bChurnMedLow">—</div></div>
                 </div>
                 <div class="card">
                     <div class="table-wrap">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Tenant</th>
-                                    <th>Risco</th>
-                                    <th>Queda</th>
-                                    <th>Semana Passada</th>
-                                    <th>Esta Semana</th>
-                                    <th>Ação Recomendada</th>
-                                </tr>
-                            </thead>
-                            <tbody id="bChurnBody">
-                                <tr>
-                                    <td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem">
-                                        Carregando...</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                        <table><thead><tr><th>Tenant</th><th>Risco</th><th>Queda</th><th>Semana Passada</th><th>Esta Semana</th><th>Ação Recomendada</th></tr></thead>
+                        <tbody id="bChurnBody"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem">Carregando...</td></tr></tbody></table>
                     </div>
                 </div>
             </section>
@@ -1050,65 +831,22 @@
                     <button class="btn btn-ghost btn-sm" onclick="loadButlerBilling()">🔄 Atualizar</button>
                 </div>
                 <div class="grid-3 mb-3">
-                    <div class="stat-card red">
-                        <h3>🔴 Críticos</h3>
-                        <div class="value" id="bBillCritical">—</div>
-                    </div>
-                    <div class="stat-card yellow">
-                        <h3>⚠️ Warnings</h3>
-                        <div class="value" id="bBillWarning">—</div>
-                    </div>
-                    <div class="stat-card purple">
-                        <h3>🚫 Suspensos</h3>
-                        <div class="value" id="bBillSuspended">—</div>
-                    </div>
+                    <div class="stat-card red"><h3>🔴 Críticos</h3><div class="value" id="bBillCritical">—</div></div>
+                    <div class="stat-card yellow"><h3>⚠️ Warnings</h3><div class="value" id="bBillWarning">—</div></div>
+                    <div class="stat-card purple"><h3>🚫 Suspensos</h3><div class="value" id="bBillSuspended">—</div></div>
                 </div>
                 <div class="card">
-                    <div class="card-header">
-                        <h3>📊 Alertas de Cota</h3>
-                    </div>
+                    <div class="card-header"><h3>📊 Alertas de Cota</h3></div>
                     <div class="table-wrap">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Tenant</th>
-                                    <th>Nível</th>
-                                    <th>Dia %</th>
-                                    <th>Mês %</th>
-                                    <th>Upgrade Sugerido</th>
-                                    <th>Ação</th>
-                                </tr>
-                            </thead>
-                            <tbody id="bBillBody">
-                                <tr>
-                                    <td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem">
-                                        Carregando...</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                        <table><thead><tr><th>Tenant</th><th>Nível</th><th>Dia %</th><th>Mês %</th><th>Upgrade Sugerido</th><th>Ação</th></tr></thead>
+                        <tbody id="bBillBody"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem">Carregando...</td></tr></tbody></table>
                     </div>
                 </div>
                 <div class="card mt-3">
-                    <div class="card-header">
-                        <h3>🏆 Top Consumidores (30d)</h3>
-                    </div>
+                    <div class="card-header"><h3>🏆 Top Consumidores (30d)</h3></div>
                     <div class="table-wrap">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Tenant</th>
-                                    <th>Interações</th>
-                                    <th>Tokens</th>
-                                    <th>Custo USD</th>
-                                </tr>
-                            </thead>
-                            <tbody id="bTopBody">
-                                <tr>
-                                    <td colspan="4" style="text-align:center;color:var(--text-muted);padding:2rem">
-                                        Carregando...</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                        <table><thead><tr><th>Tenant</th><th>Interações</th><th>Tokens</th><th>Custo USD</th></tr></thead>
+                        <tbody id="bTopBody"><tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:2rem">Carregando...</td></tr></tbody></table>
                     </div>
                 </div>
             </section>
@@ -1118,35 +856,19 @@
                 <div class="flex-between mb-3">
                     <div>
                         <h2 style="font-size:1.05rem;font-weight:700;">⏰ Agendador do Mordomo</h2>
-                        <p class="text-muted text-sm mt-1">Jobs automáticos: infra (5min), cotas (15min),
-                            churn/relatório (diário).</p>
+                        <p class="text-muted text-sm mt-1">Jobs automáticos: infra (5min), cotas (15min), churn/relatório (diário).</p>
                     </div>
                     <button class="btn btn-ghost btn-sm" onclick="loadSchedulerJobs()">🔄 Atualizar</button>
                 </div>
                 <div class="card">
                     <div class="table-wrap">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Job</th>
-                                    <th>Nome</th>
-                                    <th>Trigger</th>
-                                    <th>Próxima Execução</th>
-                                    <th>Ação</th>
-                                </tr>
-                            </thead>
-                            <tbody id="bJobsBody">
-                                <tr>
-                                    <td colspan="5" style="text-align:center;color:var(--text-muted);padding:2rem">
-                                        Carregando...</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                        <table><thead><tr><th>Job</th><th>Nome</th><th>Trigger</th><th>Próxima Execução</th><th>Ação</th></tr></thead>
+                        <tbody id="bJobsBody"><tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:2rem">Carregando...</td></tr></tbody></table>
                     </div>
                 </div>
             </section>
 
-            <!-- ─────────── CONFIGURAÇÃO ────────────────────────── -->
+            <!-- ─────────── CONFIGURAÇÃO DA CONTA ─────────────────── -->
             <section id="configuracao" class="view-section">
                 <div class="flex-between mb-3">
                     <div>
@@ -1155,74 +877,204 @@
                     </div>
                 </div>
                 <div class="grid-2">
-                    <!-- Profile -->
                     <div class="card">
-                        <div class="card-header">
-                            <h3>👤 Perfil do Operador</h3>
-                        </div>
+                        <div class="card-header"><h3>👤 Perfil do Operador</h3></div>
                         <div class="card-body">
-                            <div class="form-group"><label>Nome</label><input id="cfgName" type="text"
-                                    placeholder="Seu nome"></div>
-                            <div class="form-group"><label>E-mail</label><input id="cfgEmail" type="email"
-                                    placeholder="email@empresa.com"></div>
-                            <div class="form-group"><label>Telefone</label><input id="cfgPhone" type="text"
-                                    placeholder="+55 11 99999-9999"></div>
+                            <div class="form-group"><label>Nome</label><input id="cfgName" type="text" placeholder="Seu nome"></div>
+                            <div class="form-group"><label>E-mail</label><input id="cfgEmail" type="email" placeholder="email@empresa.com"></div>
+                            <div class="form-group"><label>Telefone</label><input id="cfgPhone" type="text" placeholder="+55 11 99999-9999"></div>
                             <button class="btn btn-primary" onclick="saveAccountProfile()">💾 Salvar Perfil</button>
                         </div>
                     </div>
-
-                    <!-- Password -->
                     <div class="card">
-                        <div class="card-header">
-                            <h3>🔐 Alterar Senha</h3>
-                        </div>
+                        <div class="card-header"><h3>🔐 Alterar Senha</h3></div>
                         <div class="card-body">
-                            <div class="form-group"><label>Senha Atual</label><input id="cfgOldPass" type="password"
-                                    placeholder="••••••••"></div>
-                            <div class="form-group"><label>Nova Senha</label><input id="cfgNewPass" type="password"
-                                    placeholder="••••••••"></div>
-                            <div class="form-group"><label>Confirmar Nova Senha</label><input id="cfgConfirmPass"
-                                    type="password" placeholder="••••••••"></div>
+                            <div class="form-group"><label>Senha Atual</label><input id="cfgOldPass" type="password" placeholder="••••••••"></div>
+                            <div class="form-group"><label>Nova Senha</label><input id="cfgNewPass" type="password" placeholder="••••••••"></div>
+                            <div class="form-group"><label>Confirmar Nova Senha</label><input id="cfgConfirmPass" type="password" placeholder="••••••••"></div>
                             <button class="btn btn-primary" onclick="changeAccountPassword()">🔑 Alterar Senha</button>
                         </div>
                     </div>
                 </div>
-
-                <!-- Webhooks & APIs -->
                 <div class="card mt-3">
                     <div class="card-header flex-between">
                         <h3>🔗 Webhooks e APIs do Sistema</h3>
-                        <button class="btn btn-primary btn-sm" onclick="openWebhookModal()">+ Registrar
-                            Integração</button>
+                        <button class="btn btn-primary btn-sm" onclick="openWebhookModal()">+ Registrar Integração</button>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th>Nome</th>
-                                        <th>Tipo</th>
-                                        <th>URL / Endpoint</th>
-                                        <th>Status</th>
-                                        <th>Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="webhooksBody">
-                                    <tr>
-                                        <td colspan="5" class="text-center text-muted py-3">Carregando...</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                            <table class="table"><thead><tr><th>Nome</th><th>Tipo</th><th>URL / Endpoint</th><th>Status</th><th>Ações</th></tr></thead>
+                            <tbody id="webhooksBody"><tr><td colspan="5" class="text-center text-muted py-3">Carregando...</td></tr></tbody></table>
                         </div>
                     </div>
                 </div>
             </section>
 
+            <!-- ═══════════════════════════════════════════════════════════
+                 🔧 CONFIGURAÇÃO DO SISTEMA
+            ═══════════════════════════════════════════════════════════ -->
+            <section id="system-config" class="view-section">
+                <div class="flex-between mb-3">
+                    <div>
+                        <h2 style="font-size:1.05rem;font-weight:700;">🔧 Configuração do Sistema</h2>
+                        <p class="text-muted text-sm mt-1">Variáveis de ambiente e integrações globais da plataforma. Alterações são aplicadas em tempo real.</p>
+                    </div>
+                    <div style="display:flex;gap:0.5rem;align-items:center">
+                        <span id="scDebugBadge" class="badge active">🟢 PRODUÇÃO</span>
+                        <button class="btn btn-ghost btn-sm" onclick="loadSystemConfig()">🔄 Recarregar</button>
+                        <button id="scSaveBtn" class="btn btn-primary btn-sm" onclick="saveSystemConfig()">💾 Salvar Configurações</button>
+                    </div>
+                </div>
+
+                <!-- Abas -->
+                <div class="inner-tabs mb-3">
+                    <button class="inner-tab sys-tab active" onclick="switchSysTab('apis', this)">🔑 APIs & Integrações</button>
+                    <button class="inner-tab sys-tab" onclick="switchSysTab('auth', this)">🔐 Sessão & Auth</button>
+                    <button class="inner-tab sys-tab" onclick="switchSysTab('smtp', this)">📧 SMTP / E-mail</button>
+                </div>
+
+                <!-- ── ABA: APIs & Integrações ── -->
+                <div id="syspanel-apis" class="sys-panel active">
+                    <div class="grid-2">
+                        <!-- OpenAI -->
+                        <div class="card">
+                            <div class="card-header flex-between">
+                                <h3>🤖 OpenAI</h3>
+                                <button id="btnTestOpenAI" class="btn btn-ghost btn-sm" onclick="testOpenAI()">⚡ Testar OpenAI</button>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-group">
+                                    <label>API Key <span class="text-muted text-sm">(mascarado após salvar)</span></label>
+                                    <input id="scOpenAiKey" type="password" placeholder="sk-...">
+                                </div>
+                                <div class="form-group">
+                                    <label>Modelo padrão</label>
+                                    <select id="scOpenAiModel">
+                                        <option value="gpt-4o-mini">gpt-4o-mini (recomendado)</option>
+                                        <option value="gpt-4o">gpt-4o</option>
+                                        <option value="gpt-4-turbo">gpt-4-turbo</option>
+                                        <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Evolution API -->
+                        <div class="card">
+                            <div class="card-header flex-between">
+                                <h3>📱 Evolution API</h3>
+                                <button id="btnTestEvol" class="btn btn-ghost btn-sm" onclick="testEvolution()">⚡ Testar Evolution</button>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-group">
+                                    <label>URL Base</label>
+                                    <input id="scEvolUrl" type="text" placeholder="http://evolution:8080">
+                                </div>
+                                <div class="form-group">
+                                    <label>Global API Key</label>
+                                    <input id="scEvolKey" type="password" placeholder="sua-api-key">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Webhook / Webhook Verify -->
+                        <div class="card">
+                            <div class="card-header"><h3>🌐 Webhook & URL Pública</h3></div>
+                            <div class="card-body">
+                                <div class="form-group">
+                                    <label>Verify Token (Meta / Evolution)</label>
+                                    <input id="scVerifyToken" type="text" placeholder="seu-verify-token">
+                                </div>
+                                <div class="form-group">
+                                    <label>URL Pública do Backend</label>
+                                    <input id="scPublicUrl" type="text" placeholder="https://api.seudominio.com">
+                                    <small class="text-muted text-sm">Usada para montar URLs de webhook automaticamente.</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- CORS -->
+                        <div class="card">
+                            <div class="card-header"><h3>🔀 CORS & Rate Limit</h3></div>
+                            <div class="card-body">
+                                <div class="form-group">
+                                    <label>Origins permitidas (separado por vírgula)</label>
+                                    <input id="scCors" type="text" placeholder="https://app.seudominio.com,http://localhost:8080">
+                                </div>
+                                <div class="form-group">
+                                    <label>IPs na whitelist de Rate Limit</label>
+                                    <input id="scWhitelist" type="text" placeholder="127.0.0.1,10.0.0.1">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── ABA: Sessão & Auth ── -->
+                <div id="syspanel-auth" class="sys-panel" style="display:none">
+                    <div class="grid-2">
+                        <div class="card">
+                            <div class="card-header"><h3>⏱️ Expiração de Tokens JWT</h3></div>
+                            <div class="card-body">
+                                <div class="form-group">
+                                    <label>Access Token (minutos)</label>
+                                    <input id="scAccessExp" type="number" min="1" placeholder="30">
+                                    <small class="text-muted text-sm">Padrão: 30 min</small>
+                                </div>
+                                <div class="form-group">
+                                    <label>Refresh Token (minutos)</label>
+                                    <input id="scRefreshExp" type="number" min="1" placeholder="10080">
+                                    <small class="text-muted text-sm">Padrão: 7 dias (10080 min)</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header"><h3>⚙️ Modo de Operação</h3></div>
+                            <div class="card-body">
+                                <div class="form-group" style="display:flex;align-items:center;gap:0.75rem">
+                                    <input type="checkbox" id="scDebug" style="width:auto;accent-color:var(--yellow)">
+                                    <label for="scDebug" style="margin:0;cursor:pointer">🟡 Habilitar modo DEBUG</label>
+                                </div>
+                                <small class="text-muted text-sm" style="display:block;margin-top:0.5rem">
+                                    Em produção, mantenha <strong>desativado</strong>. O modo debug expõe stack traces nas respostas de erro.
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── ABA: SMTP ── -->
+                <div id="syspanel-smtp" class="sys-panel" style="display:none">
+                    <div class="card" style="max-width:600px">
+                        <div class="card-header flex-between">
+                            <h3>📧 Configuração de E-mail (SMTP)</h3>
+                            <button id="btnTestSMTP" class="btn btn-ghost btn-sm" onclick="testSMTP()">📧 Testar SMTP</button>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label>Servidor SMTP</label>
+                                <input id="scSmtpServer" type="text" placeholder="smtp.gmail.com">
+                            </div>
+                            <div class="form-group">
+                                <label>Porta</label>
+                                <input id="scSmtpPort" type="number" placeholder="587">
+                            </div>
+                            <div class="form-group">
+                                <label>Usuário</label>
+                                <input id="scSmtpUser" type="email" placeholder="sistema@empresa.com">
+                            </div>
+                            <div class="form-group">
+                                <label>Senha <span class="text-muted text-sm">(deixe vazio para manter atual)</span></label>
+                                <input id="scSmtpPassword" type="password" placeholder="••••••••">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <!-- /system-config -->
+
         </div><!-- /content-wrapper -->
     </main>
-
-    <!-- ─────────── CONFIGURAÇÃO ────────────────────── -->
-    <!-- This section is appended via JS when needed, but we add the DOM here -->
 
     <!-- ═══ TENANT DETAIL DRAWER ══════════════════════════════════ -->
     <div class="drawer-backdrop" id="drawerBackdrop" onclick="closeTenantDrawer()"></div>
@@ -1236,30 +1088,15 @@
         </div>
         <div class="drawer-body">
             <div class="grid-2 mb-3" style="gap:0.75rem;">
-                <div class="stat-card" style="padding:1rem;">
-                    <h3>Msgs (30d)</h3>
-                    <div class="value" style="font-size:1.4rem;" id="dtInteractions">—</div>
-                </div>
-                <div class="stat-card green" style="padding:1rem;">
-                    <h3>Tokens (30d)</h3>
-                    <div class="value" style="font-size:1.4rem;" id="dtTokens">—</div>
-                </div>
-                <div class="stat-card yellow" style="padding:1rem;">
-                    <h3>Custo USD</h3>
-                    <div class="value" style="font-size:1.4rem;" id="dtCost">—</div>
-                </div>
-                <div
-                    style="padding:1rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);">
-                    <h3
-                        style="font-size:0.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.65rem;">
-                        Status</h3>
+                <div class="stat-card" style="padding:1rem;"><h3>Msgs (30d)</h3><div class="value" style="font-size:1.4rem;" id="dtInteractions">—</div></div>
+                <div class="stat-card green" style="padding:1rem;"><h3>Tokens (30d)</h3><div class="value" style="font-size:1.4rem;" id="dtTokens">—</div></div>
+                <div class="stat-card yellow" style="padding:1rem;"><h3>Custo USD</h3><div class="value" style="font-size:1.4rem;" id="dtCost">—</div></div>
+                <div style="padding:1rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);">
+                    <h3 style="font-size:0.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.65rem;">Status</h3>
                     <div id="dtStatus">—</div>
                 </div>
             </div>
-            <div style="color:var(--text-muted);font-size:0.82rem;text-align:center;padding:1rem;
-                border:1px dashed var(--border);border-radius:10px;">
-                📊 Detalhes de uso por canal, logs e configuração de IA disponíveis em breve.
-            </div>
+            <div style="color:var(--text-muted);font-size:0.82rem;text-align:center;padding:1rem;border:1px dashed var(--border);border-radius:10px;">📊 Detalhes de uso por canal, logs e configuração de IA disponíveis em breve.</div>
         </div>
     </div>
 
@@ -1269,51 +1106,25 @@
     <!-- ═══ ADD LEAD MODAL ══════════════════════════════════════════ -->
     <div class="modal-overlay" id="leadModal">
         <div class="modal-box">
-            <div class="modal-header">
-                <span id="leadModalTitle">+ Novo Lead</span>
-                <button class="btn-close-drawer" onclick="closeLeadModal()">✕</button>
-            </div>
+            <div class="modal-header"><span id="leadModalTitle">+ Novo Lead</span><button class="btn-close-drawer" onclick="closeLeadModal()">✕</button></div>
             <div class="modal-body">
                 <input type="hidden" id="leadEditId">
-                <div class="form-group"><label>Nome *</label><input id="leadName" type="text"
-                        placeholder="Nome do prospecto"></div>
-                <div class="form-group"><label>Empresa</label><input id="leadCompany" type="text"
-                        placeholder="Nome da empresa"></div>
-                <div class="form-group"><label>WhatsApp / Telefone</label><input id="leadPhone" type="text"
-                        placeholder="+55 11 99999-9999"></div>
-                <div class="form-group"><label>E-mail</label><input id="leadEmail" type="email"
-                        placeholder="contato@empresa.com"></div>
+                <div class="form-group"><label>Nome *</label><input id="leadName" type="text" placeholder="Nome do prospecto"></div>
+                <div class="form-group"><label>Empresa</label><input id="leadCompany" type="text" placeholder="Nome da empresa"></div>
+                <div class="form-group"><label>WhatsApp / Telefone</label><input id="leadPhone" type="text" placeholder="+55 11 99999-9999"></div>
+                <div class="form-group"><label>E-mail</label><input id="leadEmail" type="email" placeholder="contato@empresa.com"></div>
                 <div class="form-group"><label>Origem</label>
-                    <select id="leadSource">
-                        <option value="">Selecionar...</option>
-                        <option value="WhatsApp">WhatsApp</option>
-                        <option value="LinkedIn">LinkedIn</option>
-                        <option value="Indicação">Indicação</option>
-                        <option value="Site">Site</option>
-                        <option value="Evento">Evento</option>
-                        <option value="Cold outreach">Cold outreach</option>
-                    </select>
+                    <select id="leadSource"><option value="">Selecionar...</option><option value="WhatsApp">WhatsApp</option><option value="LinkedIn">LinkedIn</option><option value="Indicação">Indicação</option><option value="Site">Site</option><option value="Evento">Evento</option><option value="Cold outreach">Cold outreach</option></select>
                 </div>
                 <div class="form-group"><label>Status do Funil</label>
-                    <select id="leadStatus">
-                        <option value="contact">📞 Contato Inicial</option>
-                        <option value="briefing">📝 Briefing</option>
-                        <option value="proposal">📄 Proposta</option>
-                        <option value="negotiation">🤝 Negociação</option>
-                        <option value="closed_won">✅ Fechado — Ganho</option>
-                        <option value="closed_lost">❌ Fechado — Perdido</option>
-                    </select>
+                    <select id="leadStatus"><option value="contact">📞 Contato Inicial</option><option value="briefing">📝 Briefing</option><option value="proposal">📄 Proposta</option><option value="negotiation">🤝 Negociação</option><option value="closed_won">✅ Fechado — Ganho</option><option value="closed_lost">❌ Fechado — Perdido</option></select>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-                    <div class="form-group"><label>MRR Estimado (R$)</label><input id="leadMRR" type="number"
-                            step="0.01" placeholder="0.00"></div>
-                    <div class="form-group"><label>CAC Estimado (R$)</label><input id="leadCAC" type="number"
-                            step="0.01" placeholder="0.00"></div>
+                    <div class="form-group"><label>MRR Estimado (R$)</label><input id="leadMRR" type="number" step="0.01" placeholder="0.00"></div>
+                    <div class="form-group"><label>CAC Estimado (R$)</label><input id="leadCAC" type="number" step="0.01" placeholder="0.00"></div>
                 </div>
-                <div class="form-group"><label>Responsável</label><input id="leadAssigned" type="text"
-                        placeholder="Username do operador"></div>
-                <div class="form-group"><label>Notas</label><textarea id="leadNotes" rows="3"
-                        placeholder="Observações iniciais..."></textarea></div>
+                <div class="form-group"><label>Responsável</label><input id="leadAssigned" type="text" placeholder="Username do operador"></div>
+                <div class="form-group"><label>Notas</label><textarea id="leadNotes" rows="3" placeholder="Observações iniciais..."></textarea></div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-ghost" onclick="closeLeadModal()">Cancelar</button>
@@ -1325,29 +1136,18 @@
     <!-- ═══ QUOTA EDIT MODAL ════════════════════════════════════════ -->
     <div class="modal-overlay" id="quotaModal">
         <div class="modal-box">
-            <div class="modal-header">
-                <span id="quotaModalTitle">📊 Editar Cota</span>
-                <button class="btn-close-drawer" onclick="closeQuotaModal()">✕</button>
-            </div>
+            <div class="modal-header"><span id="quotaModalTitle">📊 Editar Cota</span><button class="btn-close-drawer" onclick="closeQuotaModal()">✕</button></div>
             <div class="modal-body">
                 <input type="hidden" id="quotaEditTenantId">
                 <div class="form-group"><label>Plano</label>
-                    <select id="quotaPlan">
-                        <option value="basic">Basic</option>
-                        <option value="pro">Pro</option>
-                        <option value="enterprise">Enterprise</option>
-                    </select>
+                    <select id="quotaPlan"><option value="basic">Basic</option><option value="pro">Pro</option><option value="enterprise">Enterprise</option></select>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-                    <div class="form-group"><label>Máx. WhatsApp Instances</label><input id="quotaWA" type="number"
-                            min="0" placeholder="1"></div>
-                    <div class="form-group"><label>Máx. Msgs / Dia</label><input id="quotaDaily" type="number" min="0"
-                            placeholder="1000"></div>
+                    <div class="form-group"><label>Máx. WhatsApp Instances</label><input id="quotaWA" type="number" min="0" placeholder="1"></div>
+                    <div class="form-group"><label>Máx. Msgs / Dia</label><input id="quotaDaily" type="number" min="0" placeholder="1000"></div>
                 </div>
-                <div class="form-group"><label>Máx. Msgs / Mês</label><input id="quotaMonthly" type="number" min="0"
-                        placeholder="20000"></div>
-                <div class="form-group"><label>Justificativa (opcional)</label><input id="quotaReason" type="text"
-                        placeholder="Ex: Upgrade de plano solicitado"></div>
+                <div class="form-group"><label>Máx. Msgs / Mês</label><input id="quotaMonthly" type="number" min="0" placeholder="20000"></div>
+                <div class="form-group"><label>Justificativa (opcional)</label><input id="quotaReason" type="text" placeholder="Ex: Upgrade de plano solicitado"></div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-ghost" onclick="closeQuotaModal()">Cancelar</button>
@@ -1359,68 +1159,29 @@
     <!-- ═══ NEW TENANT + OWNER MODAL ═════════════════════════════════ -->
     <div class="modal-overlay" id="tenantCreateModal">
         <div class="modal-box">
-            <div class="modal-header">
-                <span id="tenantCreateModalTitle">+ Novo Tenant / Conta</span>
-                <button class="btn-close-drawer" onclick="closeTenantCreateModal()">✕</button>
-            </div>
+            <div class="modal-header"><span id="tenantCreateModalTitle">+ Novo Tenant / Conta</span><button class="btn-close-drawer" onclick="closeTenantCreateModal()">✕</button></div>
             <div class="modal-body">
                 <h4 style="margin-bottom:0.5rem;font-size:0.9rem">Dados do Tenant</h4>
-                <div class="form-group">
-                    <label>Nome do Tenant (Empresa)</label>
-                    <input id="newTenantName" type="text" placeholder="Nome da empresa">
-                </div>
+                <div class="form-group"><label>Nome do Tenant (Empresa)</label><input id="newTenantName" type="text" placeholder="Nome da empresa"></div>
                 <div class="form-group">
                     <label>Subdomínio</label>
                     <input id="newTenantSubdomain" type="text" placeholder="ex: minhaempresa">
-                    <small class="text-muted text-sm">Use apenas letras minúsculas, números e hífen. Ex:
-                        <code>minha-loja</code></small>
+                    <small class="text-muted text-sm">Use apenas letras minúsculas, números e hífen. Ex: <code>minha-loja</code></small>
                 </div>
-
                 <hr style="border:0;border-top:1px solid var(--border);margin:1rem 0;">
-
                 <h4 style="margin-bottom:0.5rem;font-size:0.9rem">Usuário Owner (Admin Principal)</h4>
-                <div class="form-group">
-                    <label>Nome completo</label>
-                    <input id="newAdminName" type="text" placeholder="Nome do responsável">
-                </div>
-                <div class="form-group">
-                    <label>E-mail (login)</label>
-                    <input id="newAdminEmail" type="email" placeholder="admin@cliente.com">
-                </div>
-                <div class="form-group">
-                    <label>Telefone</label>
-                    <input id="newAdminPhone" type="text" placeholder="+55 11 99999-9999">
-                </div>
-                <div class="form-group">
-                    <label>Senha inicial</label>
-                    <input id="newAdminPassword" type="password" placeholder="Defina uma senha forte">
-                </div>
-
+                <div class="form-group"><label>Nome completo</label><input id="newAdminName" type="text" placeholder="Nome do responsável"></div>
+                <div class="form-group"><label>E-mail (login)</label><input id="newAdminEmail" type="email" placeholder="admin@cliente.com"></div>
+                <div class="form-group"><label>Telefone</label><input id="newAdminPhone" type="text" placeholder="+55 11 99999-9999"></div>
+                <div class="form-group"><label>Senha inicial</label><input id="newAdminPassword" type="password" placeholder="Defina uma senha forte"></div>
                 <hr style="border:0;border-top:1px solid var(--border);margin:1rem 0;">
-
                 <h4 style="margin-bottom:0.5rem;font-size:0.9rem">Plano & Cotas Iniciais</h4>
-                <div class="form-group">
-                    <label>Plano</label>
-                    <select id="newTenantPlan">
-                        <option value="basic">Basic</option>
-                        <option value="pro">Pro</option>
-                        <option value="enterprise">Enterprise</option>
-                    </select>
-                </div>
+                <div class="form-group"><label>Plano</label><select id="newTenantPlan"><option value="basic">Basic</option><option value="pro">Pro</option><option value="enterprise">Enterprise</option></select></div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-                    <div class="form-group">
-                        <label>Instâncias WhatsApp</label>
-                        <input id="newTenantWA" type="number" min="0" placeholder="1" value="1">
-                    </div>
-                    <div class="form-group">
-                        <label>Msgs/Dia</label>
-                        <input id="newTenantDaily" type="number" min="0" placeholder="1000" value="1000">
-                    </div>
+                    <div class="form-group"><label>Instâncias WhatsApp</label><input id="newTenantWA" type="number" min="0" placeholder="1" value="1"></div>
+                    <div class="form-group"><label>Msgs/Dia</label><input id="newTenantDaily" type="number" min="0" placeholder="1000" value="1000"></div>
                 </div>
-                <div class="form-group">
-                    <label>Msgs/Mês</label>
-                    <input id="newTenantMonthly" type="number" min="0" placeholder="20000" value="20000">
-                </div>
+                <div class="form-group"><label>Msgs/Mês</label><input id="newTenantMonthly" type="number" min="0" placeholder="20000" value="20000"></div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-ghost" onclick="closeTenantCreateModal()">Cancelar</button>
@@ -1432,49 +1193,26 @@
     <!-- ═══ TENANT EDIT MODAL ════════════════════════════════════════ -->
     <div class="modal-overlay" id="tenantModal">
         <div class="modal-box">
-            <div class="modal-header">
-                <span id="tenantModalTitle">🏢 Editar Tenant</span>
-                <button class="btn-close-drawer" onclick="closeTenantModal()">✕</button>
-            </div>
+            <div class="modal-header"><span id="tenantModalTitle">🏢 Editar Tenant</span><button class="btn-close-drawer" onclick="closeTenantModal()">✕</button></div>
             <div class="modal-body">
                 <input type="hidden" id="editTenantId">
-                <div class="form-group"><label>Nome do Tenant</label>
-                    <input id="editTenantName" type="text" placeholder="Nome">
-                </div>
+                <div class="form-group"><label>Nome do Tenant</label><input id="editTenantName" type="text" placeholder="Nome"></div>
                 <div class="form-group"><label>Status</label>
-                    <select id="editTenantStatus">
-                        <option value="pending">Pendente</option>
-                        <option value="active">Ativo</option>
-                        <option value="suspended">Suspenso</option>
-                    </select>
+                    <select id="editTenantStatus"><option value="pending">Pendente</option><option value="active">Ativo</option><option value="suspended">Suspenso</option></select>
                 </div>
-                <div class="form-group" style="display:flex; align-items:center; gap:0.5rem">
+                <div class="form-group" style="display:flex;align-items:center;gap:0.5rem">
                     <input type="checkbox" id="editTenantIsActive" style="width:auto">
                     <label style="margin:0">Ativo (Permite Login)</label>
                 </div>
-
                 <hr style="border:0;border-top:1px solid var(--border);margin:1rem 0;">
                 <h4 style="margin-bottom:0.5rem;font-size:0.9rem">Limites e Cotas</h4>
-
-                <div class="form-group"><label>Plano</label>
-                    <select id="editTenantPlan">
-                        <option value="basic">Basic</option>
-                        <option value="pro">Pro</option>
-                        <option value="enterprise">Enterprise</option>
-                    </select>
+                <div class="form-group"><label>Plano</label><select id="editTenantPlan"><option value="basic">Basic</option><option value="pro">Pro</option><option value="enterprise">Enterprise</option></select></div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                    <div class="form-group"><label>Instâncias WhatsApp</label><input id="editTenantWA" type="number" min="0"></div>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-                    <div class="form-group"><label>Instâncias WhatsApp</label>
-                        <input id="editTenantWA" type="number" min="0">
-                    </div>
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-                    <div class="form-group"><label>Msgs/Dia</label>
-                        <input id="editTenantDaily" type="number" min="0">
-                    </div>
-                    <div class="form-group"><label>Msgs/Mês</label>
-                        <input id="editTenantMonthly" type="number" min="0">
-                    </div>
+                    <div class="form-group"><label>Msgs/Dia</label><input id="editTenantDaily" type="number" min="0"></div>
+                    <div class="form-group"><label>Msgs/Mês</label><input id="editTenantMonthly" type="number" min="0"></div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -1493,41 +1231,17 @@
         </div>
         <div class="drawer-body">
             <input type="hidden" id="webhookId">
-            <div class="form-group">
-                <label>Nome da Integração</label>
-                <input type="text" id="webhookName" placeholder="ex: Slack Notifications">
+            <div class="form-group"><label>Nome da Integração</label><input type="text" id="webhookName" placeholder="ex: Slack Notifications"></div>
+            <div class="form-group"><label>Tipo</label>
+                <select id="webhookType"><option value="webhook">Webhook (Saída - Notificações)</option><option value="api">API (Entrada - Integração Externa)</option></select>
             </div>
-            <div class="form-group">
-                <label>Tipo</label>
-                <select id="webhookType">
-                    <option value="webhook">Webhook (Saída - Notificações)</option>
-                    <option value="api">API (Entrada - Integração Externa)</option>
-                </select>
+            <div class="form-group"><label>URL / Endpoint</label><input type="text" id="webhookUrl" placeholder="https://api.exemplo.com/webhook"></div>
+            <div class="form-group"><label>Método HTTP</label>
+                <select id="webhookMethod"><option value="POST">POST</option><option value="GET">GET</option><option value="PUT">PUT</option></select>
             </div>
-            <div class="form-group">
-                <label>URL / Endpoint</label>
-                <input type="text" id="webhookUrl" placeholder="https://api.exemplo.com/webhook">
-            </div>
-            <div class="form-group">
-                <label>Método HTTP</label>
-                <select id="webhookMethod">
-                    <option value="POST">POST</option>
-                    <option value="GET">GET</option>
-                    <option value="PUT">PUT</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Token de Autenticação (Bearer)</label>
-                <input type="password" id="webhookToken" placeholder="••••••••••••">
-            </div>
-            <div class="form-group">
-                <label>Headers Extras (JSON)</label>
-                <textarea id="webhookHeaders" placeholder='{"X-Custom-Header": "value"}' rows="3"></textarea>
-            </div>
-            <div class="flex-row gap-2 mt-2">
-                <input type="checkbox" id="webhookActive" checked style="width:auto">
-                <label for="webhookActive">Ativa / Habilitada</label>
-            </div>
+            <div class="form-group"><label>Token de Autenticação (Bearer)</label><input type="password" id="webhookToken" placeholder="••••••••••••"></div>
+            <div class="form-group"><label>Headers Extras (JSON)</label><textarea id="webhookHeaders" placeholder='{"X-Custom-Header": "value"}' rows="3"></textarea></div>
+            <div class="flex-row gap-2 mt-2"><input type="checkbox" id="webhookActive" checked style="width:auto"><label for="webhookActive">Ativa / Habilitada</label></div>
         </div>
         <div class="drawer-footer flex-end gap-2">
             <button class="btn btn-ghost" onclick="closeWebhookModal()">Cancelar</button>
@@ -1535,16 +1249,11 @@
         </div>
     </div>
 
-    <!-- Modal de Confirmação (Destructive Actions) -->
+    <!-- Modal de Confirmação -->
     <div id="confirmModal" class="modal-overlay">
-        <div class="modal-box" style="max-width: 420px;">
-            <div class="modal-header">
-                <h2>⚠️ Confirmação</h2>
-            </div>
-            <div id="confirmMessage" class="modal-body"
-                style="margin: 1rem 0; font-size: 0.95rem; line-height: 1.5; color: var(--text-secondary);">
-                Tem certeza que deseja executar esta ação?
-            </div>
+        <div class="modal-box" style="max-width:420px;">
+            <div class="modal-header"><h2>⚠️ Confirmação</h2></div>
+            <div id="confirmMessage" class="modal-body" style="margin:1rem 0;font-size:0.95rem;line-height:1.5;color:var(--text-secondary);">Tem certeza que deseja executar esta ação?</div>
             <div class="modal-footer">
                 <button id="confirmCancelBtn" class="btn btn-ghost">Cancelar</button>
                 <button id="confirmOkBtn" class="btn btn-danger">Confirmar Exclusão</button>
@@ -1555,13 +1264,9 @@
     <!-- Modal Genérico -->
     <div id="genericModal" class="modal-overlay">
         <div class="modal-box">
-            <div class="modal-header">
-                <h2 id="genericModalTitle">Aviso</h2>
-            </div>
-            <div id="genericModalBody" class="modal-body" style="margin: 1.5rem 0;"></div>
-            <div class="modal-footer" style="text-align:right;">
-                <button class="btn btn-primary" onclick="closeGenericModal()">Entendido</button>
-            </div>
+            <div class="modal-header"><h2 id="genericModalTitle">Aviso</h2></div>
+            <div id="genericModalBody" class="modal-body" style="margin:1.5rem 0;"></div>
+            <div class="modal-footer" style="text-align:right;"><button class="btn btn-primary" onclick="closeGenericModal()">Entendido</button></div>
         </div>
     </div>
 
@@ -1569,6 +1274,7 @@
     <div class="sidebar-overlay" id="mobileSidebarOverlay" onclick="toggleMobileSidebar()"></div>
 
     <script src="js/master.js?v=0.2.0"></script>
+    <script src="js/system_config.js?v=0.1.0"></script>
 </body>
 
 </html>
