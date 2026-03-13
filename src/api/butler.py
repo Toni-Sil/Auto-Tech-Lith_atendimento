@@ -4,18 +4,18 @@ Butler API Router — Master Admin endpoints for the Mordomo Digital.
 All endpoints require Master Admin role (owner + tenant_id=None).
 """
 
-from typing import Optional
 from datetime import datetime
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import select, desc
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.database import get_db
-from src.models.butler_log import ButlerLog, ButlerActionType, ButlerSeverity
-from src.models.admin import AdminUser
 from src.api.auth import get_current_user
+from src.models.admin import AdminUser
+from src.models.butler_log import ButlerActionType, ButlerLog, ButlerSeverity
+from src.models.database import get_db
 from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -24,25 +24,33 @@ butler_router = APIRouter(prefix="/butler", tags=["Butler Agent"])
 
 # ── RBAC gate ─────────────────────────────────────────────────────────────────
 
-async def _require_master(current_user: AdminUser = Depends(get_current_user)) -> AdminUser:
+
+async def _require_master(
+    current_user: AdminUser = Depends(get_current_user),
+) -> AdminUser:
     allowed_roles = ["owner", "admin", "master_admin", "master"]
     if current_user.role not in allowed_roles or current_user.tenant_id is not None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Master Admin only")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Master Admin only"
+        )
     return current_user
 
 
 # ── Request / Response schemas ─────────────────────────────────────────────────
 
+
 class RunActionRequest(BaseModel):
-    action:    str
-    params:    dict = {}
+    action: str
+    params: dict = {}
     tenant_id: Optional[int] = None
+
 
 class OnboardingAdvanceRequest(BaseModel):
     reset: bool = False
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
 
 @butler_router.get("/status")
 async def get_butler_status(
@@ -52,12 +60,19 @@ async def get_butler_status(
     """Current infrastructure health snapshot."""
     from src.agents.butler_agent import butler_agent
     from src.config import settings
+
     try:
-        status_obj = await butler_agent.monitor_infrastructure(db, database_url=settings.DATABASE_URL)
+        status_obj = await butler_agent.monitor_infrastructure(
+            db, database_url=settings.DATABASE_URL
+        )
         return status_obj.to_dict()
     except Exception as e:
         logger.error(f"Butler status check failed: {e}")
-        return {"overall": "unknown", "error": str(e), "timestamp": datetime.utcnow().isoformat()}
+        return {
+            "overall": "unknown",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat(),
+        }
 
 
 @butler_router.get("/logs")
@@ -87,14 +102,14 @@ async def get_butler_logs(
 
     return [
         {
-            "id":           r.id,
-            "timestamp":    r.timestamp.isoformat() if r.timestamp else None,
-            "action_type":  r.action_type.value if r.action_type else None,
-            "severity":     r.severity.value if r.severity else None,
-            "tenant_id":    r.tenant_id,
-            "description":  r.description,
-            "result":       r.result,
-            "operator":     r.operator,
+            "id": r.id,
+            "timestamp": r.timestamp.isoformat() if r.timestamp else None,
+            "action_type": r.action_type.value if r.action_type else None,
+            "severity": r.severity.value if r.severity else None,
+            "tenant_id": r.tenant_id,
+            "description": r.description,
+            "result": r.result,
+            "operator": r.operator,
             "requires_approval": r.requires_approval,
         }
         for r in rows
@@ -108,8 +123,10 @@ async def get_churn_risks(
     _=Depends(_require_master),
 ):
     """Latest churn risk list (tenants with significant usage drops)."""
-    from src.agents.butler.churn_detector import get_churn_risks as _get_risks
     from dataclasses import asdict
+
+    from src.agents.butler.churn_detector import get_churn_risks as _get_risks
+
     risks = await _get_risks(db, drop_threshold=threshold)
     return [asdict(r) for r in risks]
 
@@ -121,6 +138,7 @@ async def get_billing_report(
 ):
     """Current billing monitor report: quota alerts + financial summary."""
     from src.agents.butler.billing_monitor import generate_consolidated_report
+
     return await generate_consolidated_report(db)
 
 
@@ -131,13 +149,13 @@ async def run_butler_action(
     current_user=Depends(_require_master),
 ):
     """Manually trigger an approved Butler action."""
-    from src.agents.butler_agent import butler_agent
     from src.agents.butler.butler_tools import TOOL_REGISTRY
+    from src.agents.butler_agent import butler_agent
 
     if req.action not in TOOL_REGISTRY:
         raise HTTPException(
             status_code=400,
-            detail=f"Unknown action '{req.action}'. Available: {list(TOOL_REGISTRY.keys())}"
+            detail=f"Unknown action '{req.action}'. Available: {list(TOOL_REGISTRY.keys())}",
         )
 
     result = await butler_agent.run_tool(
@@ -158,8 +176,8 @@ async def onboard_tenant(
     _=Depends(_require_master),
 ):
     """Get or advance onboarding state for a tenant."""
-    from src.agents.butler_agent import butler_agent
     from src.agents.butler.onboarding import reset_onboarding
+    from src.agents.butler_agent import butler_agent
 
     if req.reset:
         reset_onboarding(tenant_id)
@@ -175,6 +193,7 @@ async def advance_onboarding(
 ):
     """Mark current onboarding step as complete and return next step."""
     from src.agents.butler_agent import butler_agent
+
     return await butler_agent.advance_tenant_onboarding(db, tenant_id=tenant_id)
 
 
@@ -182,6 +201,7 @@ async def advance_onboarding(
 async def list_scheduler_jobs(_=Depends(_require_master)):
     """List all scheduled Butler jobs and their next run times."""
     from src.workers.butler_worker import get_job_status
+
     return get_job_status()
 
 
@@ -192,6 +212,7 @@ async def trigger_job_now(
 ):
     """Manually trigger a scheduled job immediately."""
     from src.workers.butler_worker import get_scheduler
+
     sched = get_scheduler()
     job = sched.get_job(job_id)
     if not job:
@@ -214,7 +235,9 @@ async def approve_butler_action(
     if not log_entry:
         raise HTTPException(status_code=404, detail="Action log not found")
     if log_entry.requires_approval != 1:
-        raise HTTPException(status_code=400, detail="This action doesn't require approval")
+        raise HTTPException(
+            status_code=400, detail="This action doesn't require approval"
+        )
 
     # Mark approved
     log_entry.requires_approval = 2
@@ -222,15 +245,20 @@ async def approve_butler_action(
     await db.commit()
 
     # Now execute the actual tool
-    from src.agents.butler_agent import butler_agent
     import json
+
+    from src.agents.butler_agent import butler_agent
+
     meta = log_entry.meta or {}
     action = meta.get("action")
     params = meta.get("params", {})
 
     if action:
         from src.agents.butler.butler_tools import execute_tool
-        result = await execute_tool(action, params, operator=f"master:{current_user.id}")
+
+        result = await execute_tool(
+            action, params, operator=f"master:{current_user.id}"
+        )
         log_entry.result = result.get("status", "ok")
         log_entry.detail = json.dumps(result)[:500]
         await db.commit()

@@ -1,6 +1,9 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, func, ForeignKey
+from sqlalchemy import (Boolean, Column, DateTime, ForeignKey, Integer, String,
+                        func)
 from sqlalchemy.orm import relationship
+
 from src.models.database import Base
+
 
 class UserSession(Base):
     __tablename__ = "user_sessions"
@@ -10,12 +13,14 @@ class UserSession(Base):
     session_token_jti = Column(String, unique=True, index=True, nullable=False)
     ip_address = Column(String, nullable=True)
     user_agent = Column(String, nullable=True)
-    
+
     is_revoked = Column(Boolean, default=False)
-    
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    last_active_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    
+    last_active_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
     # Relationships
     user = relationship("AdminUser")
 

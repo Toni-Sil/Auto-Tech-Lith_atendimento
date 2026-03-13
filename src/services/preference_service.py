@@ -1,17 +1,25 @@
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Any, Dict, Optional
+
 from sqlalchemy import select
-from typing import Optional, Dict, Any
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.preferences import TenantPreference, UserPreference
-from src.schemas_preferences import TenantPreferenceUpdate, UserPreferenceUpdate, AggregatedPreferenceResponse
+from src.schemas_preferences import (AggregatedPreferenceResponse,
+                                     TenantPreferenceUpdate,
+                                     UserPreferenceUpdate)
 from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
+
 class PreferenceService:
-    async def get_tenant_preference(self, session: AsyncSession, tenant_id: int) -> TenantPreference:
+    async def get_tenant_preference(
+        self, session: AsyncSession, tenant_id: int
+    ) -> TenantPreference:
         """Fetch tenant preferences, creating defaults if they don't exist."""
-        pref = await session.scalar(select(TenantPreference).where(TenantPreference.tenant_id == tenant_id))
+        pref = await session.scalar(
+            select(TenantPreference).where(TenantPreference.tenant_id == tenant_id)
+        )
         if not pref:
             pref = TenantPreference(tenant_id=tenant_id)
             session.add(pref)
@@ -19,19 +27,25 @@ class PreferenceService:
             await session.refresh(pref)
         return pref
 
-    async def update_tenant_preference(self, session: AsyncSession, tenant_id: int, data: TenantPreferenceUpdate) -> TenantPreference:
+    async def update_tenant_preference(
+        self, session: AsyncSession, tenant_id: int, data: TenantPreferenceUpdate
+    ) -> TenantPreference:
         pref = await self.get_tenant_preference(session, tenant_id)
-        
+
         update_data = data.model_dump(exclude_unset=True)
         for key, value in update_data.items():
             setattr(pref, key, value)
-            
+
         await session.commit()
         await session.refresh(pref)
         return pref
 
-    async def get_user_preference(self, session: AsyncSession, admin_id: int) -> UserPreference:
-        pref = await session.scalar(select(UserPreference).where(UserPreference.admin_id == admin_id))
+    async def get_user_preference(
+        self, session: AsyncSession, admin_id: int
+    ) -> UserPreference:
+        pref = await session.scalar(
+            select(UserPreference).where(UserPreference.admin_id == admin_id)
+        )
         if not pref:
             pref = UserPreference(admin_id=admin_id)
             session.add(pref)
@@ -39,18 +53,22 @@ class PreferenceService:
             await session.refresh(pref)
         return pref
 
-    async def update_user_preference(self, session: AsyncSession, admin_id: int, data: UserPreferenceUpdate) -> UserPreference:
+    async def update_user_preference(
+        self, session: AsyncSession, admin_id: int, data: UserPreferenceUpdate
+    ) -> UserPreference:
         pref = await self.get_user_preference(session, admin_id)
-        
+
         update_data = data.model_dump(exclude_unset=True)
         for key, value in update_data.items():
             setattr(pref, key, value)
-            
+
         await session.commit()
         await session.refresh(pref)
         return pref
 
-    async def get_aggregated_preferences(self, session: AsyncSession, tenant_id: int, admin_id: int) -> AggregatedPreferenceResponse:
+    async def get_aggregated_preferences(
+        self, session: AsyncSession, tenant_id: int, admin_id: int
+    ) -> AggregatedPreferenceResponse:
         """
         Calculates the effective preference bundle for the frontend.
         Rules:
@@ -72,7 +90,8 @@ class PreferenceService:
             logo_url=tenant_pref.logo_url,
             theme_mode=eff_theme,
             language=eff_lang,
-            dashboard_layout=layout
+            dashboard_layout=layout,
         )
+
 
 preference_service = PreferenceService()

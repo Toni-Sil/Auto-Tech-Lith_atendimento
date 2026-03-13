@@ -1,6 +1,8 @@
-from sqlalchemy import Column, Integer, String, Boolean, Text, DateTime, JSON, ForeignKey
-from sqlalchemy.sql import func
+from sqlalchemy import (JSON, Boolean, Column, DateTime, ForeignKey, Integer,
+                        String, Text)
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+
 from src.models.database import Base
 
 
@@ -11,7 +13,9 @@ class WebhookConfig(Base):
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)
     name = Column(String(100), nullable=False)
     url = Column(String(500), nullable=False)
-    type = Column(String(20), nullable=False, default="webhook")  # 'webhook' (saída) | 'api' (entrada)
+    type = Column(
+        String(20), nullable=False, default="webhook"
+    )  # 'webhook' (saída) | 'api' (entrada)
     token = Column(String(255), nullable=True)
     method = Column(String(10), nullable=False, default="POST")  # GET or POST
     events = Column(JSON, nullable=True)  # list of event names

@@ -21,26 +21,33 @@ from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
+
 # Lazy import to avoid circular at module load
 def _get_butler():
     from src.agents.butler_agent import butler_agent
+
     return butler_agent
+
 
 def _get_settings():
     from src.config import settings
+
     return settings
 
 
 # ── Job functions ─────────────────────────────────────────────────────────────
+
 
 async def job_infra_health_check():
     """Every 30 min: check infrastructure health, alert if degraded."""
     logger.debug("[ButlerWorker] Running infra health check")
     try:
         settings = _get_settings()
-        butler   = _get_butler()
+        butler = _get_butler()
         async with async_session() as db:
-            status = await butler.monitor_infrastructure(db, database_url=settings.DATABASE_URL)
+            status = await butler.monitor_infrastructure(
+                db, database_url=settings.DATABASE_URL
+            )
             logger.info(f"[ButlerWorker] Infra: {status.overall}")
     except Exception as e:
         logger.error(f"[ButlerWorker] infra_health_check failed: {e}")
@@ -75,6 +82,7 @@ async def job_daily_report():
     logger.info("[ButlerWorker] Generating daily report")
     try:
         from src.services.telegram_service import telegram_service
+
         butler = _get_butler()
         async with async_session() as db:
             report = await butler.generate_billing_report(db)
@@ -100,7 +108,9 @@ async def job_log_rotation():
         butler = _get_butler()
         async with async_session() as db:
             result = await butler.run_tool(
-                db, "run_logrotate", {},
+                db,
+                "run_logrotate",
+                {},
                 operator="butler_scheduler",
             )
             logger.info(f"[ButlerWorker] Log rotation: {result}")
@@ -173,10 +183,12 @@ def get_job_status() -> list:
     sched = get_scheduler()
     jobs = []
     for job in sched.get_jobs():
-        jobs.append({
-            "id":        job.id,
-            "name":      job.name,
-            "next_run":  str(job.next_run_time) if job.next_run_time else None,
-            "trigger":   str(job.trigger),
-        })
+        jobs.append(
+            {
+                "id": job.id,
+                "name": job.name,
+                "next_run": str(job.next_run_time) if job.next_run_time else None,
+                "trigger": str(job.trigger),
+            }
+        )
     return jobs

@@ -10,16 +10,13 @@ Coleta as seguintes métricas para cada requisição HTTP:
 As métricas são expostas via rota /api/v1/metrics.
 """
 
-import time
 import logging
+import time
 
-from prometheus_client import (
-    Counter,
-    Histogram,
-    Gauge,
-)
 from fastapi import Request, Response
-from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from prometheus_client import Counter, Gauge, Histogram
+from starlette.middleware.base import (BaseHTTPMiddleware,
+                                       RequestResponseEndpoint)
 from starlette.routing import Match
 
 logger = logging.getLogger(__name__)
@@ -80,7 +77,9 @@ def _normalize_route(request: Request) -> str:
 class PrometheusMetricsMiddleware(BaseHTTPMiddleware):
     """Middleware que coleta métricas de performance para todas as requisições."""
 
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         # Pular o próprio endpoint de métricas (evitar auto-coleta)
         if request.url.path == "/api/v1/metrics":
             return await call_next(request)
@@ -111,7 +110,9 @@ class PrometheusMetricsMiddleware(BaseHTTPMiddleware):
         REQUEST_COUNT.labels(method=method, route=route, status_code=status_code).inc()
 
         if response.status_code >= 500:
-            ERROR_COUNT.labels(method=method, route=route, status_code=status_code).inc()
+            ERROR_COUNT.labels(
+                method=method, route=route, status_code=status_code
+            ).inc()
 
         if response.status_code == 429:
             category = response.headers.get("X-RateLimit-Category", "unknown")

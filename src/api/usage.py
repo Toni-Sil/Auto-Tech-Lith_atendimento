@@ -3,14 +3,15 @@ Usage & Billing Routers — Per-tenant consumption tracking and KPI aggregation.
 """
 
 from datetime import datetime, timedelta
-from typing import Annotated, Optional, List
+from typing import Annotated, List, Optional
+
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.database import get_db
-from src.models.admin import AdminUser
 from src.api.auth import get_current_user
+from src.models.admin import AdminUser
+from src.models.database import get_db
 from src.services.usage_service import usage_service
 
 usage_router = APIRouter()
@@ -18,6 +19,7 @@ billing_router = APIRouter()
 
 
 # ── Schemas ──────────────────────────────────────────────────────────────────
+
 
 class UsageSummaryResponse(BaseModel):
     tenant_id: int
@@ -41,6 +43,7 @@ class DailyUsagePoint(BaseModel):
 
 class BillingKPIResponse(BaseModel):
     """Key performance indicators for billing dashboard."""
+
     period_days: int
     total_messages: int
     total_conversations: int
@@ -53,11 +56,14 @@ class BillingKPIResponse(BaseModel):
 
 # ── Usage Endpoints ───────────────────────────────────────────────────────────
 
+
 @usage_router.get("/summary", response_model=UsageSummaryResponse)
 async def get_usage_summary(
     current_user: Annotated[AdminUser, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db),
-    from_date: Optional[datetime] = Query(None, description="Start of period (ISO 8601)"),
+    from_date: Optional[datetime] = Query(
+        None, description="Start of period (ISO 8601)"
+    ),
     to_date: Optional[datetime] = Query(None, description="End of period (ISO 8601)"),
 ):
     """Aggregated usage summary for the current tenant."""
@@ -84,6 +90,7 @@ async def get_daily_usage(
 
 
 # ── Billing Endpoints ─────────────────────────────────────────────────────────
+
 
 @billing_router.get("/kpis", response_model=BillingKPIResponse)
 async def get_billing_kpis(

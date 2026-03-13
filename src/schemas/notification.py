@@ -1,6 +1,8 @@
-from pydantic import BaseModel, ConfigDict
-from typing import Optional
 from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict
+
 
 class NotificationBase(BaseModel):
     channel: str = "in_app"
@@ -8,8 +10,10 @@ class NotificationBase(BaseModel):
     message: str
     is_read: bool = False
 
+
 class NotificationCreate(NotificationBase):
     recipient_id: int
+
 
 class NotificationResponse(NotificationBase):
     id: int
@@ -17,5 +21,5 @@ class NotificationResponse(NotificationBase):
     recipient_id: int
     created_at: datetime
     read_at: Optional[datetime] = None
-    
+
     model_config = ConfigDict(from_attributes=True)

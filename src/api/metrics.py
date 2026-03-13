@@ -14,7 +14,7 @@ import os
 
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import PlainTextResponse
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,9 @@ metrics_router = APIRouter()
 def _get_metrics_token() -> str:
     token = os.getenv("METRICS_TOKEN", "")
     if not token:
-        logger.warning("⚠️ METRICS_TOKEN não definido. Endpoint /metrics está exposto sem autenticação!")
+        logger.warning(
+            "⚠️ METRICS_TOKEN não definido. Endpoint /metrics está exposto sem autenticação!"
+        )
     return token
 
 
@@ -56,9 +58,11 @@ async def prometheus_metrics(request: Request) -> PlainTextResponse:
                 detail="Authorization header ausente. Use: Authorization: Bearer {METRICS_TOKEN}",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        provided_token = auth_header[len("Bearer "):]
+        provided_token = auth_header[len("Bearer ") :]
         if provided_token != expected_token:
-            logger.warning(f"⚠️ Tentativa de acesso não autorizado ao /metrics de {request.client.host if request.client else 'unknown'}")
+            logger.warning(
+                f"⚠️ Tentativa de acesso não autorizado ao /metrics de {request.client.host if request.client else 'unknown'}"
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Token de métricas inválido.",

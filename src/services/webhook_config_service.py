@@ -1,14 +1,17 @@
 """
 WebhookConfigService — CRUD e teste de conexão para webhooks configuráveis.
 """
+
+from datetime import datetime
+from typing import List, Optional
+
 import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from src.models.database import async_session
 from src.models.webhook_config import WebhookConfig
 from src.utils.logger import setup_logger
-from typing import Optional, List
-from datetime import datetime
 
 logger = setup_logger(__name__)
 
@@ -24,9 +27,15 @@ class WebhookConfigService:
             )
             return result.scalars().all()
 
-    async def get_webhook(self, webhook_id: int, tenant_id: int) -> Optional[WebhookConfig]:
+    async def get_webhook(
+        self, webhook_id: int, tenant_id: int
+    ) -> Optional[WebhookConfig]:
         async with async_session() as session:
-            return await session.scalar(select(WebhookConfig).where(WebhookConfig.id == webhook_id, WebhookConfig.tenant_id == tenant_id))
+            return await session.scalar(
+                select(WebhookConfig).where(
+                    WebhookConfig.id == webhook_id, WebhookConfig.tenant_id == tenant_id
+                )
+            )
 
     async def create_webhook(self, data: dict, tenant_id: int) -> WebhookConfig:
         async with async_session() as session:
@@ -38,9 +47,15 @@ class WebhookConfigService:
             logger.info(f"Created webhook config: {webhook.name} (id={webhook.id})")
             return webhook
 
-    async def update_webhook(self, webhook_id: int, data: dict, tenant_id: int) -> Optional[WebhookConfig]:
+    async def update_webhook(
+        self, webhook_id: int, data: dict, tenant_id: int
+    ) -> Optional[WebhookConfig]:
         async with async_session() as session:
-            webhook = await session.scalar(select(WebhookConfig).where(WebhookConfig.id == webhook_id, WebhookConfig.tenant_id == tenant_id))
+            webhook = await session.scalar(
+                select(WebhookConfig).where(
+                    WebhookConfig.id == webhook_id, WebhookConfig.tenant_id == tenant_id
+                )
+            )
             if not webhook:
                 return None
             for key, value in data.items():
@@ -54,7 +69,11 @@ class WebhookConfigService:
 
     async def delete_webhook(self, webhook_id: int, tenant_id: int) -> bool:
         async with async_session() as session:
-            webhook = await session.scalar(select(WebhookConfig).where(WebhookConfig.id == webhook_id, WebhookConfig.tenant_id == tenant_id))
+            webhook = await session.scalar(
+                select(WebhookConfig).where(
+                    WebhookConfig.id == webhook_id, WebhookConfig.tenant_id == tenant_id
+                )
+            )
             if not webhook:
                 return False
             await session.delete(webhook)
@@ -65,7 +84,11 @@ class WebhookConfigService:
     async def test_webhook(self, webhook_id: int, tenant_id: int) -> dict:
         """Faz uma requisição de teste para o webhook e registra o resultado."""
         async with async_session() as session:
-            webhook = await session.scalar(select(WebhookConfig).where(WebhookConfig.id == webhook_id, WebhookConfig.tenant_id == tenant_id))
+            webhook = await session.scalar(
+                select(WebhookConfig).where(
+                    WebhookConfig.id == webhook_id, WebhookConfig.tenant_id == tenant_id
+                )
+            )
             if not webhook:
                 return {"status": "error", "message": "Webhook não encontrado"}
 
@@ -86,7 +109,7 @@ class WebhookConfigService:
                     url = webhook.url
                     method = webhook.method.upper()
                     payload = test_payload
-                    
+
                     if "api.openai.com" in url:
                         # Test OpenAI by listing models
                         if not url.endswith("/models"):
@@ -94,7 +117,7 @@ class WebhookConfigService:
                         method = "GET"
                         payload = None
                         logger.info(f"OpenAI validation: GET {url}")
-                    
+
                     elif "api.telegram.org" in url:
                         # Test Telegram by calling getMe
                         if "/getMe" not in url:
@@ -102,13 +125,13 @@ class WebhookConfigService:
                         method = "GET"
                         payload = None
                         logger.info(f"Telegram validation: GET {url}")
-                        
+
                     elif "generativelanguage.googleapis.com" in url:
                         # Test Gemini by listing models
                         # Requires key as query param
                         if "/v1/models" not in url:
                             url = url.rstrip("/") + "/v1/models"
-                        
+
                         # Use token as key if provided
                         if webhook.token:
                             separator = "&" if "?" in url else "?"
@@ -116,10 +139,12 @@ class WebhookConfigService:
                             # Remove Bearer header as it might conflict
                             if "Authorization" in headers:
                                 del headers["Authorization"]
-                        
+
                         method = "GET"
                         payload = None
-                        logger.info(f"Gemini validation: GET {url.split('key=')[0]}key=***")
+                        logger.info(
+                            f"Gemini validation: GET {url.split('key=')[0]}key=***"
+                        )
 
                     if method == "GET":
                         resp = await client.get(url, headers=headers)
@@ -135,7 +160,9 @@ class WebhookConfigService:
                 webhook.last_test_response = response_text
                 await session.commit()
 
-                logger.info(f"Webhook test id={webhook_id} ({webhook.name}): HTTP {resp.status_code}")
+                logger.info(
+                    f"Webhook test id={webhook_id} ({webhook.name}): HTTP {resp.status_code}"
+                )
                 return {
                     "status": status_str,
                     "http_status": resp.status_code,

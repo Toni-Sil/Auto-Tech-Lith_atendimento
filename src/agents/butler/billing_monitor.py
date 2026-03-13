@@ -21,15 +21,15 @@ quota_service = QuotaService()
 
 @dataclass
 class BillingAlert:
-    tenant_id:   int
+    tenant_id: int
     tenant_name: str
-    alert_level: str       # "warning" (80%) | "critical" (90%) | "suspended"
-    pct_daily:   int
+    alert_level: str  # "warning" (80%) | "critical" (90%) | "suspended"
+    pct_daily: int
     pct_monthly: int
-    pct_wa:      int
-    upgrade_tier: str      # suggested next plan
-    action:       str      # recommended action text
-    reasons:      list
+    pct_wa: int
+    upgrade_tier: str  # suggested next plan
+    action: str  # recommended action text
+    reasons: list
 
 
 def _suggest_upgrade(plan_tier: str, reasons: list) -> tuple[str, str]:
@@ -57,18 +57,22 @@ async def get_billing_alerts(db: AsyncSession) -> List[BillingAlert]:
     enriched: List[BillingAlert] = []
 
     for a in raw_alerts:
-        next_tier, action = _suggest_upgrade(a.get("plan_tier", "basic"), a.get("reasons", []))
-        enriched.append(BillingAlert(
-            tenant_id=a["tenant_id"],
-            tenant_name=a["tenant_name"],
-            alert_level=a.get("level", "warning"),
-            pct_daily=a.get("pct_daily", 0),
-            pct_monthly=a.get("pct_monthly", 0),
-            pct_wa=a.get("pct_wa", 0),
-            upgrade_tier=next_tier,
-            action=action,
-            reasons=a.get("reasons", []),
-        ))
+        next_tier, action = _suggest_upgrade(
+            a.get("plan_tier", "basic"), a.get("reasons", [])
+        )
+        enriched.append(
+            BillingAlert(
+                tenant_id=a["tenant_id"],
+                tenant_name=a["tenant_name"],
+                alert_level=a.get("level", "warning"),
+                pct_daily=a.get("pct_daily", 0),
+                pct_monthly=a.get("pct_monthly", 0),
+                pct_wa=a.get("pct_wa", 0),
+                upgrade_tier=next_tier,
+                action=action,
+                reasons=a.get("reasons", []),
+            )
+        )
 
     logger.info(f"BillingMonitor: {len(enriched)} alerts generated")
     return enriched
@@ -79,32 +83,33 @@ async def generate_consolidated_report(db: AsyncSession) -> dict:
     Return a structured billing report dict suitable for Telegram or API.
     """
     from src.services.usage_service import UsageService
+
     usage_svc = UsageService()
 
     alerts = await get_billing_alerts(db)
     global_stats = await usage_svc.get_global_usage_ranking(db, limit=5)
 
     critical_count = sum(1 for a in alerts if a.alert_level == "critical")
-    warning_count  = sum(1 for a in alerts if a.alert_level == "warning")
+    warning_count = sum(1 for a in alerts if a.alert_level == "warning")
     suspended_count = sum(1 for a in alerts if a.alert_level == "suspended")
 
     report = {
         "generated_at": datetime.utcnow().isoformat(),
         "summary": {
             "critical_alerts": critical_count,
-            "warning_alerts":  warning_count,
+            "warning_alerts": warning_count,
             "suspended_tenants": suspended_count,
-            "top_consumers":   global_stats,
+            "top_consumers": global_stats,
         },
         "alerts": [
             {
-                "tenant_id":   a.tenant_id,
+                "tenant_id": a.tenant_id,
                 "tenant_name": a.tenant_name,
-                "level":       a.alert_level,
-                "pct_daily":   a.pct_daily,
+                "level": a.alert_level,
+                "pct_daily": a.pct_daily,
                 "pct_monthly": a.pct_monthly,
-                "upgrade_to":  a.upgrade_tier,
-                "action":      a.action,
+                "upgrade_to": a.upgrade_tier,
+                "action": a.action,
             }
             for a in alerts
         ],

@@ -1,18 +1,19 @@
-from fastapi import APIRouter, Depends, Request, BackgroundTasks
-from typing import Annotated
-import httpx
+import asyncio
 import os
 import tempfile
-import asyncio
 from functools import partial
+from typing import Annotated
 
-from src.api.auth import get_current_user, AdminUser
+import httpx
+from fastapi import APIRouter, BackgroundTasks, Depends, Request
+
+from src.agents.admin_agent import admin_agent
+from src.api.auth import AdminUser, get_current_user
+from src.config import settings
+from src.services.audio_service import audio_service
 from src.services.evolution_service import evolution_service
 from src.services.telegram_service import telegram_service
-from src.agents.admin_agent import admin_agent
-from src.services.audio_service import audio_service
 from src.utils.logger import setup_logger
-from src.config import settings
 
 logger = setup_logger(__name__)
 
@@ -29,32 +30,37 @@ if not ALLOWED_ADMIN_IDS and settings.TELEGRAM_CHAT_ID:
 
 webhooks_router = APIRouter()
 
+
 @webhooks_router.get("/evolution/status")
 async def get_evolution_status(
-    current_user: Annotated[AdminUser, Depends(get_current_user)]
+    current_user: Annotated[AdminUser, Depends(get_current_user)],
 ):
     """
     Check if the WhatsApp (Evolution API) instance is connected.
     """
     status = await evolution_service.check_instance_status()
     # Normalize response for frontend
-    is_connected = status.get("instance", {}).get("state") == "open" or status.get("state") == "open"
+    is_connected = (
+        status.get("instance", {}).get("state") == "open"
+        or status.get("state") == "open"
+    )
     return {
         "status": "connected" if is_connected else "disconnected",
         "instance": settings.EVOLUTION_INSTANCE_NAME,
-        "details": status
+        "details": status,
     }
+
 
 @webhooks_router.get("/telegram/status")
 async def get_telegram_status(
-    current_user: Annotated[AdminUser, Depends(get_current_user)]
+    current_user: Annotated[AdminUser, Depends(get_current_user)],
 ):
     """
     Check if the Telegram Bot is active.
     """
     if not settings.TELEGRAM_BOT_TOKEN:
         return {"status": "unconfigured"}
-    
+
     url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/getMe"
     try:
         async with httpx.AsyncClient() as client:
@@ -65,11 +71,12 @@ async def get_telegram_status(
                     "status": "active",
                     "bot_name": data.get("first_name"),
                     "username": data.get("username"),
-                    "details": data
+                    "details": data,
                 }
             return {"status": "inactive", "error": resp.text}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
 
 async def _send_typing(chat_id: int):
     """Envia ação 'typing' para o Telegram."""
@@ -84,6 +91,7 @@ async def _send_typing(chat_id: int):
             )
     except Exception:
         pass
+
 
 async def _transcribe_voice(file_id: str) -> str:
     """Baixa o arquivo de voz do Telegram e transcreve com Whisper."""
@@ -109,8 +117,7 @@ async def _transcribe_voice(file_id: str) -> str:
 
         loop = asyncio.get_running_loop()
         transcription = await loop.run_in_executor(
-            None,
-            partial(audio_service.transcribe, temp_path)
+            None, partial(audio_service.transcribe, temp_path)
         )
 
         return transcription.strip() if transcription and transcription.strip() else ""
@@ -123,6 +130,7 @@ async def _transcribe_voice(file_id: str) -> str:
                 os.unlink(temp_path)
             except Exception:
                 pass
+
 
 async def process_telegram_update(update: dict):
     """Processa a atualização do Telegram de forma assíncrona."""
@@ -148,7 +156,9 @@ async def process_telegram_update(update: dict):
 
         logger.info(f"🎤 Voz recebida de {username}: file_id={file_id}, {duration}s")
         if chat_id:
-            await telegram_service.send_message(f"🎤 _Transcrevendo áudio ({duration}s)..._", chat_id=str(chat_id))
+            await telegram_service.send_message(
+                f"🎤 _Transcrevendo áudio ({duration}s)..._", chat_id=str(chat_id)
+            )
             await _send_typing(chat_id)
 
         transcription = await _transcribe_voice(file_id)
@@ -157,7 +167,9 @@ async def process_telegram_update(update: dict):
             is_voice = True
         else:
             if chat_id:
-                await telegram_service.send_message("❌ Não consegui transcrever o áudio.", chat_id=str(chat_id))
+                await telegram_service.send_message(
+                    "❌ Não consegui transcrever o áudio.", chat_id=str(chat_id)
+                )
             return
 
     if not text:
@@ -181,7 +193,10 @@ async def process_telegram_update(update: dict):
     except Exception as e:
         logger.error(f"Erro processando mensagem: {e}", exc_info=True)
         if chat_id:
-            await telegram_service.send_message("❌ Erro interno.", chat_id=str(chat_id))
+            await telegram_service.send_message(
+                "❌ Erro interno.", chat_id=str(chat_id)
+            )
+
 
 @webhooks_router.post("/telegram")
 async def telegram_webhook(request: Request, background_tasks: BackgroundTasks):

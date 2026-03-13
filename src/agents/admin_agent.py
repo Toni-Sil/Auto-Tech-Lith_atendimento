@@ -17,24 +17,25 @@ Capacidades:
 
 import json
 from collections import defaultdict
-from datetime import datetime, date, timedelta
-from typing import Dict, Any, List, Optional
+from datetime import date, datetime, timedelta
+from typing import Any, Dict, List, Optional
 
-from sqlalchemy import select, func, desc, or_, update
+from sqlalchemy import desc, func, or_, select, update
 from sqlalchemy.orm import selectinload
 
 from src.agents.base_agent import BaseAgent
-from src.services.llm_service import llm_service
-from src.models.database import async_session
-from src.models.customer import Customer
-from src.models.meeting import Meeting, MeetingStatus, MeetingType
-from src.models.ticket import Ticket, TicketStatus, TicketPriority
-from src.models.conversation import Conversation
 from src.models.admin import AdminUser
-from src.models.whatsapp import EvolutionInstance
 from src.models.audit import AuditLog
+from src.models.conversation import Conversation
+from src.models.customer import Customer
+from src.models.database import async_session
+from src.models.meeting import Meeting, MeetingStatus, MeetingType
+from src.models.ticket import Ticket, TicketPriority, TicketStatus
+from src.models.whatsapp import EvolutionInstance
+from src.services.llm_service import llm_service
+from src.services.permission_service import (PermissionResult,
+                                             PermissionService, Role)
 from src.utils.logger import setup_logger
-from src.services.permission_service import PermissionService, Role, PermissionResult
 
 logger = setup_logger(__name__)
 
@@ -114,7 +115,9 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
     # ─────────────────────────────────────────────────────────────────
     # Autenticação
     # ─────────────────────────────────────────────────────────────────
-    async def identify_user(self, user_id: int, username: str, message: str) -> tuple[str, str, str]:
+    async def identify_user(
+        self, user_id: int, username: str, message: str
+    ) -> tuple[str, str, str]:
         """
         Retorna (status, user_name, user_role).
         status: 'authorized' | 'success' | 'unknown'
@@ -129,16 +132,16 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
             if admin:
                 admin.last_active_at = datetime.now()
                 # removido overwrite de admin.username para evitar corromper login do painel web
-                
+
                 # Log de Identificação Automática
                 audit = AuditLog(
                     event_type="telegram_id_identified",
                     username=admin.username,
                     operator_id=admin.id,
-                    details=f"Admin '{admin.name}' identificado automaticamente pelo Telegram ID: {user_id}"
+                    details=f"Admin '{admin.name}' identificado automaticamente pelo Telegram ID: {user_id}",
                 )
                 session.add(audit)
-                
+
                 await session.commit()
                 return ("authorized", admin.name, admin.role)
 
@@ -150,16 +153,16 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                 if adm.access_code and adm.access_code == message.strip():
                     adm.telegram_id = user_id
                     adm.last_active_at = datetime.now()
-                    
+
                     # Log de Validação de Código
                     audit = AuditLog(
                         event_type="telegram_access_code_validated",
                         username=adm.username,
                         operator_id=adm.id,
-                        details=f"Admin '{adm.name}' vinculou Telegram ID {user_id} via Código de Acesso."
+                        details=f"Admin '{adm.name}' vinculou Telegram ID {user_id} via Código de Acesso.",
                     )
                     session.add(audit)
-                    
+
                     await session.commit()
                     return ("success", adm.name, adm.role)
 
@@ -173,7 +176,9 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
         username = context.get("username", "Admin")
 
         # 1. Autenticação
-        auth_status, user_name, user_role_str = await self.identify_user(user_id, username, message)
+        auth_status, user_name, user_role_str = await self.identify_user(
+            user_id, username, message
+        )
 
         if auth_status == "unknown":
             # Limpar histórico de usuário não autenticado
@@ -196,7 +201,7 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
 
         # 3. Histórico de conversa (multi-turn)
         history = _conversation_history[user_id]
-        
+
         # Sempre reconstruir o system message no início (pode ter mudado)
         messages = [{"role": "system", "content": system_prompt}]
         messages.extend(history)
@@ -230,21 +235,39 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                 if perm == PermissionResult.DENIED:
                     result_text = f"❌ Acesso negado: `{func_name}.{action}` (Role: {user_role_str.upper()})"
                 elif perm == PermissionResult.NEEDS_CONFIRMATION:
-                    if "confirmar" not in message.lower() and "sim" not in message.lower() and "yes" not in message.lower():
+                    if (
+                        "confirmar" not in message.lower()
+                        and "sim" not in message.lower()
+                        and "yes" not in message.lower()
+                    ):
                         result_text = (
                             f"⚠️ Ação sensível: `{func_name}.{action}`\n"
                             "Responda **CONFIRMAR** para prosseguir com esta operação."
                         )
                     else:
-                        result_text = await self._execute_tool(func_name, args, user_id, user_name, context.get("is_voice", False))
+                        result_text = await self._execute_tool(
+                            func_name,
+                            args,
+                            user_id,
+                            user_name,
+                            context.get("is_voice", False),
+                        )
                 else:
-                    result_text = await self._execute_tool(func_name, args, user_id, user_name, context.get("is_voice", False))
+                    result_text = await self._execute_tool(
+                        func_name,
+                        args,
+                        user_id,
+                        user_name,
+                        context.get("is_voice", False),
+                    )
 
-                tool_results.append({
-                    "role": "tool",
-                    "tool_call_id": tc.id,
-                    "content": result_text,
-                })
+                tool_results.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tc.id,
+                        "content": result_text,
+                    }
+                )
 
             messages.extend(tool_results)
 
@@ -253,19 +276,31 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
 
         # 6. Resposta final
         final_text = response_msg.content
-        
+
         # Se a resposta estiver vazia mas houve ferramenta, forçar uma confirmação elegante
         if not final_text and response_msg.tool_calls:
-            logger.info("Assistant response empty after tool calls, generating confirmation...")
-            messages.append({"role": "system", "content": "Por favor, forneça uma confirmação elegante e detalhada para o patrão sobre as ações que você acaba de realizar."})
+            logger.info(
+                "Assistant response empty after tool calls, generating confirmation..."
+            )
+            messages.append(
+                {
+                    "role": "system",
+                    "content": "Por favor, forneça uma confirmação elegante e detalhada para o patrão sobre as ações que você acaba de realizar.",
+                }
+            )
             response_msg = await llm_service.get_chat_response(messages)
-            final_text = response_msg.content or "Como desejar, senhor. As tarefas foram concluídas com êxito."
+            final_text = (
+                response_msg.content
+                or "Como desejar, senhor. As tarefas foram concluídas com êxito."
+            )
         elif not final_text:
             final_text = "À sua disposição, patrão. Como posso ser útil?"
 
         # 7. Atualizar histórico de conversa (mantém apenas o necessário)
         _conversation_history[user_id].append({"role": "user", "content": message})
-        _conversation_history[user_id].append({"role": "assistant", "content": final_text})
+        _conversation_history[user_id].append(
+            {"role": "assistant", "content": final_text}
+        )
         _trim_history(user_id)
 
         return final_text
@@ -273,7 +308,14 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
     # ─────────────────────────────────────────────────────────────────
     # Dispatcher de ferramentas
     # ─────────────────────────────────────────────────────────────────
-    async def _execute_tool(self, tool_name: str, args: Dict[str, Any], user_id: int = 0, user_name: str = "", is_voice: bool = False) -> str:
+    async def _execute_tool(
+        self,
+        tool_name: str,
+        args: Dict[str, Any],
+        user_id: int = 0,
+        user_name: str = "",
+        is_voice: bool = False,
+    ) -> str:
         try:
             if tool_name == "dashboard_summary":
                 return await self.dashboard_summary()
@@ -298,7 +340,9 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
             elif tool_name == "manage_profiles":
                 return await self.manage_profiles(**args)
             elif tool_name == "manage_account_recovery":
-                return await self.manage_account_recovery(user_id=user_id, is_voice=is_voice, **args)
+                return await self.manage_account_recovery(
+                    user_id=user_id, is_voice=is_voice, **args
+                )
             elif tool_name == "command_agent":
                 return await self.command_agent(**args)
             elif tool_name == "manage_whatsapp":
@@ -321,27 +365,52 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
 
         async with async_session() as session:
             total_customers = await session.scalar(select(func.count(Customer.id))) or 0
-            new_leads_today = await session.scalar(
-                select(func.count(Customer.id)).where(Customer.created_at >= today_start)
-            ) or 0
-            open_tickets = await session.scalar(
-                select(func.count(Ticket.id)).where(Ticket.status == TicketStatus.OPEN)
-            ) or 0
-            in_progress_tickets = await session.scalar(
-                select(func.count(Ticket.id)).where(Ticket.status == TicketStatus.IN_PROGRESS)
-            ) or 0
-            meetings_today = await session.scalar(
-                select(func.count(Meeting.id)).where(Meeting.date == today)
-            ) or 0
-            meetings_scheduled = await session.scalar(
-                select(func.count(Meeting.id)).where(
-                    Meeting.status == MeetingStatus.SCHEDULED,
-                    Meeting.date >= today
+            new_leads_today = (
+                await session.scalar(
+                    select(func.count(Customer.id)).where(
+                        Customer.created_at >= today_start
+                    )
                 )
-            ) or 0
-            convs_today = await session.scalar(
-                select(func.count(Conversation.id)).where(Conversation.created_at >= today_start)
-            ) or 0
+                or 0
+            )
+            open_tickets = (
+                await session.scalar(
+                    select(func.count(Ticket.id)).where(
+                        Ticket.status == TicketStatus.OPEN
+                    )
+                )
+                or 0
+            )
+            in_progress_tickets = (
+                await session.scalar(
+                    select(func.count(Ticket.id)).where(
+                        Ticket.status == TicketStatus.IN_PROGRESS
+                    )
+                )
+                or 0
+            )
+            meetings_today = (
+                await session.scalar(
+                    select(func.count(Meeting.id)).where(Meeting.date == today)
+                )
+                or 0
+            )
+            meetings_scheduled = (
+                await session.scalar(
+                    select(func.count(Meeting.id)).where(
+                        Meeting.status == MeetingStatus.SCHEDULED, Meeting.date >= today
+                    )
+                )
+                or 0
+            )
+            convs_today = (
+                await session.scalar(
+                    select(func.count(Conversation.id)).where(
+                        Conversation.created_at >= today_start
+                    )
+                )
+                or 0
+            )
 
             # Próxima reunião
             next_meeting_res = await session.execute(
@@ -381,9 +450,12 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
 
             # Taxa de conversão (churned vs total)
             total = await session.scalar(select(func.count(Customer.id))) or 1
-            churned = await session.scalar(
-                select(func.count(Customer.id)).where(Customer.churned == True)
-            ) or 0
+            churned = (
+                await session.scalar(
+                    select(func.count(Customer.id)).where(Customer.churned == True)
+                )
+                or 0
+            )
 
             # Tickets por prioridade
             prio_res = await session.execute(
@@ -419,7 +491,9 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
             pct = round(cnt / total * 100, 1)
             lines.append(f"  • {st}: {cnt} ({pct}%)")
 
-        lines.append(f"\n*Taxa de Churn:* {churned}/{total} ({round(churned/total*100,1)}%)")
+        lines.append(
+            f"\n*Taxa de Churn:* {churned}/{total} ({round(churned/total*100,1)}%)"
+        )
 
         lines.append("\n*Tickets Ativos por Prioridade:*")
         for pr, cnt in prio_rows:
@@ -446,7 +520,7 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
         customer_id: Optional[int] = None,
         data: Optional[Dict[str, Any]] = None,
         limit: int = 10,
-        **kwargs
+        **kwargs,
     ) -> str:
         async with async_session() as session:
             if action == "list":
@@ -461,21 +535,25 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                 lines = [f"*{len(customers)} Clientes:*"]
                 for c in customers:
                     churn_tag = " 🔴churned" if c.churned else ""
-                    lines.append(f"  🆔{c.id} | *{c.name}* | {c.phone} | {c.status}{churn_tag}")
+                    lines.append(
+                        f"  🆔{c.id} | *{c.name}* | {c.phone} | {c.status}{churn_tag}"
+                    )
                 return "\n".join(lines)
 
             elif action == "search":
                 if not query:
                     return "⚠️ Informe um termo de busca (`query`)."
                 res = await session.execute(
-                    select(Customer).where(
+                    select(Customer)
+                    .where(
                         or_(
                             Customer.name.ilike(f"%{query}%"),
                             Customer.phone.ilike(f"%{query}%"),
                             Customer.email.ilike(f"%{query}%"),
                             Customer.company.ilike(f"%{query}%"),
                         )
-                    ).limit(10)
+                    )
+                    .limit(10)
                 )
                 customers = res.scalars().all()
                 if not customers:
@@ -496,12 +574,22 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                 if not c:
                     return f"Cliente ID {customer_id} não encontrado."
                 # Contar tickets e reuniões
-                n_tickets = await session.scalar(
-                    select(func.count(Ticket.id)).where(Ticket.customer_id == customer_id)
-                ) or 0
-                n_meetings = await session.scalar(
-                    select(func.count(Meeting.id)).where(Meeting.customer_id == customer_id)
-                ) or 0
+                n_tickets = (
+                    await session.scalar(
+                        select(func.count(Ticket.id)).where(
+                            Ticket.customer_id == customer_id
+                        )
+                    )
+                    or 0
+                )
+                n_meetings = (
+                    await session.scalar(
+                        select(func.count(Meeting.id)).where(
+                            Meeting.customer_id == customer_id
+                        )
+                    )
+                    or 0
+                )
                 return (
                     f"*👤 Cliente #{c.id}*\n"
                     f"  Nome: {c.name}\n"
@@ -519,7 +607,7 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
 
             elif action == "create":
                 if not data:
-                    return "⚠️ Informe os dados no objeto `data`. Ex: `{\"name\": \"João\", \"phone\": \"11999999999\"}`"
+                    return '⚠️ Informe os dados no objeto `data`. Ex: `{"name": "João", "phone": "11999999999"}`'
                 new_c = Customer(**data)
                 session.add(new_c)
                 await session.commit()
@@ -568,7 +656,7 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
         category: Optional[str] = None,
         query: Optional[str] = None,
         limit: int = 10,
-        **kwargs
+        **kwargs,
     ) -> str:
         async with async_session() as session:
             if action == "list":
@@ -588,7 +676,12 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                     return "Nenhum ticket encontrado."
                 lines = [f"*{len(rows)} Tickets:*"]
                 for t, cname in rows:
-                    prio_emoji = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🟢"}.get(t.priority, "⚪")
+                    prio_emoji = {
+                        "critical": "🔴",
+                        "high": "🟠",
+                        "medium": "🟡",
+                        "low": "🟢",
+                    }.get(t.priority, "⚪")
                     lines.append(
                         f"  #{t.id} {prio_emoji} *{t.subject}* — {cname}\n"
                         f"     Status: {t.status} | {t.created_at.strftime('%d/%m/%Y') if t.created_at else 'N/A'}"
@@ -604,7 +697,7 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                     .where(
                         or_(
                             Ticket.subject.ilike(f"%{query}%"),
-                            Ticket.description.ilike(f"%{query}%")
+                            Ticket.description.ilike(f"%{query}%"),
                         )
                     )
                     .order_by(desc(Ticket.created_at))
@@ -616,7 +709,12 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                     return f"Nenhum ticket encontrado para a busca '{query}'."
                 lines = [f"*{len(rows)} Tickets encontrados para '{query}':*"]
                 for t, cname in rows:
-                    prio_emoji = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🟢"}.get(t.priority, "⚪")
+                    prio_emoji = {
+                        "critical": "🔴",
+                        "high": "🟠",
+                        "medium": "🟡",
+                        "low": "🟢",
+                    }.get(t.priority, "⚪")
                     lines.append(
                         f"  #{t.id} {prio_emoji} *{t.subject}* — {cname}\n"
                         f"     Status: {t.status} | {t.created_at.strftime('%d/%m/%Y') if t.created_at else 'N/A'}"
@@ -695,9 +793,11 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
         notes: Optional[str] = None,
         days: int = 14,
         include_past: bool = False,
-        **kwargs
+        **kwargs,
     ) -> str:
-        from datetime import date as date_cls, time as time_cls
+        from datetime import date as date_cls
+        from datetime import time as time_cls
+
         async with async_session() as session:
             if action == "list":
                 today = date_cls.today()
@@ -713,7 +813,9 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                 res = await session.execute(stmt)
                 rows = res.all()
                 if not rows:
-                    period = f"próximos {days} dias" if not include_past else "no sistema"
+                    period = (
+                        f"próximos {days} dias" if not include_past else "no sistema"
+                    )
                     return f"Nenhuma reunião encontrada {period}."
                 lines = [f"*📅 {len(rows)} Reuniões:*"]
                 for m, cname in rows:
@@ -760,7 +862,11 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                     t = datetime.strptime(time, "%H:%M").time()
                 except ValueError as e:
                     return f"❌ Formato inválido: {e}. Use YYYY-MM-DD para data e HH:MM para hora."
-                meeting_type = MeetingType(type) if type and type in [e.value for e in MeetingType] else MeetingType.BRIEFING
+                meeting_type = (
+                    MeetingType(type)
+                    if type and type in [e.value for e in MeetingType]
+                    else MeetingType.BRIEFING
+                )
                 m = Meeting(
                     customer_id=customer_id,
                     date=d,
@@ -821,7 +927,9 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                 await session.commit()
                 return f"✅ Reunião #{meeting_id} atualizada."
 
-        return "❌ Ação desconhecida. Use: list, get, schedule, cancel, complete, update."
+        return (
+            "❌ Ação desconhecida. Use: list, get, schedule, cancel, complete, update."
+        )
 
     # ─────────────────────────────────────────────────────────────────
     # FERRAMENTA: Gerenciar Admins
@@ -834,7 +942,7 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
         username: Optional[str] = None,
         role: Optional[str] = None,
         access_code: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> str:
         async with async_session() as session:
             if action == "list":
@@ -844,8 +952,14 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                     return "Nenhum admin cadastrado."
                 lines = ["*👤 Administradores:*"]
                 for a in admins:
-                    tg = f"TG: {a.telegram_id}" if a.telegram_id else "TG: não vinculado"
-                    last = a.last_active_at.strftime("%d/%m %H:%M") if a.last_active_at else "nunca"
+                    tg = (
+                        f"TG: {a.telegram_id}" if a.telegram_id else "TG: não vinculado"
+                    )
+                    last = (
+                        a.last_active_at.strftime("%d/%m %H:%M")
+                        if a.last_active_at
+                        else "nunca"
+                    )
                     lines.append(
                         f"  #{a.id} *{a.name}* | Role: {a.role}\n"
                         f"     @{a.username or 'N/A'} | {tg} | Último acesso: {last}"
@@ -907,7 +1021,7 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
         phone: Optional[str] = None,
         limit: int = 20,
         offset: int = 0,
-        **kwargs
+        **kwargs,
     ) -> str:
         async with async_session() as session:
             # Resolver customer_id pelo telefone se necessário
@@ -942,7 +1056,9 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
             for conv in convs:
                 role_emoji = "👤" if conv.role == "user" else "🤖"
                 ts = conv.created_at.strftime("%d/%m %H:%M") if conv.created_at else ""
-                content_preview = conv.content[:300] + ("..." if len(conv.content) > 300 else "")
+                content_preview = conv.content[:300] + (
+                    "..." if len(conv.content) > 300 else ""
+                )
                 lines.append(f"{role_emoji} *{ts}*\n{content_preview}\n")
 
             return "\n".join(lines)
@@ -955,7 +1071,7 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
         phone: Optional[str] = None,
         customer_id: Optional[int] = None,
         message: str = "",
-        **kwargs
+        **kwargs,
     ) -> str:
         if not message:
             return "⚠️ Informe o texto da mensagem (`message`)."
@@ -974,21 +1090,21 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
 
         try:
             from src.services.evolution_service import evolution_service
-            
+
             # Tentar encontrar instância interna no DB
             async with async_session() as session:
                 internal_instance = await session.scalar(
-                    select(EvolutionInstance.instance_name).where(
+                    select(EvolutionInstance.instance_name)
+                    .where(
                         EvolutionInstance.tenant_id == None,
                         EvolutionInstance.is_active == True,
-                        EvolutionInstance.status == "connected"
-                    ).limit(1)
+                        EvolutionInstance.status == "connected",
+                    )
+                    .limit(1)
                 )
-            
+
             result = await evolution_service.send_message(
-                phone=phone, 
-                text=message, 
-                instance_name=internal_instance
+                phone=phone, text=message, instance_name=internal_instance
             )
             if result:
                 return f"✅ Mensagem enviada para *{phone}* via WhatsApp."
@@ -1019,10 +1135,12 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                 except Exception:
                     existing_notes = []
 
-            existing_notes.append({
-                "ts": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                "note": note,
-            })
+            existing_notes.append(
+                {
+                    "ts": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                    "note": note,
+                }
+            )
 
             # Manter apenas as últimas 50 notas
             if len(existing_notes) > 50:
@@ -1061,24 +1179,30 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
     # ─────────────────────────────────────────────────────────────────
     # FERRAMENTA: Gerenciar Perfis de Agente (Saúde e Status)
     # ─────────────────────────────────────────────────────────────────
-    async def manage_profiles(self, action: str, profile_id: Optional[int] = None, **kwargs) -> str:
+    async def manage_profiles(
+        self, action: str, profile_id: Optional[int] = None, **kwargs
+    ) -> str:
         from src.services.profile_service import profile_service
-        
+
         if action == "check_health":
             profiles = await profile_service.list_profiles()
             if not profiles:
                 return "Nenhum perfil de agente configurado."
-            
+
             lines = ["*🤖 Status e Saúde dos Perfis de Agente:*"]
             for p in profiles:
                 active_str = "🟢 Ativo" if p.get("is_active") else "⚪ Inativo"
                 health_str = "✅ OK / Não testado"
-                lines.append(f"  #{p.get('id')} *{p.get('name')}* ({p.get('agent_name')}) - {active_str} | {health_str}")
+                lines.append(
+                    f"  #{p.get('id')} *{p.get('name')}* ({p.get('agent_name')}) - {active_str} | {health_str}"
+                )
                 lines.append(f"    Canal: {p.get('channel')} | Nicho: {p.get('niche')}")
-            
-            lines.append("\n⚠️ Para configurar/verificar chaves de API com problema, peça ao administrador (humano) para abrir o painel em Agentes & Perfis.")
+
+            lines.append(
+                "\n⚠️ Para configurar/verificar chaves de API com problema, peça ao administrador (humano) para abrir o painel em Agentes & Perfis."
+            )
             return "\n".join(lines)
-            
+
         elif action == "activate":
             if not profile_id:
                 return "⚠️ Informe o `profile_id`."
@@ -1088,33 +1212,50 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
             return f"✅ Perfil *{profile.get('name')}* (#{profile_id}) ativado com sucesso."
 
         elif action == "create":
-            from src.services.prompt_generator_service import prompt_generator_service
+            from src.services.prompt_generator_service import \
+                prompt_generator_service
 
             base_prompt = kwargs.get("base_prompt", "").strip()
 
             # ── CENÁRIO 1: base_prompt já fornecido → analisar e extrair campos ──
             if base_prompt:
                 try:
-                    logger.info("manage_profiles.create: base_prompt fornecido, analisando campos via LLM...")
-                    extracted = await prompt_generator_service.analyze_prompt(base_prompt)
+                    logger.info(
+                        "manage_profiles.create: base_prompt fornecido, analisando campos via LLM..."
+                    )
+                    extracted = await prompt_generator_service.analyze_prompt(
+                        base_prompt
+                    )
 
                     data = {
-                        "name": kwargs.get("name") or extracted.get("name", "Novo Agente"),
-                        "agent_name_display": kwargs.get("agent_name_display") or extracted.get("agent_name_display", "Agente Virtual"),
+                        "name": kwargs.get("name")
+                        or extracted.get("name", "Novo Agente"),
+                        "agent_name_display": kwargs.get("agent_name_display")
+                        or extracted.get("agent_name_display", "Agente Virtual"),
                         "channel": kwargs.get("channel", "whatsapp"),
                         "niche": kwargs.get("niche") or extracted.get("niche", "geral"),
                         "tone": kwargs.get("tone") or extracted.get("tone", "neutro"),
-                        "formality": kwargs.get("formality") or extracted.get("formality", "equilibrado"),
-                        "autonomy_level": kwargs.get("autonomy_level") or extracted.get("autonomy_level", "equilibrada"),
-                        "objective": kwargs.get("objective") or extracted.get("objective", "Atendimento geral"),
-                        "target_audience": kwargs.get("target_audience") or extracted.get("target_audience", ""),
-                        "data_to_collect": kwargs.get("data_to_collect") or extracted.get("data_to_collect", []),
-                        "constraints": kwargs.get("constraints") or extracted.get("constraints", ""),
+                        "formality": kwargs.get("formality")
+                        or extracted.get("formality", "equilibrado"),
+                        "autonomy_level": kwargs.get("autonomy_level")
+                        or extracted.get("autonomy_level", "equilibrada"),
+                        "objective": kwargs.get("objective")
+                        or extracted.get("objective", "Atendimento geral"),
+                        "target_audience": kwargs.get("target_audience")
+                        or extracted.get("target_audience", ""),
+                        "data_to_collect": kwargs.get("data_to_collect")
+                        or extracted.get("data_to_collect", []),
+                        "constraints": kwargs.get("constraints")
+                        or extracted.get("constraints", ""),
                         "base_prompt": base_prompt,
                     }
 
                     if isinstance(data["data_to_collect"], str):
-                        data["data_to_collect"] = [x.strip() for x in data["data_to_collect"].split(",") if x.strip()]
+                        data["data_to_collect"] = [
+                            x.strip()
+                            for x in data["data_to_collect"].split(",")
+                            if x.strip()
+                        ]
 
                     profile = await profile_service.create_profile(data)
                     return (
@@ -1128,14 +1269,18 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                         f"Use `manage_profiles` action `activate` com profile_id={profile.id} para ativá-lo."
                     )
                 except Exception as e:
-                    logger.error(f"manage_profiles.create (cenário 1): {e}", exc_info=True)
+                    logger.error(
+                        f"manage_profiles.create (cenário 1): {e}", exc_info=True
+                    )
                     return f"❌ Erro ao criar perfil a partir do prompt base: {str(e)}"
 
             # ── CENÁRIO 2: base_prompt NÃO fornecido → gerar a partir dos campos ──
             else:
                 data = {
                     "name": kwargs.get("name", "Novo Agente"),
-                    "agent_name_display": kwargs.get("agent_name_display", "Agente Virtual"),
+                    "agent_name_display": kwargs.get(
+                        "agent_name_display", "Agente Virtual"
+                    ),
                     "channel": kwargs.get("channel", "whatsapp"),
                     "niche": kwargs.get("niche", "geral"),
                     "tone": kwargs.get("tone", "neutro"),
@@ -1148,22 +1293,30 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                 }
 
                 if isinstance(data["data_to_collect"], str):
-                    data["data_to_collect"] = [x.strip() for x in data["data_to_collect"].split(",") if x.strip()]
+                    data["data_to_collect"] = [
+                        x.strip()
+                        for x in data["data_to_collect"].split(",")
+                        if x.strip()
+                    ]
 
                 try:
-                    logger.info("manage_profiles.create: base_prompt ausente, gerando via PromptGeneratorService...")
-                    generated_prompt = prompt_generator_service.generate_prompt({
-                        "niche": data["niche"],
-                        "tone": data["tone"],
-                        "formality": data["formality"],
-                        "autonomy_level": data["autonomy_level"],
-                        "objective": data["objective"],
-                        "target_audience": data["target_audience"],
-                        "data_to_collect": data["data_to_collect"],
-                        "constraints": data.get("constraints", ""),
-                        "company_name": data["name"],
-                        "agent_name": data["agent_name_display"],
-                    })
+                    logger.info(
+                        "manage_profiles.create: base_prompt ausente, gerando via PromptGeneratorService..."
+                    )
+                    generated_prompt = prompt_generator_service.generate_prompt(
+                        {
+                            "niche": data["niche"],
+                            "tone": data["tone"],
+                            "formality": data["formality"],
+                            "autonomy_level": data["autonomy_level"],
+                            "objective": data["objective"],
+                            "target_audience": data["target_audience"],
+                            "data_to_collect": data["data_to_collect"],
+                            "constraints": data.get("constraints", ""),
+                            "company_name": data["name"],
+                            "agent_name": data["agent_name_display"],
+                        }
+                    )
                     data["base_prompt"] = generated_prompt
 
                     profile = await profile_service.create_profile(data)
@@ -1177,7 +1330,9 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                         f"Use `manage_profiles` action `activate` com profile_id={profile.id} para ativá-lo."
                     )
                 except Exception as e:
-                    logger.error(f"manage_profiles.create (cenário 2): {e}", exc_info=True)
+                    logger.error(
+                        f"manage_profiles.create (cenário 2): {e}", exc_info=True
+                    )
                     return f"❌ Erro ao criar perfil do agente: {str(e)}"
 
         return "❌ Ação desconhecida. Use: check_health, activate, create."
@@ -1185,48 +1340,66 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
     # ─────────────────────────────────────────────────────────────────
     # FERRAMENTA: Gerenciar Recuperação de Conta (Telegram)
     # ─────────────────────────────────────────────────────────────────
-    async def manage_account_recovery(self, action: str, admin_id: Optional[int] = None, user_id: int = 0, new_password: Optional[str] = None, is_voice: bool = False, **kwargs) -> str:
-        from src.utils.audit import log_security_event
-        from src.models.recovery import RecoveryRequest
-        from src.utils.security import get_password_hash
+    async def manage_account_recovery(
+        self,
+        action: str,
+        admin_id: Optional[int] = None,
+        user_id: int = 0,
+        new_password: Optional[str] = None,
+        is_voice: bool = False,
+        **kwargs,
+    ) -> str:
         import secrets
-        from datetime import datetime, timezone, timedelta
-        
+        from datetime import datetime, timedelta, timezone
+
+        from src.models.recovery import RecoveryRequest
+        from src.utils.audit import log_security_event
+        from src.utils.security import get_password_hash
+
         async with async_session() as session:
             # Garantir que o admin correto solicitou
-            admin = await session.scalar(select(AdminUser).where(AdminUser.telegram_id == user_id))
+            admin = await session.scalar(
+                select(AdminUser).where(AdminUser.telegram_id == user_id)
+            )
             if not admin:
                 return "❌ Usuário não autorizado para solicitar recuperação."
-            
+
             if action == "reset_password":
                 return "⚠️ A redefinição direta de senha não é mais suportada por questões de segurança. Use apenas a ação 'request_reset' para enviar um link de recuperação."
 
             elif action == "request_reset":
-                
+
                 # Invalida tokens anteriores
                 admin.recovery_token = None
                 admin.recovery_token_expires_at = None
-                
+
                 # Gerar token curto de 15 minutos
                 raw_token = secrets.token_hex(20)
                 hashed_token = get_password_hash(raw_token)
-                
+
                 admin.recovery_token = hashed_token
-                admin.recovery_token_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
-                
+                admin.recovery_token_expires_at = datetime.now(
+                    timezone.utc
+                ) + timedelta(minutes=15)
+
                 # Registrar pedido
                 recovery_req = RecoveryRequest(
                     admin_id=admin.id,
-                    status="approved", # aprovado via presença do agent
+                    status="approved",  # aprovado via presença do agent
                     request_type="telegram",
                     expires_at=admin.recovery_token_expires_at,
-                    agent_approved_at=datetime.now(timezone.utc)
+                    agent_approved_at=datetime.now(timezone.utc),
                 )
                 session.add(recovery_req)
-                
-                await log_security_event(session, "recovery_approved_via_telegram", username=admin.username, details="Token gerado via Agent. Uso único. Expira em 15m.")
+
+                await log_security_event(
+                    session,
+                    "recovery_approved_via_telegram",
+                    username=admin.username,
+                    details="Token gerado via Agent. Uso único. Expira em 15m.",
+                )
                 await session.commit()
-                
+
                 return (
                     f"✅ **Recuperação de Conta Aprovada!**\n\n"
                     f"Acesse o link seguro abaixo em até 15 minutos para redefinir sua senha:\n\n"
@@ -1241,41 +1414,53 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
     async def command_agent(self, customer_id: int, instruction: str, **kwargs) -> str:
         if not instruction:
             return "⚠️ Informe a instrução (`instruction`)."
-        
+
         async with async_session() as session:
             customer = await session.get(Customer, customer_id)
             if not customer:
                 return f"❌ Cliente ID {customer_id} não encontrado."
-            
+
             customer.admin_instruction = instruction
             await session.commit()
-            
-            logger.info(f"Admin command set for customer {customer_id}: {instruction}")
-            return f"✅ Instrução registrada para o atendimento de *{customer.name}*: \"{instruction}\""
 
-    async def manage_whatsapp(self, action: str, instance_name: Optional[str] = None, tenant_id: Optional[int] = None) -> str:
+            logger.info(f"Admin command set for customer {customer_id}: {instruction}")
+            return f'✅ Instrução registrada para o atendimento de *{customer.name}*: "{instruction}"'
+
+    async def manage_whatsapp(
+        self,
+        action: str,
+        instance_name: Optional[str] = None,
+        tenant_id: Optional[int] = None,
+    ) -> str:
         """Cria e conecta whatsapps em tempo real com configuração de webhook (Nível Empresarial)."""
         if action == "create":
             if not instance_name:
                 return "❌ Erro: 'instance_name' (identificador) é obrigatório para registrar um novo WhatsApp."
-            
+
             import re
+
             original_name = instance_name
             # Slugifica para URLs seguras: espaços por _. Remove caracteres não alfanuméricos exceto_.
-            instance_name = re.sub(r'[^a-zA-Z0-9_]', '', instance_name.replace(' ', '_').lower())
-            
+            instance_name = re.sub(
+                r"[^a-zA-Z0-9_]", "", instance_name.replace(" ", "_").lower()
+            )
+
             if not instance_name:
                 return "❌ Erro: 'instance_name' inválido após remoção de caracteres proibidos."
 
-            from src.services.evolution_service import evolution_service
             from src.config import settings
-            
+            from src.services.evolution_service import evolution_service
+
             # Verificar duplicação via Evolution API / DB
             async with async_session() as session:
-                existing = await session.scalar(select(EvolutionInstance).where(EvolutionInstance.instance_name == instance_name))
+                existing = await session.scalar(
+                    select(EvolutionInstance).where(
+                        EvolutionInstance.instance_name == instance_name
+                    )
+                )
                 if existing:
                     return f"⚠️ Erro: A instância '{instance_name}' já existe registrada na nossa base de dados."
-                    
+
             # Chamada real de criação via Evolution Service
             evo_response = await evolution_service.create_instance(instance_name)
             if "error" in evo_response:
@@ -1286,12 +1471,12 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                 new_inst = EvolutionInstance(
                     tenant_id=tenant_id,
                     instance_name=instance_name,
-                    display_name=original_name, # Salva o DisplayName original limpo
-                    status="pending"
+                    display_name=original_name,  # Salva o DisplayName original limpo
+                    status="pending",
                 )
                 session.add(new_inst)
                 await session.commit()
-                
+
             # Calcular URL Pública Real (Tempo Real)
             base_url = (settings.PUBLIC_URL or "http://localhost:8000").rstrip("/")
             webhook_url = f"{base_url}{settings.API_V1_STR}/webhooks/whatsapp?token={settings.VERIFY_TOKEN}"
@@ -1319,18 +1504,24 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
 
         elif action == "delete":
             if not instance_name:
-                return "❌ Erro: 'instance_name' é obrigatório para excluir um WhatsApp."
-                
+                return (
+                    "❌ Erro: 'instance_name' é obrigatório para excluir um WhatsApp."
+                )
+
             from src.services.evolution_service import evolution_service
-            
+
             # Deletar da Evolution API
             evo_response = await evolution_service.delete_instance(instance_name)
             if "error" in evo_response and evo_response.get("status_code") != 404:
                 return f"❌ Erro na Evolution API ao excluir '{instance_name}': {evo_response['error']}"
-                
+
             # Deletar do banco de dados local
             async with async_session() as session:
-                existing = await session.scalar(select(EvolutionInstance).where(EvolutionInstance.instance_name == instance_name))
+                existing = await session.scalar(
+                    select(EvolutionInstance).where(
+                        EvolutionInstance.instance_name == instance_name
+                    )
+                )
                 if existing:
                     await session.delete(existing)
                     await session.commit()
@@ -1371,13 +1562,32 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                         "properties": {
                             "action": {
                                 "type": "string",
-                                "enum": ["list", "search", "get", "create", "update", "delete"],
+                                "enum": [
+                                    "list",
+                                    "search",
+                                    "get",
+                                    "create",
+                                    "update",
+                                    "delete",
+                                ],
                                 "description": "Ação a executar",
                             },
-                            "query": {"type": "string", "description": "Termo de busca (para search)"},
-                            "customer_id": {"type": "integer", "description": "ID do cliente (para get/update/delete)"},
-                            "data": {"type": "object", "description": "JSON com campos do cliente (para create/update). Ex: {'name': 'João', 'phone': '11999999999', 'status': 'briefing'}"},
-                            "limit": {"type": "integer", "description": "Máx. resultados (default 10)"},
+                            "query": {
+                                "type": "string",
+                                "description": "Termo de busca (para search)",
+                            },
+                            "customer_id": {
+                                "type": "integer",
+                                "description": "ID do cliente (para get/update/delete)",
+                            },
+                            "data": {
+                                "type": "object",
+                                "description": "JSON com campos do cliente (para create/update). Ex: {'name': 'João', 'phone': '11999999999', 'status': 'briefing'}",
+                            },
+                            "limit": {
+                                "type": "integer",
+                                "description": "Máx. resultados (default 10)",
+                            },
                         },
                         "required": ["action"],
                     },
@@ -1396,15 +1606,44 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                                 "enum": ["list", "search", "get", "create", "update"],
                                 "description": "Ação a executar",
                             },
-                            "ticket_id": {"type": "integer", "description": "ID do ticket"},
-                            "customer_id": {"type": "integer", "description": "ID do cliente"},
-                            "subject": {"type": "string", "description": "Assunto do ticket"},
-                            "description": {"type": "string", "description": "Descrição detalhada"},
-                            "status": {"type": "string", "enum": ["open", "in_progress", "resolved", "closed"], "description": "Status do ticket"},
-                            "priority": {"type": "string", "enum": ["low", "medium", "high", "critical"], "description": "Prioridade"},
-                            "category": {"type": "string", "description": "Categoria: support, sales, inquiry"},
-                            "query": {"type": "string", "description": "Termo de busca (para search)"},
-                            "limit": {"type": "integer", "description": "Máx. resultados (default 10)"},
+                            "ticket_id": {
+                                "type": "integer",
+                                "description": "ID do ticket",
+                            },
+                            "customer_id": {
+                                "type": "integer",
+                                "description": "ID do cliente",
+                            },
+                            "subject": {
+                                "type": "string",
+                                "description": "Assunto do ticket",
+                            },
+                            "description": {
+                                "type": "string",
+                                "description": "Descrição detalhada",
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["open", "in_progress", "resolved", "closed"],
+                                "description": "Status do ticket",
+                            },
+                            "priority": {
+                                "type": "string",
+                                "enum": ["low", "medium", "high", "critical"],
+                                "description": "Prioridade",
+                            },
+                            "category": {
+                                "type": "string",
+                                "description": "Categoria: support, sales, inquiry",
+                            },
+                            "query": {
+                                "type": "string",
+                                "description": "Termo de busca (para search)",
+                            },
+                            "limit": {
+                                "type": "integer",
+                                "description": "Máx. resultados (default 10)",
+                            },
                         },
                         "required": ["action"],
                     },
@@ -1420,17 +1659,49 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                         "properties": {
                             "action": {
                                 "type": "string",
-                                "enum": ["list", "get", "schedule", "cancel", "complete", "update"],
+                                "enum": [
+                                    "list",
+                                    "get",
+                                    "schedule",
+                                    "cancel",
+                                    "complete",
+                                    "update",
+                                ],
                                 "description": "Ação a executar",
                             },
-                            "meeting_id": {"type": "integer", "description": "ID da reunião"},
-                            "customer_id": {"type": "integer", "description": "ID do cliente (para schedule)"},
-                            "date": {"type": "string", "description": "Data no formato YYYY-MM-DD"},
-                            "time": {"type": "string", "description": "Hora no formato HH:MM"},
-                            "type": {"type": "string", "enum": ["briefing", "proposal", "follow-up"], "description": "Tipo da reunião"},
-                            "notes": {"type": "string", "description": "Notas sobre a reunião"},
-                            "days": {"type": "integer", "description": "Dias à frente para list (default 14)"},
-                            "include_past": {"type": "boolean", "description": "Incluir reuniões passadas na listagem"},
+                            "meeting_id": {
+                                "type": "integer",
+                                "description": "ID da reunião",
+                            },
+                            "customer_id": {
+                                "type": "integer",
+                                "description": "ID do cliente (para schedule)",
+                            },
+                            "date": {
+                                "type": "string",
+                                "description": "Data no formato YYYY-MM-DD",
+                            },
+                            "time": {
+                                "type": "string",
+                                "description": "Hora no formato HH:MM",
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["briefing", "proposal", "follow-up"],
+                                "description": "Tipo da reunião",
+                            },
+                            "notes": {
+                                "type": "string",
+                                "description": "Notas sobre a reunião",
+                            },
+                            "days": {
+                                "type": "integer",
+                                "description": "Dias à frente para list (default 14)",
+                            },
+                            "include_past": {
+                                "type": "boolean",
+                                "description": "Incluir reuniões passadas na listagem",
+                            },
                         },
                         "required": ["action"],
                     },
@@ -1449,11 +1720,24 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                                 "enum": ["list", "create", "update", "delete"],
                                 "description": "Ação a executar",
                             },
-                            "admin_id": {"type": "integer", "description": "ID do admin"},
+                            "admin_id": {
+                                "type": "integer",
+                                "description": "ID do admin",
+                            },
                             "name": {"type": "string", "description": "Nome completo"},
-                            "username": {"type": "string", "description": "Username Telegram"},
-                            "role": {"type": "string", "enum": ["owner", "admin", "operator", "viewer"], "description": "Papel/permissão"},
-                            "access_code": {"type": "string", "description": "Código de acesso para login via Telegram"},
+                            "username": {
+                                "type": "string",
+                                "description": "Username Telegram",
+                            },
+                            "role": {
+                                "type": "string",
+                                "enum": ["owner", "admin", "operator", "viewer"],
+                                "description": "Papel/permissão",
+                            },
+                            "access_code": {
+                                "type": "string",
+                                "description": "Código de acesso para login via Telegram",
+                            },
                         },
                         "required": ["action"],
                     },
@@ -1467,10 +1751,22 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "customer_id": {"type": "integer", "description": "ID do cliente"},
-                            "phone": {"type": "string", "description": "Telefone do cliente (alternativa ao ID)"},
-                            "limit": {"type": "integer", "description": "Máx. mensagens (default 20)"},
-                            "offset": {"type": "integer", "description": "Deslocamento para paginação (default 0)"},
+                            "customer_id": {
+                                "type": "integer",
+                                "description": "ID do cliente",
+                            },
+                            "phone": {
+                                "type": "string",
+                                "description": "Telefone do cliente (alternativa ao ID)",
+                            },
+                            "limit": {
+                                "type": "integer",
+                                "description": "Máx. mensagens (default 20)",
+                            },
+                            "offset": {
+                                "type": "integer",
+                                "description": "Deslocamento para paginação (default 0)",
+                            },
                         },
                         "required": [],
                     },
@@ -1484,9 +1780,18 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "phone": {"type": "string", "description": "Número de telefone (com DDD, sem +55)"},
-                            "customer_id": {"type": "integer", "description": "ID do cliente (alternativa ao phone)"},
-                            "message": {"type": "string", "description": "Texto da mensagem a enviar"},
+                            "phone": {
+                                "type": "string",
+                                "description": "Número de telefone (com DDD, sem +55)",
+                            },
+                            "customer_id": {
+                                "type": "integer",
+                                "description": "ID do cliente (alternativa ao phone)",
+                            },
+                            "message": {
+                                "type": "string",
+                                "description": "Texto da mensagem a enviar",
+                            },
                         },
                         "required": ["message"],
                     },
@@ -1500,7 +1805,10 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "note": {"type": "string", "description": "Texto da nota a salvar"},
+                            "note": {
+                                "type": "string",
+                                "description": "Texto da nota a salvar",
+                            },
                         },
                         "required": ["note"],
                     },
@@ -1525,24 +1833,90 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                             "action": {
                                 "type": "string",
                                 "enum": ["check_health", "activate", "create"],
-                                "description": "Ação a executar. Use 'create' para gerar um novo perfil completo."
+                                "description": "Ação a executar. Use 'create' para gerar um novo perfil completo.",
                             },
-                            "profile_id": {"type": "integer", "description": "ID do perfil (para activate)"},
-                            "name": {"type": "string", "description": "Nome identificador interno do perfil (para create)"},
-                            "agent_name_display": {"type": "string", "description": "Nome do atendente virtual. Ex: 'Sofia' (para create)"},
-                            "niche": {"type": "string", "enum": ["geral", "imobiliario", "saude", "educacao", "ecommerce", "tecnologia", "financeiro", "juridico", "restaurante", "automacao"], "description": "Nicho de mercado (para create)"},
-                            "tone": {"type": "string", "enum": ["neutro", "formal", "semi-formal", "amigavel", "jovem"], "description": "Tom de comunicação (para create)"},
-                            "formality": {"type": "string", "enum": ["muito_informal", "informal", "equilibrado", "formal", "muito_formal"], "description": "Grau de formalidade (para create)"},
-                            "autonomy_level": {"type": "string", "enum": ["estrita", "orientada", "equilibrada", "proativa", "independente"], "description": "Nível de autonomia (para create)"},
-                            "objective": {"type": "string", "description": "Objetivo principal do atendimento (para create)"},
-                            "target_audience": {"type": "string", "description": "Público-alvo (para create)"},
+                            "profile_id": {
+                                "type": "integer",
+                                "description": "ID do perfil (para activate)",
+                            },
+                            "name": {
+                                "type": "string",
+                                "description": "Nome identificador interno do perfil (para create)",
+                            },
+                            "agent_name_display": {
+                                "type": "string",
+                                "description": "Nome do atendente virtual. Ex: 'Sofia' (para create)",
+                            },
+                            "niche": {
+                                "type": "string",
+                                "enum": [
+                                    "geral",
+                                    "imobiliario",
+                                    "saude",
+                                    "educacao",
+                                    "ecommerce",
+                                    "tecnologia",
+                                    "financeiro",
+                                    "juridico",
+                                    "restaurante",
+                                    "automacao",
+                                ],
+                                "description": "Nicho de mercado (para create)",
+                            },
+                            "tone": {
+                                "type": "string",
+                                "enum": [
+                                    "neutro",
+                                    "formal",
+                                    "semi-formal",
+                                    "amigavel",
+                                    "jovem",
+                                ],
+                                "description": "Tom de comunicação (para create)",
+                            },
+                            "formality": {
+                                "type": "string",
+                                "enum": [
+                                    "muito_informal",
+                                    "informal",
+                                    "equilibrado",
+                                    "formal",
+                                    "muito_formal",
+                                ],
+                                "description": "Grau de formalidade (para create)",
+                            },
+                            "autonomy_level": {
+                                "type": "string",
+                                "enum": [
+                                    "estrita",
+                                    "orientada",
+                                    "equilibrada",
+                                    "proativa",
+                                    "independente",
+                                ],
+                                "description": "Nível de autonomia (para create)",
+                            },
+                            "objective": {
+                                "type": "string",
+                                "description": "Objetivo principal do atendimento (para create)",
+                            },
+                            "target_audience": {
+                                "type": "string",
+                                "description": "Público-alvo (para create)",
+                            },
                             "data_to_collect": {
                                 "type": "array",
                                 "items": {"type": "string"},
-                                "description": "Lista de dados a coletar, ex: ['Nome', 'Email'] (para create)"
+                                "description": "Lista de dados a coletar, ex: ['Nome', 'Email'] (para create)",
                             },
-                            "constraints": {"type": "string", "description": "Restrições ou temas proibidos (para create, quando base_prompt não fornecido)"},
-                            "base_prompt": {"type": "string", "description": "Texto completo do prompt do agente (CENÁRIO 1). Se fornecido, os campos são extraídos automaticamente via análise LLM. Se omitido, o prompt será gerado a partir dos outros campos (CENÁRIO 2)."},
+                            "constraints": {
+                                "type": "string",
+                                "description": "Restrições ou temas proibidos (para create, quando base_prompt não fornecido)",
+                            },
+                            "base_prompt": {
+                                "type": "string",
+                                "description": "Texto completo do prompt do agente (CENÁRIO 1). Se fornecido, os campos são extraídos automaticamente via análise LLM. Se omitido, o prompt será gerado a partir dos outros campos (CENÁRIO 2).",
+                            },
                         },
                         "required": ["action"],
                     },
@@ -1559,12 +1933,12 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                             "action": {
                                 "type": "string",
                                 "enum": ["request_reset"],
-                                "description": "Ação a executar. Use 'request_reset' para envio de link."
+                                "description": "Ação a executar. Use 'request_reset' para envio de link.",
                             },
                             "new_password": {
                                 "type": "string",
-                                "description": "A nova senha a ser configurada (Obrigatório para a ação 'reset_password')."
-                            }
+                                "description": "A nova senha a ser configurada (Obrigatório para a ação 'reset_password').",
+                            },
                         },
                         "required": ["action"],
                     },
@@ -1581,10 +1955,16 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                             "action": {
                                 "type": "string",
                                 "enum": ["create", "list", "delete"],
-                                "description": "Ação a executar: 'create' para registrar uma nova conexão de WhatsApp, 'list' para mostrar, 'delete' para excluir."
+                                "description": "Ação a executar: 'create' para registrar uma nova conexão de WhatsApp, 'list' para mostrar, 'delete' para excluir.",
                             },
-                            "instance_name": {"type": "string", "description": "Nome da instância (Obrigatório para create)"},
-                            "tenant_id": {"type": "integer", "description": "ID do Lojista (Opcional, deixa em branco para master/interno)"}
+                            "instance_name": {
+                                "type": "string",
+                                "description": "Nome da instância (Obrigatório para create)",
+                            },
+                            "tenant_id": {
+                                "type": "integer",
+                                "description": "ID do Lojista (Opcional, deixa em branco para master/interno)",
+                            },
                         },
                         "required": ["action"],
                     },

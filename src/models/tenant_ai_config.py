@@ -1,5 +1,7 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, func
+from sqlalchemy import (Boolean, Column, DateTime, ForeignKey, Integer, String,
+                        Text, func)
 from sqlalchemy.orm import relationship
+
 from src.models.database import Base
 
 
@@ -9,6 +11,7 @@ class TenantAIConfig(Base):
     API keys are stored encrypted (Fernet symmetric encryption).
     The raw key value is NEVER stored or returned via API.
     """
+
     __tablename__ = "tenant_ai_configs"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -33,7 +36,9 @@ class TenantAIConfig(Base):
 
     # Soft-delete / metadata
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
     tenant = relationship("Tenant", backref="ai_configs")
 

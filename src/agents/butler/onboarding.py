@@ -7,8 +7,8 @@ Returns progress percentage and next instructions.
 """
 
 from dataclasses import dataclass, field
-from typing import Optional
 from enum import Enum
+from typing import Optional
 
 from src.utils.logger import setup_logger
 
@@ -16,12 +16,12 @@ logger = setup_logger(__name__)
 
 
 class OnboardingStep(str, Enum):
-    channel_connect = "channel_connect"   # Step 1
-    qr_scan         = "qr_scan"           # Step 2
-    ai_config       = "ai_config"         # Step 3
-    funnel_setup    = "funnel_setup"      # Step 4
-    verification    = "verification"      # Step 5
-    completed       = "completed"         # Done
+    channel_connect = "channel_connect"  # Step 1
+    qr_scan = "qr_scan"  # Step 2
+    ai_config = "ai_config"  # Step 3
+    funnel_setup = "funnel_setup"  # Step 4
+    verification = "verification"  # Step 5
+    completed = "completed"  # Done
 
 
 STEP_ORDER = [
@@ -79,7 +79,7 @@ STEP_INSTRUCTIONS = {
 
 @dataclass
 class OnboardingState:
-    tenant_id:    int
+    tenant_id: int
     current_step: OnboardingStep = OnboardingStep.channel_connect
     completed_steps: list = field(default_factory=list)
 
@@ -106,12 +106,12 @@ class OnboardingState:
 
     def to_dict(self) -> dict:
         return {
-            "tenant_id":       self.tenant_id,
-            "current_step":    self.current_step.value,
+            "tenant_id": self.tenant_id,
+            "current_step": self.current_step.value,
             "completed_steps": self.completed_steps,
-            "progress_pct":    self.progress_pct,
-            "is_complete":     self.is_complete,
-            "instruction":     self.next_instruction,
+            "progress_pct": self.progress_pct,
+            "is_complete": self.is_complete,
+            "instruction": self.next_instruction,
         }
 
 

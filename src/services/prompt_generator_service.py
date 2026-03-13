@@ -2,10 +2,12 @@
 PromptGeneratorService — Gera prompts de agente a partir de respostas de perguntas dinâmicas.
 Inclui templates por nicho de mercado.
 """
+
 import json
-from src.utils.logger import setup_logger
-from typing import Optional
 from datetime import datetime
+from typing import Optional
+
+from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
@@ -21,42 +23,86 @@ NICHE_TEMPLATES = {
     "imobiliario": {
         "label": "Imobiliário",
         "intro": "Você é um corretor virtual especializado em imóveis. Seu objetivo é qualificar compradores, locatários e vendedores, entender suas necessidades e agendar visitas ou reuniões com a equipe.",
-        "data_defaults": ["Nome", "Tipo de imóvel (compra/aluguel/venda)", "Região de interesse", "Faixa de valor", "Contato"],
+        "data_defaults": [
+            "Nome",
+            "Tipo de imóvel (compra/aluguel/venda)",
+            "Região de interesse",
+            "Faixa de valor",
+            "Contato",
+        ],
     },
     "saude": {
         "label": "Saúde e Bem-estar",
         "intro": "Você é um assistente virtual de uma clínica/consultório. Seu objetivo é acolher pacientes, tirar dúvidas sobre serviços, e agendar consultas ou exames com a equipe de saúde.",
-        "data_defaults": ["Nome completo", "Data de nascimento", "Convênio", "Especialidade desejada", "Contato"],
+        "data_defaults": [
+            "Nome completo",
+            "Data de nascimento",
+            "Convênio",
+            "Especialidade desejada",
+            "Contato",
+        ],
     },
     "educacao": {
         "label": "Educação e Cursos",
         "intro": "Você é um assistente de uma instituição educacional. Seu objetivo é apresentar cursos disponíveis, esclarecer dúvidas sobre método, valores e matrículas, e encaminhar interessados para a equipe de vendas.",
-        "data_defaults": ["Nome", "Curso de interesse", "Disponibilidade de horário", "Forma de pagamento", "Contato"],
+        "data_defaults": [
+            "Nome",
+            "Curso de interesse",
+            "Disponibilidade de horário",
+            "Forma de pagamento",
+            "Contato",
+        ],
     },
     "ecommerce": {
         "label": "E-commerce e Varejo",
         "intro": "Você é um assistente de vendas online. Seu objetivo é ajudar clientes a encontrar produtos, esclarecer dúvidas sobre pedidos, entregas e trocas, e direcionar para a finalização da compra.",
-        "data_defaults": ["Nome", "Número do pedido (se houver)", "Produto de interesse", "Problema ou dúvida"],
+        "data_defaults": [
+            "Nome",
+            "Número do pedido (se houver)",
+            "Produto de interesse",
+            "Problema ou dúvida",
+        ],
     },
     "tecnologia": {
         "label": "Tecnologia e SaaS",
         "intro": "Você é um agente de pré-venda e suporte técnico de uma empresa de tecnologia. Seu objetivo é entender a necessidade do lead, demonstrar o valor do produto e agendar uma demo com o time.",
-        "data_defaults": ["Nome", "Empresa", "Cargo", "Desafio atual", "E-mail corporativo"],
+        "data_defaults": [
+            "Nome",
+            "Empresa",
+            "Cargo",
+            "Desafio atual",
+            "E-mail corporativo",
+        ],
     },
     "financeiro": {
         "label": "Financeiro e Seguros",
         "intro": "Você é um consultor financeiro virtual. Seu objetivo é entender o perfil do cliente, apresentar soluções financeiras adequadas e agendar uma consultoria personalizada com um especialista.",
-        "data_defaults": ["Nome", "Objetivo financeiro", "Renda aproximada", "Telefone de contato"],
+        "data_defaults": [
+            "Nome",
+            "Objetivo financeiro",
+            "Renda aproximada",
+            "Telefone de contato",
+        ],
     },
     "juridico": {
         "label": "Jurídico e Advocacia",
         "intro": "Você é um atendente virtual de um escritório de advocacia. Seu objetivo é acolher o cliente, entender brevemente o caso e agendar uma consulta inicial com o advogado responsável.",
-        "data_defaults": ["Nome completo", "Área do direito (ex: trabalhista, civil, família)", "Breve descrição do caso", "Contato"],
+        "data_defaults": [
+            "Nome completo",
+            "Área do direito (ex: trabalhista, civil, família)",
+            "Breve descrição do caso",
+            "Contato",
+        ],
     },
     "restaurante": {
         "label": "Restaurante e Food Service",
         "intro": "Você é um atendente virtual de um restaurante. Seu objetivo é tirar dúvidas sobre cardápio, horários de funcionamento, reservas e pedidos para entrega.",
-        "data_defaults": ["Nome", "Tipo de atendimento (mesa/delivery)", "Número de pessoas (se reserva)", "Contato"],
+        "data_defaults": [
+            "Nome",
+            "Tipo de atendimento (mesa/delivery)",
+            "Número de pessoas (se reserva)",
+            "Contato",
+        ],
     },
     "automacao": {
         "label": "Automação e Agentes de IA",
@@ -105,7 +151,7 @@ class PromptGeneratorService:
     def generate_prompt(self, answers: dict) -> str:
         """
         Gera um sistema de prompt estruturado a partir das respostas do wizard.
-        
+
         Campos esperados em answers:
           - niche: str (key do NICHE_TEMPLATES)
           - tone: str (key do TONE_MAP)
@@ -125,7 +171,9 @@ class PromptGeneratorService:
         tone_instruction = TONE_MAP.get(tone_key, TONE_MAP["neutro"])
 
         formality = answers.get("formality", "equilibrado")
-        formality_instruction = FORMALITY_MAP.get(formality, FORMALITY_MAP["equilibrado"])
+        formality_instruction = FORMALITY_MAP.get(
+            formality, FORMALITY_MAP["equilibrado"]
+        )
 
         autonomy = answers.get("autonomy_level", "equilibrada")
         autonomy_instruction = AUTONOMY_MAP.get(autonomy, AUTONOMY_MAP["equilibrada"])
@@ -138,7 +186,9 @@ class PromptGeneratorService:
 
         data_to_collect = answers.get("data_to_collect", tmpl["data_defaults"])
         if isinstance(data_to_collect, str):
-            data_to_collect = [d.strip() for d in data_to_collect.split(",") if d.strip()]
+            data_to_collect = [
+                d.strip() for d in data_to_collect.split(",") if d.strip()
+            ]
         data_list = "\n".join(f"  - {item}" for item in data_to_collect)
 
         prompt = f"""Você é {agent_name}, assistente virtual de {company_name}.
@@ -179,7 +229,9 @@ Cliente atual:
 - E-mail: {{customer_email}}
 - Empresa: {{customer_company}}
 """
-        logger.info(f"Prompt generated for niche='{niche_key}', tone='{tone_key}', formality='{formality}', autonomy='{autonomy}'")
+        logger.info(
+            f"Prompt generated for niche='{niche_key}', tone='{tone_key}', formality='{formality}', autonomy='{autonomy}'"
+        )
         return prompt.strip()
 
     async def analyze_prompt(self, base_prompt: str) -> dict:
@@ -217,7 +269,10 @@ Regras:
 
         messages = [
             {"role": "system", "content": system},
-            {"role": "user", "content": f"Analise este prompt de agente e extraia os campos:\n\n{base_prompt}"},
+            {
+                "role": "user",
+                "content": f"Analise este prompt de agente e extraia os campos:\n\n{base_prompt}",
+            },
         ]
 
         try:
@@ -235,7 +290,9 @@ Regras:
             for field in ["niche", "tone", "formality", "autonomy_level"]:
                 if field in result:
                     result[field] = str(result[field])
-            logger.info(f"analyze_prompt: campos extraídos → nicho={result.get('niche')}, tom={result.get('tone')}")
+            logger.info(
+                f"analyze_prompt: campos extraídos → nicho={result.get('niche')}, tom={result.get('tone')}"
+            )
             return result
         except Exception as e:
             logger.error(f"analyze_prompt: erro ao extrair campos do prompt: {e}")

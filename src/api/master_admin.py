@@ -5,26 +5,26 @@ Access policy: caller must have role='owner' AND tenant_id IS NULL.
 This represents the platform-level super-admin with no tenant affiliation.
 """
 
+import re
 from datetime import datetime, timedelta
 from typing import Annotated, List, Optional
-import re
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
-from sqlalchemy import select, func, and_, desc
+from sqlalchemy import and_, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.database import get_db
+from src.api.auth import get_current_user
+from src.config import settings
 from src.models.admin import AdminUser
-from src.models.tenant import Tenant
-from src.models.tenant_quota import TenantQuota
 from src.models.agent_profile import AgentProfile
 from src.models.audit import AuditLog
-from src.api.auth import get_current_user
+from src.models.database import get_db
+from src.models.tenant import Tenant
+from src.models.tenant_quota import TenantQuota
 from src.services.usage_service import usage_service
-from src.utils.security import get_password_hash
 from src.utils.logger import setup_logger
-from src.config import settings
+from src.utils.security import get_password_hash
 
 logger = setup_logger(__name__)
 master_router = APIRouter()
@@ -32,15 +32,27 @@ master_router = APIRouter()
 
 # ── Gate ─────────────────────────────────────────────────────────────────────
 
-def _require_master_admin(current_user: AdminUser = Depends(get_current_user)) -> AdminUser:
+
+def _require_master_admin(
+    current_user: AdminUser = Depends(get_current_user),
+) -> AdminUser:
     """
     Strict gate: only a platform-level owner, admin or master_admin with NO tenant affiliation
     may access these endpoints. Tenant owners are denied.
     """
-    allowed_roles = ["owner", "admin", "master_admin", "master", "super admin", "superadmin"]
+    allowed_roles = [
+        "owner",
+        "admin",
+        "master_admin",
+        "master",
+        "super admin",
+        "superadmin",
+    ]
     user_role = (current_user.role or "").lower()
     if user_role not in allowed_roles or current_user.tenant_id is not None:
-        logger.warning(f"⛔ Master Admin Access Denied: user={current_user.username}, role={user_role}, tenant_id={current_user.tenant_id}")
+        logger.warning(
+            f"⛔ Master Admin Access Denied: user={current_user.username}, role={user_role}, tenant_id={current_user.tenant_id}"
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Master Admin access required (role={user_role}, tenant_id={current_user.tenant_id}).",
@@ -48,17 +60,25 @@ def _require_master_admin(current_user: AdminUser = Depends(get_current_user)) -
     return current_user
 
 
-def _require_master_or_owner(current_user: AdminUser = Depends(get_current_user)) -> AdminUser:
+def _require_master_or_owner(
+    current_user: AdminUser = Depends(get_current_user),
+) -> AdminUser:
     """
     Flexible gate: Allows platform admins OR tenant owners.
     Used for features that can be self-managed (like WhatsApp instances).
     """
     user_role = (current_user.role or "").lower()
-    is_master = user_role in ["owner", "admin", "master_admin", "master", "super admin", "superadmin"] and current_user.tenant_id is None
+    is_master = (
+        user_role
+        in ["owner", "admin", "master_admin", "master", "super admin", "superadmin"]
+        and current_user.tenant_id is None
+    )
     is_tenant_owner = user_role == "owner" and current_user.tenant_id is not None
-    
+
     if not (is_master or is_tenant_owner):
-        logger.warning(f"⛔ Access Denied: user={current_user.username}, role={user_role}, tenant_id={current_user.tenant_id}")
+        logger.warning(
+            f"⛔ Access Denied: user={current_user.username}, role={user_role}, tenant_id={current_user.tenant_id}"
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Master Admin or Tenant Owner access required.",
@@ -67,6 +87,7 @@ def _require_master_or_owner(current_user: AdminUser = Depends(get_current_user)
 
 
 # ── Schemas ──────────────────────────────────────────────────────────────────
+
 
 class TenantStatus(BaseModel):
     id: int
@@ -80,6 +101,7 @@ class TenantStatus(BaseModel):
     tokens_30d: int
     cost_usd_30d: float
     last_active: Optional[str]
+
 
 class TenantUpdate(BaseModel):
     name: Optional[str] = None
@@ -136,28 +158,29 @@ class InternalAIConfig(BaseModel):
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
+
 @master_router.get("/registrations")
 async def get_registration_validations(
     master: Annotated[AdminUser, Depends(_require_master_admin)],
     db: AsyncSession = Depends(get_db),
 ):
     event_types = [
-        "telegram_id_identified", 
+        "telegram_id_identified",
         "telegram_access_code_validated",
         "customer_registered_by_agent",
         "login_success",
-        "login_failure"
+        "login_failure",
     ]
-    
+
     stmt = (
         select(AuditLog)
         .where(AuditLog.event_type.in_(event_types))
         .order_by(desc(AuditLog.created_at))
         .limit(100)
     )
-    
+
     rows = (await db.execute(stmt)).scalars().all()
-    
+
     return [
         {
             "id": r.id,
@@ -165,10 +188,11 @@ async def get_registration_validations(
             "event_type": r.event_type,
             "username": r.username,
             "details": r.details,
-            "ip_address": r.ip_address
+            "ip_address": r.ip_address,
         }
         for r in rows
     ]
+
 
 @master_router.get("/kpis", response_model=GlobalKPIResponse)
 async def get_global_kpis(
@@ -182,6 +206,7 @@ async def get_global_kpis(
     active_tenants = await db.scalar(active_stmt) or 0
 
     from src.models.usage_log import UsageLog
+
     from_date = datetime.utcnow() - timedelta(days=30)
     usage_stmt = select(
         func.count(UsageLog.id).label("interactions"),
@@ -209,7 +234,10 @@ async def list_all_tenants(
 ):
     """Full list of all tenants with their 30-day usage summary."""
     tenants = (await db.execute(select(Tenant))).scalars().all()
-    ranking = {r["tenant_id"]: r for r in await usage_service.get_global_usage_ranking(db, limit=1000)}
+    ranking = {
+        r["tenant_id"]: r
+        for r in await usage_service.get_global_usage_ranking(db, limit=1000)
+    }
 
     result = []
     for t in tenants:
@@ -236,9 +264,11 @@ async def create_tenant_with_owner(
     master: Annotated[AdminUser, Depends(_require_master_admin)],
     db: AsyncSession = Depends(get_db),
 ):
-    from sqlalchemy import or_
-    from src.models.audit import AuditLog
     import json
+
+    from sqlalchemy import or_
+
+    from src.models.audit import AuditLog
 
     if not re.match(r"^[a-z0-9-]+$", body.subdomain):
         raise HTTPException(
@@ -356,14 +386,14 @@ async def get_tenant_details(
     db: AsyncSession = Depends(get_db),
 ):
     from src.models.tenant_quota import TenantQuota
-    
+
     tenant = await db.get(Tenant, tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
-        
+
     stmt = select(TenantQuota).where(TenantQuota.tenant_id == tenant_id)
     quota = (await db.execute(stmt)).scalars().first()
-    
+
     return {
         "id": tenant.id,
         "name": tenant.name,
@@ -384,17 +414,18 @@ async def update_tenant(
     master: Annotated[AdminUser, Depends(_require_master_admin)],
     db: AsyncSession = Depends(get_db),
 ):
+    import json
+
     from src.models.audit import AuditLog
     from src.models.tenant_quota import TenantQuota
-    import json
-    
+
     tenant = await db.get(Tenant, tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
-        
+
     stmt = select(TenantQuota).where(TenantQuota.tenant_id == tenant_id)
     quota = (await db.execute(stmt)).scalars().first()
-    
+
     old_data = {
         "name": tenant.name,
         "status": tenant.status,
@@ -404,17 +435,18 @@ async def update_tenant(
         "max_messages_daily": quota.max_messages_daily if quota else None,
         "max_messages_monthly": quota.max_messages_monthly if quota else None,
     }
-    
+
     if body.name is not None:
         tenant.name = body.name
     if body.status is not None:
         tenant.status = body.status
     if body.is_active is not None:
         tenant.is_active = body.is_active
-        
+
     from src.services.quota_service import quota_service
+
     quota = await quota_service.get_or_create(tenant_id, db)
-    
+
     if body.plan_tier is not None:
         quota.plan_tier = body.plan_tier
     if body.max_whatsapp_instances is not None:
@@ -423,7 +455,7 @@ async def update_tenant(
         quota.max_messages_daily = body.max_messages_daily
     if body.max_messages_monthly is not None:
         quota.max_messages_monthly = body.max_messages_monthly
-    
+
     new_data = {
         "name": tenant.name,
         "status": tenant.status,
@@ -433,19 +465,16 @@ async def update_tenant(
         "max_messages_daily": quota.max_messages_daily,
         "max_messages_monthly": quota.max_messages_monthly,
     }
-    
+
     if old_data != new_data:
         audit = AuditLog(
             tenant_id=tenant_id,
             event_type="tenant_updated_by_master",
             username=master.username,
-            details=json.dumps({
-                "old_data": old_data,
-                "new_data": new_data
-            })
+            details=json.dumps({"old_data": old_data, "new_data": new_data}),
         )
         db.add(audit)
-        
+
     await db.commit()
     await db.refresh(tenant)
     await db.refresh(quota)
@@ -458,16 +487,21 @@ async def delete_tenant(
     master: Annotated[AdminUser, Depends(_require_master_admin)],
     db: AsyncSession = Depends(get_db),
 ):
-    from src.models.audit import AuditLog
     import json
 
-    logger.info(f"🗑️ Attempting to delete tenant ID: {tenant_id} (Master: {master.username})")
-    
+    from src.models.audit import AuditLog
+
+    logger.info(
+        f"🗑️ Attempting to delete tenant ID: {tenant_id} (Master: {master.username})"
+    )
+
     tenant = await db.scalar(select(Tenant).where(Tenant.id == tenant_id))
-    
+
     if not tenant:
         logger.warning(f"⚠️ Tenant {tenant_id} not found for deletion.")
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant não encontrado.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Tenant não encontrado."
+        )
 
     snapshot = {
         "id": tenant.id,
@@ -511,22 +545,23 @@ async def get_churn_alerts(
 
 # ── Internal Financial Dashboard ──────────────────────────────────────────────
 
+
 class TenantFinancialRow(BaseModel):
-    tenant_id:   int
+    tenant_id: int
     tenant_name: str
     interactions_30d: int
-    tokens_30d:       int
-    cost_usd_30d:     float
-    pct_of_total:     float
+    tokens_30d: int
+    cost_usd_30d: float
+    pct_of_total: float
 
 
 class FinancialSummary(BaseModel):
-    total_cost_usd_30d:    float
+    total_cost_usd_30d: float
     total_interactions_30d: int
-    total_tokens_30d:       int
-    avg_cost_per_tenant:    float
-    estimated_cac_usd:      float
-    breakdown:              List[TenantFinancialRow]
+    total_tokens_30d: int
+    avg_cost_per_tenant: float
+    estimated_cac_usd: float
+    breakdown: List[TenantFinancialRow]
 
 
 @master_router.get("/financial", response_model=FinancialSummary)
@@ -534,8 +569,8 @@ async def get_financial_dashboard(
     master: Annotated[AdminUser, Depends(_require_master_admin)],
     db: AsyncSession = Depends(get_db),
 ):
-    from src.models.usage_log import UsageLog
     from src.models.tenant import Tenant
+    from src.models.usage_log import UsageLog
 
     from_date = datetime.utcnow() - timedelta(days=30)
 
@@ -552,13 +587,17 @@ async def get_financial_dashboard(
     )
     rows = (await db.execute(stmt)).all()
 
-    total_cost  = sum(r.cost for r in rows)
+    total_cost = sum(r.cost for r in rows)
     total_inter = sum(r.interactions for r in rows)
-    total_tok   = sum(r.tokens for r in rows)
+    total_tok = sum(r.tokens for r in rows)
 
     tenant_ids = [r.tenant_id for r in rows]
-    tenants_q  = (await db.execute(select(Tenant).where(Tenant.id.in_(tenant_ids)))).scalars().all()
-    t_names    = {t.id: t.name for t in tenants_q}
+    tenants_q = (
+        (await db.execute(select(Tenant).where(Tenant.id.in_(tenant_ids))))
+        .scalars()
+        .all()
+    )
+    t_names = {t.id: t.name for t in tenants_q}
 
     breakdown = [
         TenantFinancialRow(
@@ -592,36 +631,37 @@ async def get_transaction_history(
     limit: int = 100,
 ):
     from src.models.usage_log import UsageLog
-    stmt = (
-        select(UsageLog)
-        .order_by(desc(UsageLog.timestamp))
-        .limit(min(limit, 500))
-    )
+
+    stmt = select(UsageLog).order_by(desc(UsageLog.timestamp)).limit(min(limit, 500))
     rows = (await db.execute(stmt)).scalars().all()
     return [
         {
-            "id":          r.id,
-            "tenant_id":   r.tenant_id,
-            "event_type":  r.event_type,
-            "model_used":  r.model_used,
-            "provider":    r.provider,
-            "input_tokens":  r.input_tokens,
+            "id": r.id,
+            "tenant_id": r.tenant_id,
+            "event_type": r.event_type,
+            "model_used": r.model_used,
+            "provider": r.provider,
+            "input_tokens": r.input_tokens,
             "output_tokens": r.output_tokens,
-            "total_tokens":  r.total_tokens,
+            "total_tokens": r.total_tokens,
         }
         for r in rows
     ]
 
+
 # ── Encrypted Vault (Cofre) ──────────────────────────────────────────────────
 
-from src.schemas import VaultCredentialCreate, VaultCredentialResponse
 from src.models.vault import VaultCredential
+from src.schemas import VaultCredentialCreate, VaultCredentialResponse
 from src.utils.audit import log_security_event
+
 
 def _get_fernet():
     try:
-        from cryptography.fernet import Fernet
         import os
+
+        from cryptography.fernet import Fernet
+
         key = os.environ.get("ENCRYPTION_KEY")
         if not key:
             raise RuntimeError("ENCRYPTION_KEY env variable is not set")
@@ -632,11 +672,13 @@ def _get_fernet():
             detail="cryptography package not installed",
         )
 
+
 def _mask_vault_key(encrypted_key: str) -> str:
     if not encrypted_key:
         return "not-set"
     tail = encrypted_key[-4:] if len(encrypted_key) >= 4 else "****"
     return f"****{tail}"
+
 
 @master_router.get("/vault", response_model=List[VaultCredentialResponse])
 async def list_vault_credentials(
@@ -648,15 +690,14 @@ async def list_vault_credentials(
     if tenant_id:
         stmt = stmt.where(VaultCredential.tenant_id == tenant_id)
     credentials = (await db.execute(stmt)).scalars().all()
-    
+
     return [
         VaultCredentialResponse(
-            id=c.id,
-            name=c.name,
-            service_type=c.service_type,
-            created_at=c.created_at
-        ) for c in credentials
+            id=c.id, name=c.name, service_type=c.service_type, created_at=c.created_at
+        )
+        for c in credentials
     ]
+
 
 @master_router.post("/vault", response_model=VaultCredentialResponse)
 async def create_vault_credential(
@@ -671,20 +712,27 @@ async def create_vault_credential(
         tenant_id=body.tenant_id,
         name=body.name,
         service_type=body.service_type,
-        encrypted_value=encrypted
+        encrypted_value=encrypted,
     )
     db.add(cred)
     await db.commit()
     await db.refresh(cred)
 
-    await log_security_event(db, "vault_credential_created", username=master.username, operator_id=master.id, tenant_id=body.tenant_id)
+    await log_security_event(
+        db,
+        "vault_credential_created",
+        username=master.username,
+        operator_id=master.id,
+        tenant_id=body.tenant_id,
+    )
 
     return VaultCredentialResponse(
         id=cred.id,
         name=cred.name,
         service_type=cred.service_type,
-        created_at=cred.created_at
+        created_at=cred.created_at,
     )
+
 
 @master_router.delete("/vault/{cred_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_vault_credential(
@@ -695,15 +743,22 @@ async def delete_vault_credential(
     cred = await db.get(VaultCredential, cred_id)
     if not cred:
         raise HTTPException(status_code=404, detail="Credential not found")
-        
+
     tenant_id = cred.tenant_id
     db.delete(cred)
     await db.commit()
 
-    await log_security_event(db, "vault_credential_deleted", username=master.username, operator_id=master.id, tenant_id=tenant_id)
+    await log_security_event(
+        db,
+        "vault_credential_deleted",
+        username=master.username,
+        operator_id=master.id,
+        tenant_id=tenant_id,
+    )
 
 
 # ── Internal AI Config (Max) ────────────────────────────────────────────────
+
 
 @master_router.get("/internal-ai/config", response_model=InternalAIConfig)
 async def get_internal_ai_config(
@@ -711,25 +766,22 @@ async def get_internal_ai_config(
     db: AsyncSession = Depends(get_db),
 ):
     stmt = select(AgentProfile).where(
-        AgentProfile.tenant_id == None, 
-        AgentProfile.name == "internal-max"
+        AgentProfile.tenant_id == None, AgentProfile.name == "internal-max"
     )
     config = (await db.execute(stmt)).scalars().first()
-    
+
     if not config:
         return InternalAIConfig(
-            agent_name="Max",
-            tone="professional",
-            persona="",
-            base_prompt=""
+            agent_name="Max", tone="professional", persona="", base_prompt=""
         )
-        
+
     return InternalAIConfig(
         agent_name=config.agent_name_display or "Max",
         tone=config.tone or "professional",
         persona=config.objective or "",
-        base_prompt=config.base_prompt or ""
+        base_prompt=config.base_prompt or "",
     )
+
 
 @master_router.post("/internal-ai/config")
 async def save_internal_ai_config(
@@ -737,23 +789,25 @@ async def save_internal_ai_config(
     master: Annotated[AdminUser, Depends(_require_master_admin)],
     db: AsyncSession = Depends(get_db),
 ):
+    import json
+
     from src.models.audit import AuditLog
     from src.services.prompt_generator_service import prompt_generator_service
-    import json
-    
+
     # Auto-extract based on prompt if not explicitly given
     if body.base_prompt:
         extracted = await prompt_generator_service.analyze_prompt(body.base_prompt)
         body.agent_name = body.agent_name or extracted.get("name") or "Max"
         body.tone = body.tone or extracted.get("tone") or "neutro"
-        body.persona = body.persona or extracted.get("objective") or "Assistente Interno"
-    
+        body.persona = (
+            body.persona or extracted.get("objective") or "Assistente Interno"
+        )
+
     stmt = select(AgentProfile).where(
-        AgentProfile.tenant_id == None, 
-        AgentProfile.name == "internal-max"
+        AgentProfile.tenant_id == None, AgentProfile.name == "internal-max"
     )
     config = (await db.execute(stmt)).scalars().first()
-    
+
     if not config:
         config = AgentProfile(
             tenant_id=None,
@@ -762,36 +816,36 @@ async def save_internal_ai_config(
             tone=body.tone,
             objective=body.persona,
             base_prompt=body.base_prompt,
-            is_active=True
+            is_active=True,
         )
         db.add(config)
         await db.commit()
     else:
         old_prompt = config.base_prompt
-        
+
         config.agent_name_display = body.agent_name
         config.tone = body.tone
         config.objective = body.persona
         config.base_prompt = body.base_prompt
-        
+
         if old_prompt != body.base_prompt:
             audit = AuditLog(
                 tenant_id=None,
                 event_type="internal_agent_prompt_updated",
                 username=master.username,
-                details=json.dumps({
-                    "old_prompt": old_prompt,
-                    "new_prompt": body.base_prompt
-                })
+                details=json.dumps(
+                    {"old_prompt": old_prompt, "new_prompt": body.base_prompt}
+                ),
             )
             db.add(audit)
-            
+
         await db.commit()
-        
+
     return {"status": "success", "message": "Configuração salva com sucesso."}
 
 
 # ── Account Configuration ────────────────────────────────────────────────────
+
 
 class AccountProfileUpdate(BaseModel):
     name: Optional[str] = None
@@ -810,8 +864,9 @@ async def update_account_profile(
     master: Annotated[AdminUser, Depends(_require_master_admin)],
     db: AsyncSession = Depends(get_db),
 ):
-    from src.models.audit import AuditLog
     import json
+
+    from src.models.audit import AuditLog
 
     old_data = {
         "name": master.name,
@@ -823,7 +878,7 @@ async def update_account_profile(
     if body.email is not None:
         master.email = body.email
     if body.phone is not None:
-        master.phone = body.phone if hasattr(master, 'phone') else None
+        master.phone = body.phone if hasattr(master, "phone") else None
 
     new_data = {
         "name": master.name,
@@ -847,26 +902,32 @@ async def change_account_password(
     master: Annotated[AdminUser, Depends(_require_master_admin)],
     db: AsyncSession = Depends(get_db),
 ):
-    from src.models.audit import AuditLog
     import bcrypt
 
-    current_hashed = master.hashed_password.encode() if isinstance(master.hashed_password, str) else master.hashed_password
+    from src.models.audit import AuditLog
+
+    current_hashed = (
+        master.hashed_password.encode()
+        if isinstance(master.hashed_password, str)
+        else master.hashed_password
+    )
     if not bcrypt.checkpw(body.current_password.encode(), current_hashed):
         await log_security_event(
-            db, "master_password_change_failed",
+            db,
+            "master_password_change_failed",
             username=master.username,
             operator_id=master.id,
-            metadata={"reason": "wrong_current_password"}
+            metadata={"reason": "wrong_current_password"},
         )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Senha atual incorreta. Por favor, verifique e tente novamente."
+            detail="Senha atual incorreta. Por favor, verifique e tente novamente.",
         )
 
     if len(body.new_password) < 8:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="A nova senha deve ter pelo menos 8 caracteres."
+            detail="A nova senha deve ter pelo menos 8 caracteres.",
         )
 
     new_hashed = bcrypt.hashpw(body.new_password.encode(), bcrypt.gensalt()).decode()
@@ -881,9 +942,10 @@ async def change_account_password(
     await db.commit()
 
     await log_security_event(
-        db, "master_password_change_success",
+        db,
+        "master_password_change_success",
         username=master.username,
-        operator_id=master.id
+        operator_id=master.id,
     )
     return {"status": "success", "message": "Senha alterada com sucesso."}
 
@@ -892,6 +954,7 @@ async def change_account_password(
 
 from src.models.whatsapp import EvolutionInstance
 from src.services.evolution_service import evolution_service
+
 
 class WhatsAppInstanceCreate(BaseModel):
     tenant_id: Optional[int] = None
@@ -903,6 +966,7 @@ class WhatsAppInstanceCreate(BaseModel):
     evolution_ip: Optional[str] = None
     owner_email: Optional[str] = None
 
+
 class WhatsAppInstanceUpdate(BaseModel):
     display_name: Optional[str] = None
     instance_token: Optional[str] = None
@@ -910,6 +974,7 @@ class WhatsAppInstanceUpdate(BaseModel):
     evolution_api_key: Optional[str] = None
     evolution_ip: Optional[str] = None
     owner_email: Optional[str] = None
+
 
 class WhatsAppInstanceResponse(BaseModel):
     id: int
@@ -926,6 +991,7 @@ class WhatsAppInstanceResponse(BaseModel):
     evolution_ip: Optional[str] = None
     owner_email: Optional[str] = None
 
+
 @master_router.get("/whatsapp", response_model=List[WhatsAppInstanceResponse])
 async def list_whatsapp_instances(
     request: Request,
@@ -934,32 +1000,40 @@ async def list_whatsapp_instances(
 ):
     base_url = (settings.PUBLIC_URL or str(request.base_url)).rstrip("/")
     base_webhook_url = f"{base_url}{settings.API_V1_STR}/webhooks/whatsapp"
-    
+
     try:
-        stmt = select(EvolutionInstance, Tenant.name).outerjoin(Tenant, Tenant.id == EvolutionInstance.tenant_id)
+        stmt = select(EvolutionInstance, Tenant.name).outerjoin(
+            Tenant, Tenant.id == EvolutionInstance.tenant_id
+        )
         results = await db.execute(stmt)
-        
+
         response = []
         for instance, tenant_name in results:
-            response.append({
-                "id": instance.id,
-                "tenant_id": instance.tenant_id,
-                "tenant_name": tenant_name or "Interno (Max)",
-                "display_name": instance.display_name or instance.instance_name,
-                "instance_name": instance.instance_name,
-                "phone_number": instance.phone_number,
-                "status": instance.status,
-                "created_at": str(instance.created_at) if instance.created_at else None,
-                "webhook_url": f"{base_webhook_url}?token={settings.VERIFY_TOKEN}",
-                "evolution_api_url": instance.evolution_api_url,
-                "evolution_api_key": instance.evolution_api_key,
-                "evolution_ip": getattr(instance, "evolution_ip", None),
-                "owner_email": getattr(instance, "owner_email", None),
-            })
+            response.append(
+                {
+                    "id": instance.id,
+                    "tenant_id": instance.tenant_id,
+                    "tenant_name": tenant_name or "Interno (Max)",
+                    "display_name": instance.display_name or instance.instance_name,
+                    "instance_name": instance.instance_name,
+                    "phone_number": instance.phone_number,
+                    "status": instance.status,
+                    "created_at": (
+                        str(instance.created_at) if instance.created_at else None
+                    ),
+                    "webhook_url": f"{base_webhook_url}?token={settings.VERIFY_TOKEN}",
+                    "evolution_api_url": instance.evolution_api_url,
+                    "evolution_api_key": instance.evolution_api_key,
+                    "evolution_ip": getattr(instance, "evolution_ip", None),
+                    "owner_email": getattr(instance, "owner_email", None),
+                }
+            )
         return response
     except Exception as e:
         logger.error(f"Error listing WhatsApp instances: {e}")
-        raise HTTPException(status_code=500, detail=f"Erro ao listar instâncias: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Erro ao listar instâncias: {str(e)}"
+        )
 
 
 @master_router.post("/whatsapp", status_code=status.HTTP_201_CREATED)
@@ -972,17 +1046,23 @@ async def create_whatsapp_instance(
     """Create a new WhatsApp instance for a specific tenant in Evolution API and DB."""
     if user.tenant_id:
         body.tenant_id = user.tenant_id
-        
+
     if body.tenant_id:
         tenant = await db.get(Tenant, body.tenant_id)
         if not tenant:
             raise HTTPException(status_code=404, detail="Tenant not found.")
-        
-    existing = await db.scalar(select(EvolutionInstance).where(EvolutionInstance.instance_name == body.instance_name))
+
+    existing = await db.scalar(
+        select(EvolutionInstance).where(
+            EvolutionInstance.instance_name == body.instance_name
+        )
+    )
     if existing:
         raise HTTPException(status_code=400, detail="Instance name already in use.")
 
-    logger.info(f"Master Admin: Creating instance '{body.instance_name}' at {body.evolution_api_url or settings.EVOLUTION_API_URL}")
+    logger.info(
+        f"Master Admin: Creating instance '{body.instance_name}' at {body.evolution_api_url or settings.EVOLUTION_API_URL}"
+    )
 
     new_instance = EvolutionInstance(
         tenant_id=body.tenant_id,
@@ -991,9 +1071,9 @@ async def create_whatsapp_instance(
         instance_token=body.instance_token,
         evolution_api_url=body.evolution_api_url,
         evolution_api_key=body.evolution_api_key,
-        evolution_ip=getattr(body, 'evolution_ip', None),
-        owner_email=getattr(body, 'owner_email', None),
-        status="pending"
+        evolution_ip=getattr(body, "evolution_ip", None),
+        owner_email=getattr(body, "owner_email", None),
+        status="pending",
     )
     db.add(new_instance)
     await db.commit()
@@ -1010,29 +1090,37 @@ async def create_whatsapp_instance(
                 body.instance_name,
                 token=body.instance_token,
                 custom_url=body.evolution_api_url,
-                custom_key=body.evolution_api_key
+                custom_key=body.evolution_api_key,
             )
             if "error" in evo_response:
                 error_msg = str(evo_response.get("error", ""))
                 status_code = evo_response.get("status_code")
                 if status_code == 401:
                     evo_warning = "⚠️ Instância salva, mas a chave da Evolution API está incorreta (401). Verifique a API Key no servidor Evolution."
-                elif status_code in [403, 409] and "already in use" in error_msg.lower():
+                elif (
+                    status_code in [403, 409] and "already in use" in error_msg.lower()
+                ):
                     evo_warning = f"⚠️ Instância salva no banco, mas o nome '{body.instance_name}' já existe na Evolution API."
                 else:
                     evo_warning = f"⚠️ Instância salva no banco, mas houve erro na Evolution API: {error_msg[:120]}"
-                logger.warning(f"Evolution API warning for '{body.instance_name}': {evo_response}")
+                logger.warning(
+                    f"Evolution API warning for '{body.instance_name}': {evo_response}"
+                )
             else:
                 await evolution_service.set_settings(
                     new_instance.instance_name,
                     custom_url=body.evolution_api_url,
-                    custom_key=body.evolution_api_key
+                    custom_key=body.evolution_api_key,
                 )
         except Exception as evo_exc:
             evo_warning = f"⚠️ Instância salva, mas não foi possível conectar à Evolution API: {str(evo_exc)[:100]}"
-            logger.error(f"Evolution API exception for '{body.instance_name}': {evo_exc}")
+            logger.error(
+                f"Evolution API exception for '{body.instance_name}': {evo_exc}"
+            )
     else:
-        evo_warning = "ℹ️ Instância salva sem registro na Evolution API (URL/Key não informados)."
+        evo_warning = (
+            "ℹ️ Instância salva sem registro na Evolution API (URL/Key não informados)."
+        )
 
     return {
         "status": "success",
@@ -1040,8 +1128,9 @@ async def create_whatsapp_instance(
         "instance_name": new_instance.instance_name,
         "webhook_url": webhook_url,
         "warning": evo_warning,
-        "message": evo_warning or "Instância criada e configurada com sucesso!"
+        "message": evo_warning or "Instância criada e configurada com sucesso!",
     }
+
 
 @master_router.put("/whatsapp/{instance_name}", response_model=WhatsAppInstanceResponse)
 async def update_whatsapp_instance(
@@ -1052,13 +1141,25 @@ async def update_whatsapp_instance(
     db: AsyncSession = Depends(get_db),
 ):
     """Edit an existing WhatsApp instance's details."""
-    instance = await db.scalar(select(EvolutionInstance).where(EvolutionInstance.instance_name == instance_name))
+    instance = await db.scalar(
+        select(EvolutionInstance).where(
+            EvolutionInstance.instance_name == instance_name
+        )
+    )
     if not instance:
         raise HTTPException(status_code=404, detail="Instance not found.")
 
     # ── Validar credenciais ANTES de salvar, se URL ou Key foram alteradas ────
-    new_url = body.evolution_api_url if body.evolution_api_url is not None else instance.evolution_api_url
-    new_key = body.evolution_api_key if body.evolution_api_key is not None else instance.evolution_api_key
+    new_url = (
+        body.evolution_api_url
+        if body.evolution_api_url is not None
+        else instance.evolution_api_url
+    )
+    new_key = (
+        body.evolution_api_key
+        if body.evolution_api_key is not None
+        else instance.evolution_api_key
+    )
     credentials_changed = (
         body.evolution_api_url is not None or body.evolution_api_key is not None
     )
@@ -1070,22 +1171,25 @@ async def update_whatsapp_instance(
             )
             # Faz chamada direta com as novas credenciais para validar
             import httpx
+
             test_url = f"{new_url.rstrip('/')}/instance/connectionState/{instance_name}"
             async with httpx.AsyncClient() as client:
                 test_resp = await client.get(
                     test_url,
                     headers={"apikey": new_key, "Content-Type": "application/json"},
-                    timeout=8.0
+                    timeout=8.0,
                 )
                 if test_resp.status_code == 401:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="⚠️ Credenciais inválidas (401). Verifique a URL e a API Key da Evolution antes de salvar."
+                        detail="⚠️ Credenciais inválidas (401). Verifique a URL e a API Key da Evolution antes de salvar.",
                     )
         except HTTPException:
             raise
         except Exception as e:
-            logger.warning(f"Could not validate Evolution credentials on update for '{instance_name}': {e}")
+            logger.warning(
+                f"Could not validate Evolution credentials on update for '{instance_name}': {e}"
+            )
             # Não bloquear se não conseguir checar (ex: instância offline) — apenas logar
 
     if body.display_name is not None:
@@ -1112,13 +1216,19 @@ async def update_whatsapp_instance(
         await evolution_service.set_settings(
             instance.instance_name,
             custom_url=instance.evolution_api_url,
-            custom_key=instance.evolution_api_key
+            custom_key=instance.evolution_api_key,
         )
     except Exception as e:
-        logger.warning(f"Failed to re-sync Evolution API after update for {instance_name}: {e}")
+        logger.warning(
+            f"Failed to re-sync Evolution API after update for {instance_name}: {e}"
+        )
 
-    tenant_name = await db.scalar(select(Tenant.name).where(Tenant.id == instance.tenant_id)) if instance.tenant_id else "Interno (Max)"
-    
+    tenant_name = (
+        await db.scalar(select(Tenant.name).where(Tenant.id == instance.tenant_id))
+        if instance.tenant_id
+        else "Interno (Max)"
+    )
+
     return {
         "id": instance.id,
         "tenant_id": instance.tenant_id,
@@ -1130,8 +1240,9 @@ async def update_whatsapp_instance(
         "created_at": str(instance.created_at) if instance.created_at else None,
         "webhook_url": webhook_url,
         "evolution_api_url": instance.evolution_api_url,
-        "evolution_api_key": instance.evolution_api_key
+        "evolution_api_key": instance.evolution_api_key,
     }
+
 
 @master_router.get("/whatsapp/{instance_name}/diagnose")
 async def diagnose_whatsapp_instance(
@@ -1142,7 +1253,11 @@ async def diagnose_whatsapp_instance(
     """Diagnóstico completo da instância: testa credenciais, estado e webhook."""
     import httpx
 
-    instance = await db.scalar(select(EvolutionInstance).where(EvolutionInstance.instance_name == instance_name))
+    instance = await db.scalar(
+        select(EvolutionInstance).where(
+            EvolutionInstance.instance_name == instance_name
+        )
+    )
     if not instance:
         raise HTTPException(status_code=404, detail="Instance not found.")
 
@@ -1154,14 +1269,16 @@ async def diagnose_whatsapp_instance(
         "credentials_valid": False,
         "webhook_configured": False,
         "webhook_url_registered": None,
-        "errors": []
+        "errors": [],
     }
 
     url = instance.evolution_api_url
     key = instance.evolution_api_key
 
     if not url or not key:
-        result["errors"].append("URL ou API Key da Evolution não configuradas nesta instância.")
+        result["errors"].append(
+            "URL ou API Key da Evolution não configuradas nesta instância."
+        )
         return result
 
     # 1. Testar credenciais e estado da instância
@@ -1170,14 +1287,18 @@ async def diagnose_whatsapp_instance(
             resp = await client.get(
                 f"{url.rstrip('/')}/instance/connectionState/{instance_name}",
                 headers={"apikey": key},
-                timeout=8.0
+                timeout=8.0,
             )
             if resp.status_code == 401:
-                result["errors"].append("Credenciais inválidas (401). Verifique a API Key.")
+                result["errors"].append(
+                    "Credenciais inválidas (401). Verifique a API Key."
+                )
             elif resp.status_code == 404:
                 result["evolution_reachable"] = True
                 result["credentials_valid"] = True
-                result["errors"].append("Instância não encontrada na Evolution API. Pode precisar ser recriada.")
+                result["errors"].append(
+                    "Instância não encontrada na Evolution API. Pode precisar ser recriada."
+                )
             elif resp.status_code == 200:
                 result["evolution_reachable"] = True
                 result["credentials_valid"] = True
@@ -1186,7 +1307,9 @@ async def diagnose_whatsapp_instance(
                 result["evolution_state"] = state  # "open", "close", "connecting", etc.
             else:
                 result["evolution_reachable"] = True
-                result["errors"].append(f"Resposta inesperada da Evolution: HTTP {resp.status_code}")
+                result["errors"].append(
+                    f"Resposta inesperada da Evolution: HTTP {resp.status_code}"
+                )
     except httpx.ConnectError:
         result["errors"].append(f"Não foi possível conectar à Evolution API em: {url}")
     except Exception as e:
@@ -1199,7 +1322,7 @@ async def diagnose_whatsapp_instance(
                 resp = await client.get(
                     f"{url.rstrip('/')}/webhook/find/{instance_name}",
                     headers={"apikey": key},
-                    timeout=8.0
+                    timeout=8.0,
                 )
                 if resp.status_code == 200:
                     wh_data = resp.json()
@@ -1207,11 +1330,16 @@ async def diagnose_whatsapp_instance(
                     result["webhook_url_registered"] = wh_url
                     result["webhook_configured"] = bool(wh_url)
                     if not wh_url:
-                        result["errors"].append("Webhook não configurado na Evolution para esta instância.")
+                        result["errors"].append(
+                            "Webhook não configurado na Evolution para esta instância."
+                        )
         except Exception as e:
-            result["errors"].append(f"Não foi possível verificar webhook: {str(e)[:80]}")
+            result["errors"].append(
+                f"Não foi possível verificar webhook: {str(e)[:80]}"
+            )
 
     return result
+
 
 @master_router.get("/whatsapp/{instance_name}/pairing-code")
 async def get_pairing_code(
@@ -1223,52 +1351,68 @@ async def get_pairing_code(
     clean_phone = re.sub(r"\D", "", phone)
     if not clean_phone:
         raise HTTPException(status_code=400, detail="Invalid phone number format.")
-        
-    instance = await db.scalar(select(EvolutionInstance).where(EvolutionInstance.instance_name == instance_name))
+
+    instance = await db.scalar(
+        select(EvolutionInstance).where(
+            EvolutionInstance.instance_name == instance_name
+        )
+    )
     if not instance:
-         raise HTTPException(status_code=404, detail="Instance not found.")
-         
+        raise HTTPException(status_code=404, detail="Instance not found.")
+
     if user.tenant_id and instance.tenant_id != user.tenant_id:
-        raise HTTPException(status_code=403, detail="Forbidden: This instance belongs to another tenant.")
+        raise HTTPException(
+            status_code=403,
+            detail="Forbidden: This instance belongs to another tenant.",
+        )
 
     custom_url = instance.evolution_api_url
     custom_key = instance.evolution_api_key
 
     evo_response = await evolution_service.get_pairing_code(
-        instance_name, 
-        clean_phone,
-        custom_url=custom_url,
-        custom_key=custom_key
+        instance_name, clean_phone, custom_url=custom_url, custom_key=custom_key
     )
     if "error" in evo_response:
-        raise HTTPException(status_code=500, detail=f"Evolution API Error: {evo_response['error']}")
-        
+        raise HTTPException(
+            status_code=500, detail=f"Evolution API Error: {evo_response['error']}"
+        )
+
     return evo_response
 
-@master_router.delete("/whatsapp/{instance_name}", status_code=status.HTTP_204_NO_CONTENT)
+
+@master_router.delete(
+    "/whatsapp/{instance_name}", status_code=status.HTTP_204_NO_CONTENT
+)
 async def delete_whatsapp_instance(
     instance_name: str,
     master: Annotated[AdminUser, Depends(_require_master_admin)],
     db: AsyncSession = Depends(get_db),
 ):
-    instance = await db.scalar(select(EvolutionInstance).where(EvolutionInstance.instance_name == instance_name))
+    instance = await db.scalar(
+        select(EvolutionInstance).where(
+            EvolutionInstance.instance_name == instance_name
+        )
+    )
     if not instance:
         raise HTTPException(status_code=404, detail="Instance not found in database.")
-        
+
     evo_response = await evolution_service.delete_instance(
         instance_name,
         custom_url=instance.evolution_api_url,
-        custom_key=instance.evolution_api_key
+        custom_key=instance.evolution_api_key,
     )
     if "error" in evo_response:
-        logger.warning(f"Evolution API Error on delete: {evo_response['error']} - Proceeding with DB cleanup.")
-         
+        logger.warning(
+            f"Evolution API Error on delete: {evo_response['error']} - Proceeding with DB cleanup."
+        )
+
     await db.delete(instance)
     await db.commit()
     return None
 
 
 # ── System Config (Configurações do Sistema) ─────────────────────────────────
+
 
 class SystemConfigResponse(BaseModel):
     openai_api_key: str
@@ -1325,15 +1469,20 @@ async def get_system_config(
         evolution_api_url=getattr(settings, "EVOLUTION_API_URL", "") or "",
         evolution_api_key=_mask(getattr(settings, "EVOLUTION_API_KEY", "") or ""),
         verify_token=_mask(getattr(settings, "VERIFY_TOKEN", "") or ""),
-        access_token_expire_minutes=getattr(settings, "ACCESS_TOKEN_EXPIRE_MINUTES", 30),
-        refresh_token_expire_minutes=getattr(settings, "REFRESH_TOKEN_EXPIRE_MINUTES", 1440),
+        access_token_expire_minutes=getattr(
+            settings, "ACCESS_TOKEN_EXPIRE_MINUTES", 30
+        ),
+        refresh_token_expire_minutes=getattr(
+            settings, "REFRESH_TOKEN_EXPIRE_MINUTES", 1440
+        ),
         smtp_server=getattr(settings, "SMTP_SERVER", "") or "",
         smtp_port=getattr(settings, "SMTP_PORT", 587),
         smtp_user=getattr(settings, "SMTP_USER", "") or "",
         backend_cors_origins=str(getattr(settings, "BACKEND_CORS_ORIGINS", "*")),
         app_debug=getattr(settings, "APP_DEBUG", False),
         public_url=getattr(settings, "PUBLIC_URL", "") or "",
-        rate_limit_whitelist=getattr(settings, "RATE_LIMIT_WHITELIST", "127.0.0.1") or "127.0.0.1",
+        rate_limit_whitelist=getattr(settings, "RATE_LIMIT_WHITELIST", "127.0.0.1")
+        or "127.0.0.1",
     )
 
 
@@ -1348,6 +1497,7 @@ async def update_system_config(
     ⚠️ As mudanças são aplicadas em memória — reinicie o container para persistir no .env.
     """
     import json
+
     changed = {}
 
     field_map = {
@@ -1374,7 +1524,13 @@ async def update_system_config(
             old_val = getattr(settings, settings_attr, None)
             setattr(settings, settings_attr, value)
             # Não logar valores sensíveis
-            safe_val = _mask(str(value)) if "key" in body_field or "password" in body_field or "token" in body_field else str(value)
+            safe_val = (
+                _mask(str(value))
+                if "key" in body_field
+                or "password" in body_field
+                or "token" in body_field
+                else str(value)
+            )
             changed[settings_attr] = safe_val
 
     if changed:
@@ -1382,12 +1538,16 @@ async def update_system_config(
             tenant_id=None,
             event_type="system_config_updated",
             username=master.username,
-            details=json.dumps({"changed_fields": list(changed.keys()), "values": changed}),
+            details=json.dumps(
+                {"changed_fields": list(changed.keys()), "values": changed}
+            ),
         )
         db.add(audit)
         await db.commit()
 
-        logger.info(f"⚙️ System config updated by {master.username}: {list(changed.keys())}")
+        logger.info(
+            f"⚙️ System config updated by {master.username}: {list(changed.keys())}"
+        )
 
     return {
         "status": "success",

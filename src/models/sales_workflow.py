@@ -1,5 +1,7 @@
-from sqlalchemy import Column, Integer, String, Boolean, Text, DateTime, ForeignKey, func, JSON
+from sqlalchemy import (JSON, Boolean, Column, DateTime, ForeignKey, Integer,
+                        String, Text, func)
 from sqlalchemy.orm import relationship
+
 from src.models.database import Base
 
 
@@ -8,6 +10,7 @@ class SalesWorkflow(Base):
     Defines ordered funnel stages per tenant.
     The agent uses these stages to guide conversations from lead → close.
     """
+
     __tablename__ = "sales_workflows"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -34,7 +37,9 @@ class SalesWorkflow(Base):
     version = Column(Integer, default=1, nullable=False)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
     tenant = relationship("Tenant", backref="sales_workflows")
 

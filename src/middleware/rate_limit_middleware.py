@@ -12,16 +12,13 @@ import os
 import time
 
 from fastapi import Request, Response
-from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.middleware.base import (BaseHTTPMiddleware,
+                                       RequestResponseEndpoint)
 from starlette.responses import JSONResponse
 
-from src.utils.rate_limit import (
-    _get_redis,
-    _get_client_ip,
-    _get_route_category,
-    _check_rate_limit_redis,
-    RATE_LIMIT_RULES,
-)
+from src.utils.rate_limit import (RATE_LIMIT_RULES, _check_rate_limit_redis,
+                                  _get_client_ip, _get_redis,
+                                  _get_route_category)
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +29,7 @@ EXEMPT_PREFIXES = (
     "/favicon.ico",
     "/api/v1/metrics",  # protegido por token separado
 )
+
 
 # IPs sempre isentos (loopback + configurável via env)
 def _get_whitelist() -> set[str]:
@@ -46,7 +44,9 @@ def _get_whitelist() -> set[str]:
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Middleware global de rate limiting aplicado em todas as requisições."""
 
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         path = request.url.path
 
         # Pular rotas isentas

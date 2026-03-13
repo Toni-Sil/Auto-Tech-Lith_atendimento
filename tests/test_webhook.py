@@ -1,8 +1,11 @@
-import httpx
 import asyncio
+
+import httpx
+
 
 async def main():
     import os
+
     token = os.getenv("VERIFY_TOKEN", "MEU_TOKEN_SECRETO")
     url = f"http://localhost:8000/api/webhooks/whatsapp?token={token}"
     # Payload simulando Evolution API v2
@@ -13,16 +16,14 @@ async def main():
             "key": {
                 "remoteJid": "5511999999999@s.whatsapp.net",
                 "fromMe": False,
-                "id": "TEST_MSG_ID_123"
+                "id": "TEST_MSG_ID_123",
             },
             "pushName": "Teste Flow",
-            "message": {
-                "conversation": "Olá, gostaria de agendar uma reunião."
-            },
-            "messageType": "conversation"
-        }
+            "message": {"conversation": "Olá, gostaria de agendar uma reunião."},
+            "messageType": "conversation",
+        },
     }
-    
+
     print(f"Enviando webhook simulado para {url}...")
     try:
         async with httpx.AsyncClient() as client:
@@ -31,6 +32,7 @@ async def main():
             print(f"Response: {resp.json()}")
     except Exception as e:
         print(f"Erro ao enviar webhook: {e}")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

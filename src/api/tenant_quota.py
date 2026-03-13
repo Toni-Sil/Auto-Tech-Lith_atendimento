@@ -3,18 +3,19 @@ TenantQuota API — granular channel/message limit management per tenant.
 
 All endpoints require Master Admin role.
 """
-from typing import List, Optional, Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status, Body, Request
+from typing import Annotated, List, Optional
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.database import get_db
+from src.api.auth import get_current_user
 from src.models.admin import AdminUser
+from src.models.database import get_db
 from src.models.tenant import Tenant
 from src.models.tenant_quota import TenantQuota
-from src.api.auth import get_current_user
 from src.services.quota_service import quota_service
 
 quota_router = APIRouter()
@@ -22,8 +23,16 @@ quota_router = APIRouter()
 
 # ── Gate ──────────────────────────────────────────────────────────────────────
 
+
 def _require_master(current_user: AdminUser = Depends(get_current_user)) -> AdminUser:
-    allowed_roles = ["owner", "admin", "master_admin", "master", "super admin", "superadmin"]
+    allowed_roles = [
+        "owner",
+        "admin",
+        "master_admin",
+        "master",
+        "super admin",
+        "superadmin",
+    ]
     user_role = (current_user.role or "").lower()
     if user_role not in allowed_roles or current_user.tenant_id is not None:
         raise HTTPException(
@@ -35,22 +44,23 @@ def _require_master(current_user: AdminUser = Depends(get_current_user)) -> Admi
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
+
 class QuotaResponse(BaseModel):
-    id:                        int
-    tenant_id:                 int
-    tenant_name:               Optional[str] = None
-    max_whatsapp_instances:    int
+    id: int
+    tenant_id: int
+    tenant_name: Optional[str] = None
+    max_whatsapp_instances: int
     current_whatsapp_instances: int
-    max_messages_daily:        int
-    max_messages_monthly:      int
-    current_messages_daily:    int
-    current_messages_monthly:  int
-    is_suspended:              bool
-    suspended_reason:          Optional[str]
-    plan_tier:                 Optional[str]
-    upgrade_suggested:         bool
-    updated_by:                Optional[str]
-    updated_at:                Optional[str]
+    max_messages_daily: int
+    max_messages_monthly: int
+    current_messages_daily: int
+    current_messages_monthly: int
+    is_suspended: bool
+    suspended_reason: Optional[str]
+    plan_tier: Optional[str]
+    upgrade_suggested: bool
+    updated_by: Optional[str]
+    updated_at: Optional[str]
 
     class Config:
         from_attributes = True
@@ -58,10 +68,10 @@ class QuotaResponse(BaseModel):
 
 class QuotaUpdate(BaseModel):
     max_whatsapp_instances: Optional[int] = None
-    max_messages_daily:     Optional[int] = None
-    max_messages_monthly:   Optional[int] = None
-    plan_tier:              Optional[str] = None
-    reason:                 Optional[str] = None
+    max_messages_daily: Optional[int] = None
+    max_messages_monthly: Optional[int] = None
+    plan_tier: Optional[str] = None
+    reason: Optional[str] = None
 
 
 class SuspendRequest(BaseModel):
@@ -69,19 +79,20 @@ class SuspendRequest(BaseModel):
 
 
 class AbuseAlert(BaseModel):
-    tenant_id:         int
-    tenant_name:       Optional[str] = None
-    level:             str           # "warning" | "critical"
-    reasons:           List[str]
+    tenant_id: int
+    tenant_name: Optional[str] = None
+    level: str  # "warning" | "critical"
+    reasons: List[str]
     upgrade_suggested: bool
-    is_suspended:      bool
-    pct_daily:         float
-    pct_monthly:       float
-    pct_wa:            float
-    plan_tier:         Optional[str]
+    is_suspended: bool
+    pct_daily: float
+    pct_monthly: float
+    pct_wa: float
+    plan_tier: Optional[str]
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 async def _enrich_with_name(quota: TenantQuota, db: AsyncSession) -> dict:
     tenant = await db.scalar(select(Tenant).where(Tenant.id == quota.tenant_id))
@@ -112,6 +123,7 @@ def _quota_resp(quota: TenantQuota, tenant_name: str = "") -> QuotaResponse:
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
 
 @quota_router.get("/quotas", response_model=List[QuotaResponse])
 async def list_quotas(
@@ -151,10 +163,13 @@ async def update_quota(
     """Update quota limits. Generates an immutable AuditLog entry. Requires MFA."""
     if master.mfa_enabled:
         from src.services.mfa_service import mfa_service
+
         mfa_token = request.headers.get("X-MFA-Token")
         if not mfa_token:
-            raise HTTPException(status_code=403, detail="MFA token required for sensitive operations")
-        
+            raise HTTPException(
+                status_code=403, detail="MFA token required for sensitive operations"
+            )
+
         is_valid = await mfa_service.verify_totp(master.id, mfa_token, db=db)
         if not is_valid:
             raise HTTPException(status_code=403, detail="Invalid MFA token")
@@ -222,8 +237,10 @@ async def get_abuse_alerts(
     result = []
     for a in alerts:
         tenant = await db.scalar(select(Tenant).where(Tenant.id == a["tenant_id"]))
-        result.append(AbuseAlert(
-            **a,
-            tenant_name=tenant.name if tenant else f"Tenant #{a['tenant_id']}",
-        ))
+        result.append(
+            AbuseAlert(
+                **a,
+                tenant_name=tenant.name if tenant else f"Tenant #{a['tenant_id']}",
+            )
+        )
     return result

@@ -1,11 +1,13 @@
 from enum import Enum
 from typing import Optional
 
+
 class Role(str, Enum):
     OWNER = "owner"
     ADMIN = "admin"
     OPERATOR = "operator"
     VIEWER = "viewer"
+
 
 class Action(str, Enum):
     LIST = "list"
@@ -21,10 +23,12 @@ class Action(str, Enum):
     GET_NOTES = "get_notes"
     MANAGE_ADMINS = "manage_admins"
 
+
 class PermissionResult(str, Enum):
     ALLOWED = "allowed"
     DENIED = "denied"
     NEEDS_CONFIRMATION = "needs_confirmation"
+
 
 class PermissionService:
     @staticmethod
@@ -32,10 +36,12 @@ class PermissionService:
         try:
             return Role(role_str.lower())
         except ValueError:
-            return Role.VIEWER # Default safe fallback
+            return Role.VIEWER  # Default safe fallback
 
     @staticmethod
-    def check_permission(role: Role, tool_name: str, action: Optional[str] = None) -> PermissionResult:
+    def check_permission(
+        role: Role, tool_name: str, action: Optional[str] = None
+    ) -> PermissionResult:
         """
         Matriz de Permissões:
         - OWNER: Tudo permitido.
@@ -43,11 +49,11 @@ class PermissionService:
         - OPERATOR: Leitura/Escrita permitida. DELETE proibido. Gestão de admins proibida.
         - VIEWER: Apenas leitura.
         """
-        
+
         # 1. OWNER has god mode
         if role == Role.OWNER:
             return PermissionResult.ALLOWED
-        
+
         # Normalize inputs
         tool = tool_name.lower()
         act = action.lower() if action else ""
@@ -64,10 +70,10 @@ class PermissionService:
         if role == Role.OPERATOR:
             if tool == "manage_admins":
                 return PermissionResult.DENIED
-            
+
             if act == "delete" or act == "cancel":
                 return PermissionResult.DENIED
-            
+
             return PermissionResult.ALLOWED
 
         # 4. ADMIN (Restricted Deletes)
@@ -75,9 +81,9 @@ class PermissionService:
             # Sensitive operations require confirmation
             if act == "delete" or act == "cancel":
                 return PermissionResult.NEEDS_CONFIRMATION
-            
+
             if tool == "manage_admins" and act == "delete":
-                 return PermissionResult.NEEDS_CONFIRMATION
+                return PermissionResult.NEEDS_CONFIRMATION
 
             return PermissionResult.ALLOWED
 

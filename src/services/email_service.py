@@ -1,10 +1,12 @@
 import smtplib
-from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
 from src.config import settings
 from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
+
 
 class EmailService:
     def send_recovery_email(self, recipient_email: str, recovery_link: str):
@@ -21,12 +23,12 @@ class EmailService:
         
         Se você não solicitou, ignore este email.
         """
-        
+
         msg = MIMEMultipart()
-        msg['From'] = settings.SMTP_USER
-        msg['To'] = recipient_email
-        msg['Subject'] = subject
-        msg.attach(MIMEText(body, 'plain'))
+        msg["From"] = settings.SMTP_USER
+        msg["To"] = recipient_email
+        msg["Subject"] = subject
+        msg.attach(MIMEText(body, "plain"))
 
         try:
             server = smtplib.SMTP(settings.SMTP_SERVER, settings.SMTP_PORT)
@@ -38,5 +40,6 @@ class EmailService:
             logger.info("Recovery email sent to %s", recipient_email)
         except Exception as e:
             logger.error("Failed to send email to %s: %s", recipient_email, str(e))
+
 
 email_service = EmailService()

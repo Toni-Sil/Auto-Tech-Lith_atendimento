@@ -4,20 +4,22 @@ Allows tenant owners/admins to define and order their sales pipeline stages.
 """
 
 from typing import Annotated, List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.database import get_db
+from src.api.auth import RequirePermissions, get_current_user
 from src.models.admin import AdminUser
+from src.models.database import get_db
 from src.models.sales_workflow import SalesWorkflow
-from src.api.auth import get_current_user, RequirePermissions
 
 workflow_router = APIRouter()
 
 
 # ── Schemas ──────────────────────────────────────────────────────────────────
+
 
 class WorkflowStageCreate(BaseModel):
     stage_name: str = Field(..., example="Qualificação")
@@ -51,6 +53,7 @@ class WorkflowStageResponse(BaseModel):
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
+
 @workflow_router.get("", response_model=List[WorkflowStageResponse])
 async def list_workflow_stages(
     current_user: Annotated[AdminUser, Depends(get_current_user)],
@@ -66,10 +69,14 @@ async def list_workflow_stages(
     return stages
 
 
-@workflow_router.post("", response_model=WorkflowStageResponse, status_code=status.HTTP_201_CREATED)
+@workflow_router.post(
+    "", response_model=WorkflowStageResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_workflow_stage(
     body: WorkflowStageCreate,
-    current_user: Annotated[AdminUser, Depends(RequirePermissions(["agent_profiles:write"]))],
+    current_user: Annotated[
+        AdminUser, Depends(RequirePermissions(["agent_profiles:write"]))
+    ],
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new funnel stage."""
@@ -87,7 +94,9 @@ async def create_workflow_stage(
 async def update_workflow_stage(
     stage_id: int,
     body: WorkflowStageUpdate,
-    current_user: Annotated[AdminUser, Depends(RequirePermissions(["agent_profiles:write"]))],
+    current_user: Annotated[
+        AdminUser, Depends(RequirePermissions(["agent_profiles:write"]))
+    ],
     db: AsyncSession = Depends(get_db),
 ):
     """Update a funnel stage. Increments version for audit trail."""
@@ -108,7 +117,9 @@ async def update_workflow_stage(
 @workflow_router.delete("/{stage_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_workflow_stage(
     stage_id: int,
-    current_user: Annotated[AdminUser, Depends(RequirePermissions(["agent_profiles:write"]))],
+    current_user: Annotated[
+        AdminUser, Depends(RequirePermissions(["agent_profiles:write"]))
+    ],
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a funnel stage."""
@@ -121,7 +132,9 @@ async def delete_workflow_stage(
 
 @workflow_router.post("/reorder", response_model=List[WorkflowStageResponse])
 async def reorder_workflow_stages(
-    current_user: Annotated[AdminUser, Depends(RequirePermissions(["agent_profiles:write"]))],
+    current_user: Annotated[
+        AdminUser, Depends(RequirePermissions(["agent_profiles:write"]))
+    ],
     db: AsyncSession = Depends(get_db),
     ordered_ids: List[int] = None,
 ):
@@ -132,7 +145,9 @@ async def reorder_workflow_stages(
     if not ordered_ids:
         raise HTTPException(status_code=400, detail="ordered_ids list is required")
 
-    stmt = select(SalesWorkflow).where(SalesWorkflow.tenant_id == current_user.tenant_id)
+    stmt = select(SalesWorkflow).where(
+        SalesWorkflow.tenant_id == current_user.tenant_id
+    )
     all_stages = {s.id: s for s in (await db.execute(stmt)).scalars().all()}
 
     for new_order, stage_id in enumerate(ordered_ids):

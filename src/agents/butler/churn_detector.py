@@ -19,24 +19,27 @@ usage_service = UsageService()
 
 @dataclass
 class ChurnRisk:
-    tenant_id:          int
-    last_week:          int
-    this_week:          int
-    drop_percent:       float
-    risk_level:         str     # "low" | "medium" | "high" | "critical"
+    tenant_id: int
+    last_week: int
+    this_week: int
+    drop_percent: float
+    risk_level: str  # "low" | "medium" | "high" | "critical"
     recommended_action: str
 
 
 def _classify_risk(drop_pct: float) -> tuple[str, str]:
     """Return (risk_level, recommended_action)."""
     if drop_pct >= 90:
-        return "critical", "🚨 Contato imediato do time comercial — risco de cancelamento"
+        return (
+            "critical",
+            "🚨 Contato imediato do time comercial — risco de cancelamento",
+        )
     elif drop_pct >= 70:
-        return "high",     "📞 Ligar para o lojista e oferecer suporte prioritário"
+        return "high", "📞 Ligar para o lojista e oferecer suporte prioritário"
     elif drop_pct >= 50:
-        return "medium",   "💌 Enviar e-mail de retenção com dica de otimização"
+        return "medium", "💌 Enviar e-mail de retenção com dica de otimização"
     else:
-        return "low",      "📊 Monitorar por mais 7 dias antes de agir"
+        return "low", "📊 Monitorar por mais 7 dias antes de agir"
 
 
 async def get_churn_risks(
@@ -51,16 +54,20 @@ async def get_churn_risks(
 
     for r in raw:
         level, action = _classify_risk(r["drop_percent"])
-        risks.append(ChurnRisk(
-            tenant_id=r["tenant_id"],
-            last_week=r["last_week_interactions"],
-            this_week=r["this_week_interactions"],
-            drop_percent=r["drop_percent"],
-            risk_level=level,
-            recommended_action=action,
-        ))
+        risks.append(
+            ChurnRisk(
+                tenant_id=r["tenant_id"],
+                last_week=r["last_week_interactions"],
+                this_week=r["this_week_interactions"],
+                drop_percent=r["drop_percent"],
+                risk_level=level,
+                recommended_action=action,
+            )
+        )
 
-    logger.info(f"ChurnDetector: {len(risks)} risk tenants found (threshold={drop_threshold})")
+    logger.info(
+        f"ChurnDetector: {len(risks)} risk tenants found (threshold={drop_threshold})"
+    )
     return risks
 
 

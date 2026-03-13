@@ -8,25 +8,25 @@ Handles:
   - Churn detection
 """
 
-import os
 import json
+import os
 from datetime import datetime, timedelta
 from typing import Optional
 
-from sqlalchemy import select, func, and_
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.usage_log import UsageLog
 
 # ── Cost estimation constants (USD per 1k tokens) ──────────────────────────
 PRICING = {
-    "gpt-4o":                 {"input": 0.0025, "output": 0.010},
-    "gpt-4o-mini":            {"input": 0.00015, "output": 0.0006},
-    "gpt-4-turbo":            {"input": 0.010, "output": 0.030},
-    "gpt-3.5-turbo":          {"input": 0.0005, "output": 0.0015},
-    "claude-3-5-sonnet":      {"input": 0.003, "output": 0.015},
-    "claude-3-opus":          {"input": 0.015, "output": 0.075},
-    "claude-3-haiku":         {"input": 0.00025, "output": 0.00125},
+    "gpt-4o": {"input": 0.0025, "output": 0.010},
+    "gpt-4o-mini": {"input": 0.00015, "output": 0.0006},
+    "gpt-4-turbo": {"input": 0.010, "output": 0.030},
+    "gpt-3.5-turbo": {"input": 0.0005, "output": 0.0015},
+    "claude-3-5-sonnet": {"input": 0.003, "output": 0.015},
+    "claude-3-opus": {"input": 0.015, "output": 0.075},
+    "claude-3-haiku": {"input": 0.00025, "output": 0.00125},
 }
 
 
@@ -35,10 +35,9 @@ def _estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
     pricing = PRICING.get(model, {})
     if not pricing:
         return 0.0
-    return (
-        (input_tokens / 1000) * pricing.get("input", 0)
-        + (output_tokens / 1000) * pricing.get("output", 0)
-    )
+    return (input_tokens / 1000) * pricing.get("input", 0) + (
+        output_tokens / 1000
+    ) * pricing.get("output", 0)
 
 
 class UsageService:
@@ -97,22 +96,19 @@ class UsageService:
         if not to_date:
             to_date = datetime.utcnow()
 
-        stmt = (
-            select(
-                func.count(UsageLog.id).label("total_interactions"),
-                func.sum(UsageLog.input_tokens).label("total_input_tokens"),
-                func.sum(UsageLog.output_tokens).label("total_output_tokens"),
-                func.sum(UsageLog.total_tokens).label("total_tokens"),
-                func.sum(UsageLog.cost_usd).label("total_cost_usd"),
-                func.count(func.distinct(UsageLog.session_id)).label("unique_sessions"),
-                func.count(func.distinct(UsageLog.customer_id)).label("unique_customers"),
-            )
-            .where(
-                and_(
-                    UsageLog.tenant_id == tenant_id,
-                    UsageLog.timestamp >= from_date,
-                    UsageLog.timestamp <= to_date,
-                )
+        stmt = select(
+            func.count(UsageLog.id).label("total_interactions"),
+            func.sum(UsageLog.input_tokens).label("total_input_tokens"),
+            func.sum(UsageLog.output_tokens).label("total_output_tokens"),
+            func.sum(UsageLog.total_tokens).label("total_tokens"),
+            func.sum(UsageLog.cost_usd).label("total_cost_usd"),
+            func.count(func.distinct(UsageLog.session_id)).label("unique_sessions"),
+            func.count(func.distinct(UsageLog.customer_id)).label("unique_customers"),
+        ).where(
+            and_(
+                UsageLog.tenant_id == tenant_id,
+                UsageLog.timestamp >= from_date,
+                UsageLog.timestamp <= to_date,
             )
         )
         row = (await db.execute(stmt)).one()
@@ -169,7 +165,9 @@ class UsageService:
 
     # ── Master Admin: global stats ─────────────────────────────────────────
 
-    async def get_global_usage_ranking(self, db: AsyncSession, limit: int = 20) -> list[dict]:
+    async def get_global_usage_ranking(
+        self, db: AsyncSession, limit: int = 20
+    ) -> list[dict]:
         """
         Cross-tenant usage ranking for Master Admin dashboard.
         Returns top N tenants by total tokens this month.
@@ -232,7 +230,9 @@ class UsageService:
         }
         last_week = {
             r.tenant_id: r.count
-            for r in (await db.execute(week_subq(last_week_start, this_week_start))).all()
+            for r in (
+                await db.execute(week_subq(last_week_start, this_week_start))
+            ).all()
         }
 
         alerts = []
@@ -241,12 +241,14 @@ class UsageService:
             if last_cnt > 0:
                 drop = (last_cnt - this_cnt) / last_cnt
                 if drop >= drop_threshold:
-                    alerts.append({
-                        "tenant_id": tid,
-                        "last_week_interactions": last_cnt,
-                        "this_week_interactions": this_cnt,
-                        "drop_percent": round(drop * 100, 1),
-                    })
+                    alerts.append(
+                        {
+                            "tenant_id": tid,
+                            "last_week_interactions": last_cnt,
+                            "this_week_interactions": this_cnt,
+                            "drop_percent": round(drop * 100, 1),
+                        }
+                    )
 
         return sorted(alerts, key=lambda x: x["drop_percent"], reverse=True)
 

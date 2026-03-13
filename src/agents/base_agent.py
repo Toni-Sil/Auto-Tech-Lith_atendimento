@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 
+
 class BaseAgent(ABC):
     @abstractmethod
-    async def process_message(self, message: str, context:  Dict[str, Any]) -> str:
+    async def process_message(self, message: str, context: Dict[str, Any]) -> str:
         """
         Processa a mensagem principal do usuário, gerencia a conversa e executa tool-calling se necessário.
         Deve retornar a string de resposta final a ser enviada ao usuário.

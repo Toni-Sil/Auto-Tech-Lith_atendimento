@@ -8,21 +8,24 @@ Security rules:
 """
 
 import os
-from typing import Annotated, Optional, List
+from typing import Annotated, List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.database import get_db
-from src.models.admin import AdminUser
-from src.models.tenant_ai_config import TenantAIConfig
 from src.api.auth import get_current_user
+from src.models.admin import AdminUser
+from src.models.database import get_db
+from src.models.tenant_ai_config import TenantAIConfig
+
 
 # Lazy import Fernet so missing dep gives a clear error at call-time
 def _get_fernet():
     try:
         from cryptography.fernet import Fernet
+
         key = os.environ.get("ENCRYPTION_KEY")
         if not key:
             raise RuntimeError("ENCRYPTION_KEY env variable is not set")
@@ -39,17 +42,20 @@ ai_config_router = APIRouter()
 
 # ── Schemas ──────────────────────────────────────────────────────────────────
 
+
 class AIConfigCreate(BaseModel):
     provider: str = Field(..., example="openai")
     model_name: str = Field(..., example="gpt-4o")
     api_key: str = Field(..., description="Raw API key — never stored in plaintext")
     base_url: Optional[str] = Field(None, example="https://api.openai.com/v1")
 
+
 class AIConfigUpdate(BaseModel):
     model_name: Optional[str] = None
     api_key: Optional[str] = None  # Only provided when user wants to rotate the key
     base_url: Optional[str] = None
     is_active: Optional[bool] = None
+
 
 class AIConfigResponse(BaseModel):
     id: int
@@ -84,6 +90,7 @@ def _require_owner(current_user: AdminUser) -> AdminUser:
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
+
 @ai_config_router.get("", response_model=List[AIConfigResponse])
 async def list_ai_configs(
     current_user: Annotated[AdminUser, Depends(get_current_user)],
@@ -91,7 +98,9 @@ async def list_ai_configs(
 ):
     """List AI provider configurations for the current tenant (keys masked)."""
     _require_owner(current_user)
-    stmt = select(TenantAIConfig).where(TenantAIConfig.tenant_id == current_user.tenant_id)
+    stmt = select(TenantAIConfig).where(
+        TenantAIConfig.tenant_id == current_user.tenant_id
+    )
     configs = (await db.execute(stmt)).scalars().all()
     return [
         AIConfigResponse(
@@ -107,7 +116,9 @@ async def list_ai_configs(
     ]
 
 
-@ai_config_router.post("", response_model=AIConfigResponse, status_code=status.HTTP_201_CREATED)
+@ai_config_router.post(
+    "", response_model=AIConfigResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_ai_config(
     body: AIConfigCreate,
     current_user: Annotated[AdminUser, Depends(get_current_user)],

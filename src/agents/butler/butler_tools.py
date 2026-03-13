@@ -21,8 +21,9 @@ logger = setup_logger(__name__)
 
 # ── Action definitions ────────────────────────────────────────────────────────
 
+
 class ApprovalLevel:
-    AUTO    = "auto"           # Executes immediately, logged
+    AUTO = "auto"  # Executes immediately, logged
     CONFIRM = "human_confirm"  # Pauses, sends Telegram, waits for ✅
 
 
@@ -35,14 +36,15 @@ class ToolDef:
         approval: str,
         fn: Callable,
     ):
-        self.name        = name
+        self.name = name
         self.description = description
-        self.severity    = severity
-        self.approval    = approval
-        self.fn          = fn
+        self.severity = severity
+        self.approval = approval
+        self.fn = fn
 
 
 # ── Individual tool functions ─────────────────────────────────────────────────
+
 
 async def _run_logrotate(params: dict) -> dict:
     """Rotate application logs — safe, low-impact."""
@@ -50,9 +52,15 @@ async def _run_logrotate(params: dict) -> dict:
         result = await asyncio.to_thread(
             subprocess.run,
             ["logrotate", "-f", "/etc/logrotate.d/agentes"],
-            capture_output=True, text=True, timeout=30
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
-        return {"status": "ok", "stdout": result.stdout[:200], "returncode": result.returncode}
+        return {
+            "status": "ok",
+            "stdout": result.stdout[:200],
+            "returncode": result.returncode,
+        }
     except FileNotFoundError:
         # logrotate not installed — fallback: log a note
         return {"status": "skipped", "detail": "logrotate not installed, skipping"}
@@ -67,8 +75,10 @@ async def _clear_old_sessions(params: dict) -> dict:
     """
     days = int(params.get("days", 90))
     try:
-        from src.models.database import async_session
         from sqlalchemy import text
+
+        from src.models.database import async_session
+
         async with async_session() as db:
             cutoff = f"NOW() - INTERVAL '{days} days'"
             # Soft-purge: delete rows where last activity > days ago
@@ -76,7 +86,11 @@ async def _clear_old_sessions(params: dict) -> dict:
                 text(f"DELETE FROM conversations WHERE updated_at < {cutoff}")
             )
             await db.commit()
-            return {"status": "ok", "deleted_rows": result.rowcount, "older_than_days": days}
+            return {
+                "status": "ok",
+                "deleted_rows": result.rowcount,
+                "older_than_days": days,
+            }
     except Exception as e:
         return {"status": "failed", "error": str(e)[:200]}
 
@@ -94,7 +108,9 @@ async def _restart_container(params: dict) -> dict:
         result = await asyncio.to_thread(
             subprocess.run,
             ["docker", "restart", name],
-            capture_output=True, text=True, timeout=60
+            capture_output=True,
+            text=True,
+            timeout=60,
         )
         ok = result.returncode == 0
         return {
@@ -113,10 +129,11 @@ async def _send_upgrade_suggestion(params: dict) -> dict:
     params: { "tenant_id": int, "current_plan": str, "suggested_plan": str }
     """
     from src.services.telegram_service import telegram_service
-    tid  = params.get("tenant_id")
-    cur  = params.get("current_plan", "basic")
-    nxt  = params.get("suggested_plan", "pro")
-    msg  = (
+
+    tid = params.get("tenant_id")
+    cur = params.get("current_plan", "basic")
+    nxt = params.get("suggested_plan", "pro")
+    msg = (
         f"📈 *Sugestão de Upgrade — Tenant #{tid}*\n\n"
         f"Seu tenant está próximo do limite do plano *{cur.upper()}*.\n"
         f"Recomendamos o upgrade para o plano *{nxt.upper()}* para evitar interrupções.\n\n"
@@ -132,10 +149,11 @@ async def _escalate_ticket(params: dict) -> dict:
     params: { "ticket_id": int, "reason": str, "urgency": str }
     """
     from src.services.telegram_service import telegram_service
-    tid     = params.get("ticket_id")
-    reason  = params.get("reason", "Sem detalhe")
+
+    tid = params.get("ticket_id")
+    reason = params.get("reason", "Sem detalhe")
     urgency = params.get("urgency", "medium")
-    emoji   = "🚨" if urgency == "critical" else "⚠️"
+    emoji = "🚨" if urgency == "critical" else "⚠️"
     msg = (
         f"{emoji} *Ticket Escalado — #{tid}*\n"
         f"Urgência: *{urgency.upper()}*\n"
@@ -152,10 +170,15 @@ async def _update_global_param(params: dict) -> dict:
     params: { "param_key": str, "param_value": any, "reason": str }
     """
     # Stub — actual implementation depends on a settings model
-    key   = params.get("param_key")
+    key = params.get("param_key")
     value = params.get("param_value")
     logger.warning(f"Global param update (stub): {key} = {value}")
-    return {"status": "ok", "param_key": key, "param_value": value, "note": "stub implementation"}
+    return {
+        "status": "ok",
+        "param_key": key,
+        "param_value": value,
+        "note": "stub implementation",
+    }
 
 
 # ── Tool registry ─────────────────────────────────────────────────────────────
@@ -213,14 +236,16 @@ async def execute_tool(
 ) -> dict:
     """
     Execute a registered tool. Returns result dict.
-    NOTE: High-severity (CONFIRM) tools should NOT be called directly — 
+    NOTE: High-severity (CONFIRM) tools should NOT be called directly —
     use ButlerAgent.request_approval() first.
     """
     tool = TOOL_REGISTRY.get(action_name)
     if not tool:
         return {"status": "failed", "error": f"Unknown action: {action_name}"}
 
-    logger.info(f"[ButlerTools] Executing '{action_name}' (severity={tool.severity}) by {operator}")
+    logger.info(
+        f"[ButlerTools] Executing '{action_name}' (severity={tool.severity}) by {operator}"
+    )
     try:
         result = await tool.fn(params)
         return result

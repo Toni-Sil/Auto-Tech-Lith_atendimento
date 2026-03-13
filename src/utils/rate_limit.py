@@ -16,20 +16,20 @@ garantindo disponibilidade em caso de falha transitória do Redis.
 
 from __future__ import annotations
 
-import time
 import logging
+import time
 from typing import Optional
 
-from fastapi import Request, HTTPException, status
+from fastapi import HTTPException, Request, status
 
 logger = logging.getLogger(__name__)
 
 # ── Limites por categoria de rota ─────────────────────────────────────────────
 RATE_LIMIT_RULES: dict[str, tuple[int, int]] = {
-    "auth":     (5, 60),    # 5 req / 60s  — rotas de autenticação
+    "auth": (5, 60),  # 5 req / 60s  — rotas de autenticação
     "webhooks": (300, 60),  # 300 req / 60s — eventos de webhook
-    "api":      (120, 60),  # 120 req / 60s — API geral autenticada
-    "default":  (60, 60),   # 60 req / 60s  — demais rotas
+    "api": (120, 60),  # 120 req / 60s — API geral autenticada
+    "default": (60, 60),  # 60 req / 60s  — demais rotas
 }
 
 
@@ -54,8 +54,10 @@ def _get_redis() -> Optional[object]:
     if _redis_client is not None:
         return _redis_client
     try:
-        import redis
         import os
+
+        import redis
+
         redis_password = os.getenv("REDIS_PASSWORD", "redis2026")
         # No docker-compose, o Redis está acessível via hostname 'redis'
         redis_host = os.getenv("REDIS_HOST", "redis")
@@ -74,13 +76,18 @@ def _get_redis() -> Optional[object]:
         logger.info("✅ Rate Limiter: Redis conectado com sucesso.")
         return _redis_client
     except Exception as e:
-        logger.warning(f"⚠️ Rate Limiter: Redis indisponível ({e}). Operando sem limitação.")
+        logger.warning(
+            f"⚠️ Rate Limiter: Redis indisponível ({e}). Operando sem limitação."
+        )
         return None
 
 
 # ── Sliding Window Rate Limiter ────────────────────────────────────────────────
 
-def _check_rate_limit_redis(redis_client, key: str, limit: int, window: int) -> tuple[bool, int, int]:
+
+def _check_rate_limit_redis(
+    redis_client, key: str, limit: int, window: int
+) -> tuple[bool, int, int]:
     """
     Implementa o algoritmo Sliding Window via Redis Sorted Set.
 
@@ -202,6 +209,7 @@ class RateLimiter:
         ):
             ...
     """
+
     def __init__(self, limit: int, window_seconds: int = 60, category: str = "api"):
         self.limit = limit
         self.window_seconds = window_seconds

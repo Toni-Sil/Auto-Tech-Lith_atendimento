@@ -1,7 +1,10 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Optional, List
 import os
+from typing import List, Optional
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
 # Config Reload Trigger
+
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Auto Tech Lith Agent"
@@ -49,7 +52,7 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: Optional[str] = None
 
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    REFRESH_TOKEN_EXPIRE_MINUTES: int = 1440 # 1 day
+    REFRESH_TOKEN_EXPIRE_MINUTES: int = 1440  # 1 day
 
     # CORS — set via env as JSON list: '["https://yourapp.com"]'
     BACKEND_CORS_ORIGINS: List[str] = [
@@ -61,7 +64,9 @@ class Settings(BaseSettings):
         "https://auto-tech-lich-server-1w3am1-6a00ef-187-77-227-171.traefik.me",
     ]
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+    )
+
 
 settings = Settings()
-

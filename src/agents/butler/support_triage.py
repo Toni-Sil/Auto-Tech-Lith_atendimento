@@ -17,16 +17,29 @@ logger = setup_logger(__name__)
 
 # ── Urgency scoring keywords ──────────────────────────────────────────────────
 CRITICAL_KEYWORDS = [
-    r"\bsistema fora\b", r"\bsem acesso\b", r"\bnão funciona\b",
-    r"\berro 500\b", r"\bqueda\b", r"\bdesconectou\b", r"\bperdeu dados\b",
-    r"\bpagamento\b", r"\bcobranç\w+\b",
+    r"\bsistema fora\b",
+    r"\bsem acesso\b",
+    r"\bnão funciona\b",
+    r"\berro 500\b",
+    r"\bqueda\b",
+    r"\bdesconectou\b",
+    r"\bperdeu dados\b",
+    r"\bpagamento\b",
+    r"\bcobranç\w+\b",
 ]
 HIGH_KEYWORDS = [
-    r"\bwhatsapp\b.*\bdesconect\w+", r"\bnão responde\b", r"\blento\b",
-    r"\bQR\b", r"\binstância\b", r"\bIA\b.*\bparou\b",
+    r"\bwhatsapp\b.*\bdesconect\w+",
+    r"\bnão responde\b",
+    r"\blento\b",
+    r"\bQR\b",
+    r"\binstância\b",
+    r"\bIA\b.*\bparou\b",
 ]
 MEDIUM_KEYWORDS = [
-    r"\bnão receb\w+\b", r"\batualiz\w+\b", r"\bconfigurar?\b", r"\bentender\b",
+    r"\bnão receb\w+\b",
+    r"\batualiz\w+\b",
+    r"\bconfigurar?\b",
+    r"\bentender\b",
 ]
 
 # ── Auto-resolvable FAQ patterns ──────────────────────────────────────────────
@@ -62,13 +75,13 @@ FAQ_PATTERNS = {
 
 @dataclass
 class TriageResult:
-    ticket_id:    Optional[int]
-    urgency:      str            # critical / high / medium / low
-    urgency_score: int           # 0-100
+    ticket_id: Optional[int]
+    urgency: str  # critical / high / medium / low
+    urgency_score: int  # 0-100
     auto_resolved: bool
     auto_response: Optional[str]
-    escalate:     bool
-    labels:       list
+    escalate: bool
+    labels: list
     recommendation: str
 
 

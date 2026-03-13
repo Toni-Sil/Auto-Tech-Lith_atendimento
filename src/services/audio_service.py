@@ -1,28 +1,35 @@
+import logging
 import os
 import subprocess
-import logging
 from typing import Optional
 
 # Lazy import: whisper (e torch) são carregados apenas quando necessário
 whisper = None
+
 
 def _import_whisper():
     global whisper
     if whisper is None:
         try:
             import whisper as _whisper
+
             whisper = _whisper
         except ImportError:
-            raise ImportError("openai-whisper não está instalado. Instale com: pip install openai-whisper")
+            raise ImportError(
+                "openai-whisper não está instalado. Instale com: pip install openai-whisper"
+            )
+
 
 # Configuração de log
 logger = logging.getLogger(__name__)
+
 
 class AudioService:
     """
     Serviço para transcrição de áudio utilizando o modelo Whisper da OpenAI.
     Requer FFmpeg instalado no sistema.
     """
+
     def __init__(self, model_size: str = "base"):
         self.model_size = model_size
         self.model = None
@@ -59,10 +66,10 @@ class AudioService:
         """Verifica se o FFmpeg está instalado e acessível no PATH."""
         try:
             subprocess.run(
-                ["ffmpeg", "-version"], 
-                stdout=subprocess.PIPE, 
-                stderr=subprocess.PIPE, 
-                check=True
+                ["ffmpeg", "-version"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=True,
             )
             return True
         except (subprocess.CalledProcessError, FileNotFoundError):
@@ -71,27 +78,31 @@ class AudioService:
     def transcribe(self, audio_path: str) -> str:
         """
         Transcreve um arquivo de áudio para texto.
-        
+
         Args:
             audio_path (str): Caminho absoluto do arquivo de áudio.
-            
+
         Returns:
             str: Texto transcrito.
-            
+
         Raises:
             RuntimeError: Se o FFmpeg não estiver instalado.
             FileNotFoundError: Se o arquivo de áudio não existir.
         """
         self._configure_ffmpeg_path()
-        
-        if not self.is_ffmpeg_available():
-            # Tentar verificar novamente após adicionar ao PATH
-            pass 
 
         if not self.is_ffmpeg_available():
-            logger.error("FFmpeg não encontrado mesmo após verificar caminhos conhecidos.")
-            raise RuntimeError("FFmpeg não está disponível. Por favor, instale o FFmpeg para utilizar a transcrição de áudio.")
-        
+            # Tentar verificar novamente após adicionar ao PATH
+            pass
+
+        if not self.is_ffmpeg_available():
+            logger.error(
+                "FFmpeg não encontrado mesmo após verificar caminhos conhecidos."
+            )
+            raise RuntimeError(
+                "FFmpeg não está disponível. Por favor, instale o FFmpeg para utilizar a transcrição de áudio."
+            )
+
         if not os.path.exists(audio_path):
             logger.error(f"Arquivo de áudio não encontrado: {audio_path}")
             raise FileNotFoundError(f"Arquivo de áudio não encontrado: {audio_path}")
@@ -106,6 +117,7 @@ class AudioService:
         except Exception as e:
             logger.error(f"Erro durante a transcrição: {e}")
             raise
+
 
 # Singleton instance
 audio_service = AudioService()

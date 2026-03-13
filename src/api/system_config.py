@@ -32,15 +32,20 @@ OVERRIDE_FILE = Path(os.getenv("SYSTEM_CONFIG_FILE", "system_config_override.jso
 
 # ── Gate ─────────────────────────────────────────────────────────────────────
 
+
 def _require_master(current_user: AdminUser = Depends(get_current_user)) -> AdminUser:
     allowed = ["owner", "admin", "master_admin", "master", "super admin", "superadmin"]
     role = (current_user.role or "").lower()
     if role not in allowed or current_user.tenant_id is not None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Master Admin access required.")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Master Admin access required.",
+        )
     return current_user
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _load_overrides() -> dict:
     if OVERRIDE_FILE.exists():
@@ -52,7 +57,9 @@ def _load_overrides() -> dict:
 
 
 def _save_overrides(data: dict) -> None:
-    OVERRIDE_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    OVERRIDE_FILE.write_text(
+        json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
 
 
 def _get(key: str, default=None):
@@ -64,6 +71,7 @@ def _get(key: str, default=None):
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
+
 
 class SystemConfigResponse(BaseModel):
     # General
@@ -135,6 +143,7 @@ def _mask(value: Optional[str], show: int = 4) -> str:
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
+
 @system_config_router.get("/system-config", response_model=SystemConfigResponse)
 async def get_system_config(
     master: Annotated[AdminUser, Depends(_require_master)],
@@ -200,8 +209,11 @@ async def update_system_config(
         _save_overrides(overrides)
         logger.info(f"[SystemConfig] Updated by {master.username}: {changed}")
 
-    return {"status": "success", "updated": changed,
-            "message": f"{len(changed)} configuração(ões) salva(s). Reinicie o container para aplicar mudanças em runtime."}
+    return {
+        "status": "success",
+        "updated": changed,
+        "message": f"{len(changed)} configuração(ões) salva(s). Reinicie o container para aplicar mudanças em runtime.",
+    }
 
 
 @system_config_router.post("/system-config/test-smtp")
@@ -222,7 +234,9 @@ async def test_smtp(
         )
 
     try:
-        msg = MIMEText("Este é um e-mail de teste enviado pela plataforma Auto Tech Lith.")
+        msg = MIMEText(
+            "Este é um e-mail de teste enviado pela plataforma Auto Tech Lith."
+        )
         msg["Subject"] = "[Auto Tech Lith] Teste de SMTP"
         msg["From"] = user
         msg["To"] = body.to_email
@@ -233,7 +247,10 @@ async def test_smtp(
             smtp.login(user, password)
             smtp.sendmail(user, [body.to_email], msg.as_string())
 
-        return {"status": "success", "message": f"E-mail de teste enviado para {body.to_email}!"}
+        return {
+            "status": "success",
+            "message": f"E-mail de teste enviado para {body.to_email}!",
+        }
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

@@ -13,13 +13,19 @@ from typing import Any, Dict, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agents.base_agent import BaseAgent
-from src.agents.butler.infra_monitor import run_infra_check, InfraStatus
-from src.agents.butler.support_triage import triage_ticket, TriageResult
-from src.agents.butler.billing_monitor import get_billing_alerts, generate_consolidated_report, format_billing_telegram
-from src.agents.butler.churn_detector import get_churn_risks, format_churn_telegram
-from src.agents.butler.onboarding import get_or_create_state, advance_onboarding, reset_onboarding
-from src.agents.butler.butler_tools import TOOL_REGISTRY, execute_tool, ApprovalLevel
-from src.models.butler_log import ButlerLog, ButlerActionType, ButlerSeverity
+from src.agents.butler.billing_monitor import (format_billing_telegram,
+                                               generate_consolidated_report,
+                                               get_billing_alerts)
+from src.agents.butler.butler_tools import (TOOL_REGISTRY, ApprovalLevel,
+                                            execute_tool)
+from src.agents.butler.churn_detector import (format_churn_telegram,
+                                              get_churn_risks)
+from src.agents.butler.infra_monitor import InfraStatus, run_infra_check
+from src.agents.butler.onboarding import (advance_onboarding,
+                                          get_or_create_state,
+                                          reset_onboarding)
+from src.agents.butler.support_triage import TriageResult, triage_ticket
+from src.models.butler_log import ButlerActionType, ButlerLog, ButlerSeverity
 from src.services.telegram_service import telegram_service
 from src.utils.logger import setup_logger
 
@@ -48,7 +54,10 @@ class ButlerAgent(BaseAgent):
         lower = message.lower()
 
         # Quick routing by intent keyword
-        if any(w in lower for w in ["onboarding", "configurar", "conectar canal", "qr code"]):
+        if any(
+            w in lower
+            for w in ["onboarding", "configurar", "conectar canal", "qr code"]
+        ):
             state = get_or_create_state(tenant_id or 0)
             return state.next_instruction
 
@@ -70,15 +79,18 @@ class ButlerAgent(BaseAgent):
         )
 
     # ── Infrastructure ────────────────────────────────────────────────
-    async def monitor_infrastructure(self, db: AsyncSession, database_url: str) -> InfraStatus:
+    async def monitor_infrastructure(
+        self, db: AsyncSession, database_url: str
+    ) -> InfraStatus:
         """Run full infra check and log results. Alert if critical."""
         from src.config import settings
+
         status = await run_infra_check(database_url, api_base="http://localhost:8000")
 
         severity = (
-            ButlerSeverity.critical if status.has_critical
-            else ButlerSeverity.high if status.has_degraded
-            else ButlerSeverity.low
+            ButlerSeverity.critical
+            if status.has_critical
+            else ButlerSeverity.high if status.has_degraded else ButlerSeverity.low
         )
 
         await self._log(
@@ -101,7 +113,10 @@ class ButlerAgent(BaseAgent):
         return status
 
     def _format_infra_alert(self, status: InfraStatus) -> str:
-        lines = [f"{'🔴' if status.overall == 'critical' else '⚠️'} *Alerta de Infraestrutura*", ""]
+        lines = [
+            f"{'🔴' if status.overall == 'critical' else '⚠️'} *Alerta de Infraestrutura*",
+            "",
+        ]
         for svc in status.services:
             if svc.status != "ok":
                 icon = "🔴" if svc.status == "down" else "🟡"
@@ -123,9 +138,9 @@ class ButlerAgent(BaseAgent):
 
         severity = {
             "critical": ButlerSeverity.critical,
-            "high":     ButlerSeverity.high,
-            "medium":   ButlerSeverity.medium,
-            "low":      ButlerSeverity.low,
+            "high": ButlerSeverity.high,
+            "medium": ButlerSeverity.medium,
+            "low": ButlerSeverity.low,
         }.get(result.urgency, ButlerSeverity.low)
 
         await self._log(
@@ -134,16 +149,29 @@ class ButlerAgent(BaseAgent):
             severity=severity,
             tenant_id=tenant_id,
             description=f"Ticket #{ticket_id} triaged: urgency={result.urgency}",
-            result="auto_resolved" if result.auto_resolved else ("escalated" if result.escalate else "queued"),
-            meta={"ticket_id": ticket_id, "labels": result.labels, "score": result.urgency_score},
+            result=(
+                "auto_resolved"
+                if result.auto_resolved
+                else ("escalated" if result.escalate else "queued")
+            ),
+            meta={
+                "ticket_id": ticket_id,
+                "labels": result.labels,
+                "score": result.urgency_score,
+            },
         )
 
         if result.escalate:
-            await self.run_tool(db, "escalate_ticket", {
-                "ticket_id": ticket_id,
-                "reason": result.recommendation,
-                "urgency": result.urgency,
-            }, tenant_id=tenant_id)
+            await self.run_tool(
+                db,
+                "escalate_ticket",
+                {
+                    "ticket_id": ticket_id,
+                    "reason": result.recommendation,
+                    "urgency": result.urgency,
+                },
+                tenant_id=tenant_id,
+            )
 
         return result
 
@@ -186,7 +214,9 @@ class ButlerAgent(BaseAgent):
         if risks:
             msg = format_churn_telegram(risks)
             await self.send_master_alert(
-                db, msg, severity=ButlerSeverity.medium,
+                db,
+                msg,
+                severity=ButlerSeverity.medium,
                 action_type=ButlerActionType.churn_alert,
             )
         await self._log(
@@ -204,7 +234,8 @@ class ButlerAgent(BaseAgent):
         report = await generate_consolidated_report(db)
         msg = format_billing_telegram(report)
         await self.send_master_alert(
-            db, msg,
+            db,
+            msg,
             severity=ButlerSeverity.low,
             action_type=ButlerActionType.billing_report,
         )
@@ -338,7 +369,9 @@ class ButlerAgent(BaseAgent):
         db.add(log)
         await db.commit()
         await db.refresh(log)
-        logger.info(f"[Butler] LOG #{log.id} {action_type.value} [{severity.value}] → {result}")
+        logger.info(
+            f"[Butler] LOG #{log.id} {action_type.value} [{severity.value}] → {result}"
+        )
         return log
 
 
