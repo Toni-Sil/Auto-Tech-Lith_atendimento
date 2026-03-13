@@ -40,8 +40,6 @@ services:
   backend:
     build: .
     restart: always
-    # ✅ FIXED: Use expose instead of ports for Dokploy compatibility
-    # Ref: https://docs.dokploy.com/docs/core/troubleshooting#docker-compose-domain-not-working
     expose:
       - 8000
     environment:
@@ -49,7 +47,6 @@ services:
       - APP_DEBUG=False
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - DATABASE_URL=postgresql+asyncpg://${DB_USER:-admin}:${DB_PASSWORD:-admin123}@postgres:5432/${DB_NAME:-auto_tech_lith}
-      # Apontando para a Evolution API rodando no próprio docker-compose
       - EVOLUTION_API_URL=http://evolution-api:8080
       - EVOLUTION_SERVER_URL=${EVOLUTION_SERVER_URL}
       - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
@@ -83,9 +80,9 @@ services:
     networks:
       - auto_tech_network
       - dokploy-network
-          labels:
-                - traefik.enable=true
-                      - traefik.http.routers.backend.rule=Host(`autotechlith.com`) && PathPrefix(`/api/v1/`)
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.backend.rule=Host(`autotechlith.com`) && PathPrefix(`/api/v1/`)
       - traefik.http.routers.backend.service=backend
       - traefik.http.services.backend.loadbalancer.server.port=8000
 
@@ -132,7 +129,6 @@ services:
   evolution-api:
     image: evoapicloud/evolution-api:v2.3.7
     restart: always
-    # ✅ FIXED: Use expose instead of ports for Dokploy
     expose:
       - 8080
     environment:
@@ -142,7 +138,6 @@ services:
       - AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=true
       - LANGUAGE=pt
       - NODE_ENV=production
-      # Banco de dados
       - DATABASE_ENABLED=true
       - DATABASE_PROVIDER=postgresql
       - DATABASE_CONNECTION_URI=postgres://${EVOLUTION_DB_USER:-postgresql}:${EVOLUTION_DB_PASSWORD}@evolution-postgres:5432/${EVOLUTION_DB_NAME:-evolution}
@@ -153,12 +148,10 @@ services:
       - DATABASE_SAVE_DATA_CHATS=true
       - DATABASE_SAVE_DATA_LABELS=true
       - DATABASE_SAVE_DATA_HISTORIC=true
-      # Redis
       - CACHE_REDIS_ENABLED=true
       - CACHE_REDIS_URI=redis://evolution-redis:6379
       - CACHE_REDIS_PREFIX_KEY=evolution
       - CACHE_REDIS_SAVE_INSTANCES=true
-      # Webhook Global
       - WEBHOOK_GLOBAL_URL=http://backend:8000/api/v1/webhooks/whatsapp?token=${VERIFY_TOKEN}
       - WEBHOOK_GLOBAL_ENABLED=true
       - WEBHOOK_GLOBAL_EVENTS=APPLICATION_STARTUP,QRCODE_UPDATED,MESSAGES_SET,MESSAGES_UPSERT,MESSAGES_UPDATE,MESSAGES_DELETE,SEND_MESSAGE,CONNECTION_UPDATE,CALL
