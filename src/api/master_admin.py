@@ -1266,3 +1266,131 @@ async def delete_whatsapp_instance(
     await db.delete(instance)
     await db.commit()
     return None
+
+
+# ── System Config (Configurações do Sistema) ─────────────────────────────────
+
+class SystemConfigResponse(BaseModel):
+    openai_api_key: str
+    openai_model: str
+    evolution_api_url: str
+    evolution_api_key: str
+    verify_token: str
+    access_token_expire_minutes: int
+    refresh_token_expire_minutes: int
+    smtp_server: str
+    smtp_port: int
+    smtp_user: str
+    backend_cors_origins: str
+    app_debug: bool
+    public_url: str
+    rate_limit_whitelist: str
+
+
+class SystemConfigUpdate(BaseModel):
+    openai_api_key: Optional[str] = None
+    openai_model: Optional[str] = None
+    evolution_api_url: Optional[str] = None
+    evolution_api_key: Optional[str] = None
+    verify_token: Optional[str] = None
+    access_token_expire_minutes: Optional[int] = None
+    refresh_token_expire_minutes: Optional[int] = None
+    smtp_server: Optional[str] = None
+    smtp_port: Optional[int] = None
+    smtp_user: Optional[str] = None
+    smtp_password: Optional[str] = None
+    backend_cors_origins: Optional[str] = None
+    app_debug: Optional[bool] = None
+    public_url: Optional[str] = None
+    rate_limit_whitelist: Optional[str] = None
+
+
+def _mask(value: str, show_last: int = 4) -> str:
+    """Mascarar credencial sensível, exibindo apenas os últimos N caracteres."""
+    if not value:
+        return ""
+    if len(value) <= show_last:
+        return "****"
+    return "****" + value[-show_last:]
+
+
+@master_router.get("/system-config", response_model=SystemConfigResponse)
+async def get_system_config(
+    master: Annotated[AdminUser, Depends(_require_master_admin)],
+):
+    """Retorna as configurações atuais do sistema (campos sensíveis são mascarados)."""
+    return SystemConfigResponse(
+        openai_api_key=_mask(getattr(settings, "OPENAI_API_KEY", "") or ""),
+        openai_model=getattr(settings, "OPENAI_MODEL", "gpt-4o-mini") or "gpt-4o-mini",
+        evolution_api_url=getattr(settings, "EVOLUTION_API_URL", "") or "",
+        evolution_api_key=_mask(getattr(settings, "EVOLUTION_API_KEY", "") or ""),
+        verify_token=_mask(getattr(settings, "VERIFY_TOKEN", "") or ""),
+        access_token_expire_minutes=getattr(settings, "ACCESS_TOKEN_EXPIRE_MINUTES", 30),
+        refresh_token_expire_minutes=getattr(settings, "REFRESH_TOKEN_EXPIRE_MINUTES", 1440),
+        smtp_server=getattr(settings, "SMTP_SERVER", "") or "",
+        smtp_port=getattr(settings, "SMTP_PORT", 587),
+        smtp_user=getattr(settings, "SMTP_USER", "") or "",
+        backend_cors_origins=str(getattr(settings, "BACKEND_CORS_ORIGINS", "*")),
+        app_debug=getattr(settings, "APP_DEBUG", False),
+        public_url=getattr(settings, "PUBLIC_URL", "") or "",
+        rate_limit_whitelist=getattr(settings, "RATE_LIMIT_WHITELIST", "127.0.0.1") or "127.0.0.1",
+    )
+
+
+@master_router.post("/system-config")
+async def update_system_config(
+    body: SystemConfigUpdate,
+    master: Annotated[AdminUser, Depends(_require_master_admin)],
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Atualiza configurações do sistema em runtime.
+    ⚠️ As mudanças são aplicadas em memória — reinicie o container para persistir no .env.
+    """
+    import json
+    changed = {}
+
+    field_map = {
+        "openai_api_key": "OPENAI_API_KEY",
+        "openai_model": "OPENAI_MODEL",
+        "evolution_api_url": "EVOLUTION_API_URL",
+        "evolution_api_key": "EVOLUTION_API_KEY",
+        "verify_token": "VERIFY_TOKEN",
+        "access_token_expire_minutes": "ACCESS_TOKEN_EXPIRE_MINUTES",
+        "refresh_token_expire_minutes": "REFRESH_TOKEN_EXPIRE_MINUTES",
+        "smtp_server": "SMTP_SERVER",
+        "smtp_port": "SMTP_PORT",
+        "smtp_user": "SMTP_USER",
+        "smtp_password": "SMTP_PASSWORD",
+        "backend_cors_origins": "BACKEND_CORS_ORIGINS",
+        "app_debug": "APP_DEBUG",
+        "public_url": "PUBLIC_URL",
+        "rate_limit_whitelist": "RATE_LIMIT_WHITELIST",
+    }
+
+    for body_field, settings_attr in field_map.items():
+        value = getattr(body, body_field, None)
+        if value is not None:
+            old_val = getattr(settings, settings_attr, None)
+            setattr(settings, settings_attr, value)
+            # Não logar valores sensíveis
+            safe_val = _mask(str(value)) if "key" in body_field or "password" in body_field or "token" in body_field else str(value)
+            changed[settings_attr] = safe_val
+
+    if changed:
+        audit = AuditLog(
+            tenant_id=None,
+            event_type="system_config_updated",
+            username=master.username,
+            details=json.dumps({"changed_fields": list(changed.keys()), "values": changed}),
+        )
+        db.add(audit)
+        await db.commit()
+
+        logger.info(f"⚙️ System config updated by {master.username}: {list(changed.keys())}")
+
+    return {
+        "status": "success",
+        "message": "Configurações aplicadas em runtime. Reinicie o container para persistir no .env.",
+        "changed_fields": list(changed.keys()),
+    }
