@@ -23,8 +23,11 @@ venv/
 test_venv/
 env/
 node_modules/
-__pycache__/
+**/__pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
 
 # Bancos de Dados locais
 *.db
@@ -37,6 +40,25 @@ __pycache__/
 *_output.txt
 curl_output*.txt
 
+# Testes e Cobertura
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.pytest_cache/
+.tox/
+
+# Build e distribuição
+dist/
+build/
+*.egg-info/
+*.egg
+
 # Outros
 *.pdf
 Auto Tech Lith Agent Dashboard.html
+
+# Arquivos temporários de desenvolvimento
+project-structure*.md
+antigravity-awesome-skills
+skill-vulnerability-scanner
