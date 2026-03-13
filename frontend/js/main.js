@@ -1,48 +1,139 @@
 const API_BASE = '/api/v1';
 const AUTH_URL = '/login.html';
 
-// Auth Check
-function checkAuth() {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        window.location.href = AUTH_URL;
+let _statsInterval = null;
+let _isRefreshing = false;
+let _refreshQueue = [];
+
+// ── JWT Utils ────────────────────────────────────────────────────────────────
+function b64DecodeUnicode(str) {
+    try {
+        return decodeURIComponent(atob(str).split('').map(c =>
+            '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+        ).join(''));
+    } catch (e) {
+        return atob(str);
+    }
+}
+
+function getTokenPayload(token) {
+    try {
+        const base64Url = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        return JSON.parse(b64DecodeUnicode(base64Url));
+    } catch (_) {
         return null;
     }
+}
+
+// Retorna true se o token expira em menos de 60 segundos
+function isTokenExpiredOrExpiring(token) {
+    const payload = getTokenPayload(token);
+    if (!payload || !payload.exp) return true;
+    return payload.exp < (Date.now() / 1000) + 60;
+}
+
+// ── Refresh Token ─────────────────────────────────────────────────────────────
+async function refreshAccessToken() {
+    try {
+        const res = await fetch(`${API_BASE}/auth/refresh`, {
+            method: 'POST',
+            credentials: 'include',  // envia o HttpOnly refresh cookie
+            headers: { 'Content-Type': 'application/json' }
+        });
+        if (!res.ok) throw new Error('Refresh falhou');
+        const data = await res.json();
+        localStorage.setItem('token', data.access_token);
+        return data.access_token;
+    } catch (_) {
+        return null;
+    }
+}
+
+// ── Auth Guard ────────────────────────────────────────────────────────────────
+function redirectToLogin() {
+    // Para o interval antes de redirecionar
+    if (_statsInterval) {
+        clearInterval(_statsInterval);
+        _statsInterval = null;
+    }
+    localStorage.removeItem('token');
+    window.location.href = AUTH_URL;
+}
+
+async function checkAuth() {
+    let token = localStorage.getItem('token');
+    if (!token) {
+        redirectToLogin();
+        return null;
+    }
+
+    // Se o token está prestes a expirar, tenta renovar silenciosamente
+    if (isTokenExpiredOrExpiring(token)) {
+        token = await refreshAccessToken();
+        if (!token) {
+            redirectToLogin();
+            return null;
+        }
+    }
+
     return token;
 }
 
-// Authenticated Fetch Wrapper
+// ── Authenticated Fetch com retry após refresh ────────────────────────────────
 async function authFetch(url, options = {}) {
-    const token = checkAuth();
-    if (!token) return; // Redirects inside checkAuth
-
-    const headers = {
-        ...options.headers,
-        'Authorization': `Bearer ${token}`
-    };
+    let token = await checkAuth();
+    if (!token) return null;
 
     if (!options.cache) options.cache = 'no-store';
 
-    const response = await fetch(url, { ...options, headers });
+    const makeRequest = (t) => fetch(url, {
+        ...options,
+        headers: {
+            ...options.headers,
+            'Authorization': `Bearer ${t}`
+        }
+    });
 
+    let response = await makeRequest(token);
+
+    // Se 401, tenta refresh uma vez antes de deslogar
     if (response.status === 401) {
-        console.warn('Sessão expirada ou inválida (401). Redirecionando para login...');
-        localStorage.removeItem('token');
-        window.location.href = AUTH_URL;
-        return null;
+        if (_isRefreshing) {
+            // Aguarda o refresh em andamento
+            return new Promise((resolve) => {
+                _refreshQueue.push(async (newToken) => {
+                    resolve(newToken ? await makeRequest(newToken) : null);
+                });
+            });
+        }
+
+        _isRefreshing = true;
+        const newToken = await refreshAccessToken();
+        _isRefreshing = false;
+
+        if (newToken) {
+            // Processa fila de requests que estavam esperando
+            _refreshQueue.forEach(cb => cb(newToken));
+            _refreshQueue = [];
+            response = await makeRequest(newToken);
+        } else {
+            _refreshQueue.forEach(cb => cb(null));
+            _refreshQueue = [];
+            redirectToLogin();
+            return null;
+        }
     }
 
     return response;
 }
 
-// User Management
+// ── User ──────────────────────────────────────────────────────────────────────
 async function loadUser() {
     try {
         const response = await authFetch('/api/v1/auth/me');
         if (!response) return;
         const user = await response.json();
 
-        // Update sidebar info
         const nameDisplay = document.getElementById('userNameDisplay');
         const roleDisplay = document.getElementById('userRoleDisplay');
         const avatarDisplay = document.getElementById('userAvatar');
@@ -52,22 +143,21 @@ async function loadUser() {
 
         if (avatarDisplay) {
             if (user.avatar_url) {
-                avatarDisplay.innerHTML = `<img src="${user.avatar_url}" alt="Avatar" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+                avatarDisplay.innerHTML = `<img src="${user.avatar_url}" alt="Avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
             } else {
                 avatarDisplay.textContent = user.name.charAt(0).toUpperCase();
             }
         }
 
-        // Fill Profile Form if exists
-        const pName = document.getElementById('myProfileName');
-        const pRole = document.getElementById('myProfileRole');
+        const pName   = document.getElementById('myProfileName');
+        const pRole   = document.getElementById('myProfileRole');
         const pAvatar = document.getElementById('myProfileAvatarUrl');
-        const pBio = document.getElementById('myProfileBio');
+        const pBio    = document.getElementById('myProfileBio');
 
-        if (pName) pName.value = user.name || '';
-        if (pRole) pRole.value = user.company_role || '';
+        if (pName)   pName.value   = user.name || '';
+        if (pRole)   pRole.value   = user.company_role || '';
         if (pAvatar) pAvatar.value = user.avatar_url || '';
-        if (pBio) pBio.value = user.bio || '';
+        if (pBio)    pBio.value    = user.bio || '';
 
     } catch (error) {
         console.error('Erro ao carregar usuário:', error);
@@ -75,16 +165,16 @@ async function loadUser() {
 }
 
 function logout() {
-    localStorage.removeItem('token');
-    window.location.href = AUTH_URL;
+    redirectToLogin();
 }
 
+// ── Globals ───────────────────────────────────────────────────────────────────
 let customersData = [];
 let meetingsData = [];
 let editingCustomerId = null;
 let editingMeetingId = null;
 
-// Navigation Logic (Sidebar)
+// ── Navigation ────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     const navItems = document.querySelectorAll('.nav-item');
     const sections = document.querySelectorAll('.view-section');
@@ -92,84 +182,73 @@ document.addEventListener('DOMContentLoaded', () => {
 
     navItems.forEach(item => {
         item.addEventListener('click', () => {
-            // Remove active from all
             navItems.forEach(n => n.classList.remove('active'));
             sections.forEach(s => s.classList.remove('active'));
-
-            // Add active to clicked
             item.classList.add('active');
             const targetId = item.dataset.target;
             const targetSection = document.getElementById(targetId);
 
             if (targetSection) {
                 targetSection.classList.add('active');
-                // Update Title
-                pageTitle.textContent = item.textContent.trim();
+                if (pageTitle) pageTitle.textContent = item.textContent.trim();
 
-                // Load specific data
-                if (targetId === 'customers') loadCustomers();
-                if (targetId === 'meetings') loadMeetings();
-                if (targetId === 'tickets') loadTickets();
+                if (targetId === 'customers')     loadCustomers();
+                if (targetId === 'meetings')      loadMeetings();
+                if (targetId === 'tickets')       loadTickets();
                 if (targetId === 'conversations') loadConversations();
-                if (targetId === 'analytics') loadAnalytics();
-                if (targetId === 'dashboard') loadStats();
-                if (targetId === 'profiles') loadProfiles();
-                if (targetId === 'webhooks') loadWebhooks();
-                if (targetId === 'automations') loadAutomations();
+                if (targetId === 'analytics')     loadAnalytics();
+                if (targetId === 'dashboard')     loadStats();
+                if (targetId === 'profiles')      loadProfiles();
+                if (targetId === 'webhooks')      loadWebhooks();
+                if (targetId === 'automations')   loadAutomations();
                 if (targetId === 'prompt-wizard') initWizard();
             }
         });
     });
 
-    // Initial Load
     loadUser();
     loadStats();
-    loadCustomers(); // Pre-load
-    // Refresh stats periodically
-    setInterval(loadStats, 30000);
+    loadCustomers();
 
-    // Theme preferences
+    // Interval guardado para poder cancelar em caso de 401
+    _statsInterval = setInterval(loadStats, 30000);
+
     loadThemePreferences();
 
-    // File upload listeners
     const avatarFile = document.getElementById('myProfileAvatarFile');
-    if (avatarFile) {
-        avatarFile.addEventListener('change', () => handleImageUpload('myProfileAvatarFile', 'myProfileAvatarUrl'));
-    }
+    if (avatarFile) avatarFile.addEventListener('change', () => handleImageUpload('myProfileAvatarFile', 'myProfileAvatarUrl'));
+
     const logoFile = document.getElementById('panelLogoFile');
-    if (logoFile) {
-        logoFile.addEventListener('change', () => handleImageUpload('panelLogoFile', 'panelLogoUrl'));
-    }
+    if (logoFile) logoFile.addEventListener('change', () => handleImageUpload('panelLogoFile', 'panelLogoUrl'));
 });
 
+// ── Alerts ────────────────────────────────────────────────────────────────────
 function showAlert(message, type = 'success') {
     const alert = document.createElement('div');
     alert.className = `alert ${type}`;
     alert.textContent = message;
-    document.getElementById('alertContainer').appendChild(alert);
+    const container = document.getElementById('alertContainer');
+    if (container) container.appendChild(alert);
     setTimeout(() => alert.remove(), 5000);
 }
 
+// ── Stats ─────────────────────────────────────────────────────────────────────
 async function loadStats() {
     try {
         const response = await authFetch(`${API_BASE}/stats?t=${Date.now()}`, { cache: 'no-store' });
         if (!response) return;
         const data = await response.json();
-
-        // Update dashboard cards
         const ids = ['activeCustomers', 'openTickets', 'scheduledMeetings', 'todayConversations'];
         ids.forEach(id => {
             const el = document.getElementById(id);
-            if (el) el.textContent = data[id.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`)] || 0;
+            if (el) el.textContent = data[id.replace(/[A-Z]/g, l => `_${l.toLowerCase()}`)] || 0;
         });
-
     } catch (error) {
         console.error('Erro ao carregar estatísticas:', error);
     }
 }
 
-// ... Copying existing Customer/Meeting logic ...
-
+// ── Customers ─────────────────────────────────────────────────────────────────
 async function loadCustomers() {
     try {
         const response = await authFetch(`${API_BASE}/customers?t=${Date.now()}`, { cache: 'no-store' });
@@ -177,9 +256,10 @@ async function loadCustomers() {
         const customers = await response.json();
         customersData = customers;
         const tbody = document.getElementById('customersBody');
+        if (!tbody) return;
 
         if (customers.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #9ca3af; padding: 1rem;">Nenhum cliente registrado</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:1rem;">Nenhum cliente registrado</td></tr>';
             populateMeetingCustomers();
             return;
         }
@@ -187,13 +267,12 @@ async function loadCustomers() {
         tbody.innerHTML = customers.map(c => {
             let statusBadge = '';
             switch (c.status) {
-                case 'briefing': statusBadge = '<span class="badge pending">Briefing</span>'; break;
-                case 'proposal': statusBadge = '<span class="badge" style="background:#8b5cf6">Proposta</span>'; break;
-                case 'monthly': statusBadge = '<span class="badge completed">Mensal</span>'; break;
+                case 'briefing':  statusBadge = '<span class="badge pending">Briefing</span>'; break;
+                case 'proposal':  statusBadge = '<span class="badge" style="background:#8b5cf6">Proposta</span>'; break;
+                case 'monthly':   statusBadge = '<span class="badge completed">Mensal</span>'; break;
                 case 'completed': statusBadge = '<span class="badge" style="background:#6b7280">Finalizado</span>'; break;
-                default: statusBadge = '<span class="badge active">Em Processo</span>';
+                default:          statusBadge = '<span class="badge active">Em Processo</span>';
             }
-
             return `
             <tr>
                 <td>#${c.id}</td>
@@ -202,11 +281,9 @@ async function loadCustomers() {
                 <td>${c.phone}</td>
                 <td>${c.email || '-'}</td>
                 <td>${statusBadge}</td>
-                <td>
-                    <button class="btn-secondary" style="padding: 5px 10px; font-size: 0.8rem;" onclick="editCustomer(${c.id})">Editar</button>
-                </td>
-            </tr>
-        `}).join('');
+                <td><button class="btn-secondary" style="padding:5px 10px;font-size:0.8rem;" onclick="editCustomer(${c.id})">Editar</button></td>
+            </tr>`;
+        }).join('');
 
         populateMeetingCustomers();
     } catch (error) {
@@ -214,15 +291,17 @@ async function loadCustomers() {
     }
 }
 
+// ── Tickets ───────────────────────────────────────────────────────────────────
 async function loadTickets() {
     try {
         const response = await authFetch(`${API_BASE}/tickets?t=${Date.now()}`, { cache: 'no-store' });
         if (!response) return;
         const tickets = await response.json();
         const tbody = document.getElementById('ticketsBody');
+        if (!tbody) return;
 
         if (tickets.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #9ca3af; padding: 1rem;">Nenhum ticket aberto</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#9ca3af;padding:1rem;">Nenhum ticket aberto</td></tr>';
             return;
         }
 
@@ -234,16 +313,14 @@ async function loadTickets() {
                 <td><span class="badge pending">Aberto</span></td>
                 <td><span class="badge">${t.priority}</span></td>
                 <td>${new Date(t.created_at).toLocaleDateString('pt-BR')}</td>
-                <td>
-                    <button class="btn-secondary" style="padding: 5px 10px; font-size: 0.8rem;" onclick="viewTicket(${t.id})">Ver</button>
-                </td>
-            </tr>
-        `).join('');
+                <td><button class="btn-secondary" style="padding:5px 10px;font-size:0.8rem;" onclick="viewTicket(${t.id})">Ver</button></td>
+            </tr>`).join('');
     } catch (error) {
         console.error('Erro ao carregar tickets:', error);
     }
 }
 
+// ── Meetings ──────────────────────────────────────────────────────────────────
 async function loadMeetings() {
     try {
         const response = await authFetch(`${API_BASE}/meetings?t=${Date.now()}`, { cache: 'no-store' });
@@ -251,9 +328,10 @@ async function loadMeetings() {
         const meetings = await response.json();
         meetingsData = meetings;
         const tbody = document.getElementById('meetingsBody');
+        if (!tbody) return;
 
         if (meetings.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #9ca3af; padding: 1rem;">Nenhuma reunião agendada</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:1rem;">Nenhuma reunião agendada</td></tr>';
             return;
         }
 
@@ -264,30 +342,23 @@ async function loadMeetings() {
                 <td>${new Date(m.date).toLocaleDateString('pt-BR')}</td>
                 <td>${m.time}</td>
                 <td><span class="badge completed">Agendada</span></td>
-                <td>
-                    <button class="btn-secondary" style="padding: 5px 10px; font-size: 0.8rem;" onclick="editMeeting(${m.id})">Editar</button>
-                </td>
-            </tr>
-        `).join('');
+                <td><button class="btn-secondary" style="padding:5px 10px;font-size:0.8rem;" onclick="editMeeting(${m.id})">Editar</button></td>
+            </tr>`).join('');
     } catch (error) {
         console.error('Erro ao carregar reuniões:', error);
     }
 }
 
-// ... Existing Helpers ...
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function populateMeetingCustomers() {
     const select = document.getElementById('meetingCustomer');
-    if (customersData.length > 0) {
+    if (select && customersData.length > 0) {
         select.innerHTML = '<option value="">Selecione um cliente...</option>' +
             customersData.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
     }
 }
 
-// ... Modal Functions (Customer & Meeting) ...
-// Reuse existing modal logic (omitted for brevity in prompt but included in actual file)
-// For this output, I will presume standard open/close/save functions are identical to before.
-// I will just paste them to ensure functionality.
-
+// ── Customer Modal ────────────────────────────────────────────────────────────
 function openCustomerModal() {
     editingCustomerId = null;
     document.getElementById('customerModal').classList.add('active');
@@ -332,7 +403,6 @@ async function deleteCustomerFromModal() {
         loadCustomers();
         loadStats();
     } catch (error) {
-        console.error(error);
         showAlert('Erro ao excluir cliente', 'error');
     }
 }
@@ -343,7 +413,7 @@ async function saveCustomer(e) {
         const method = editingCustomerId ? 'PUT' : 'POST';
         const url = editingCustomerId ? `${API_BASE}/customers/${editingCustomerId}` : `${API_BASE}/customers`;
         await authFetch(url, {
-            method: method,
+            method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 name: document.getElementById('customerName').value,
@@ -359,11 +429,11 @@ async function saveCustomer(e) {
         loadCustomers();
         loadStats();
     } catch (error) {
-        console.error(error);
         showAlert('Erro ao salvar cliente', 'error');
     }
 }
 
+// ── Meeting Modal ─────────────────────────────────────────────────────────────
 function openMeetingModal() {
     editingMeetingId = null;
     document.getElementById('meetingModal').classList.add('active');
@@ -381,32 +451,6 @@ function closeMeetingModal() {
     document.getElementById('meetingModal').classList.remove('active');
 }
 
-async function saveMeeting(e) {
-    e.preventDefault();
-    try {
-        const method = editingMeetingId ? 'PUT' : 'POST';
-        const url = editingMeetingId ? `${API_BASE}/meetings/${editingMeetingId}` : `${API_BASE}/meetings`;
-        await authFetch(url, {
-            method: method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                customer_id: document.getElementById('meetingCustomer').value,
-                type: document.getElementById('meetingType').value,
-                date: document.getElementById('meetingDate').value,
-                time: document.getElementById('meetingTime').value,
-                notes: document.getElementById('meetingNotes').value
-            })
-        });
-        showAlert(editingMeetingId ? 'Reunião atualizada!' : 'Reunião agendada!', 'success');
-        closeMeetingModal();
-        loadMeetings();
-        loadStats();
-    } catch (error) {
-        console.error(error);
-        showAlert('Erro ao salvar reunião', 'error');
-    }
-}
-
 function editMeeting(id) {
     const meeting = meetingsData.find(m => m.id === id);
     if (!meeting) return;
@@ -422,6 +466,31 @@ function editMeeting(id) {
     document.getElementById('meetingModal').classList.add('active');
 }
 
+async function saveMeeting(e) {
+    e.preventDefault();
+    try {
+        const method = editingMeetingId ? 'PUT' : 'POST';
+        const url = editingMeetingId ? `${API_BASE}/meetings/${editingMeetingId}` : `${API_BASE}/meetings`;
+        await authFetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                customer_id: document.getElementById('meetingCustomer').value,
+                type: document.getElementById('meetingType').value,
+                date: document.getElementById('meetingDate').value,
+                time: document.getElementById('meetingTime').value,
+                notes: document.getElementById('meetingNotes').value
+            })
+        });
+        showAlert(editingMeetingId ? 'Reunião atualizada!' : 'Reunião agendada!', 'success');
+        closeMeetingModal();
+        loadMeetings();
+        loadStats();
+    } catch (error) {
+        showAlert('Erro ao salvar reunião', 'error');
+    }
+}
+
 async function deleteMeetingFromModal() {
     if (!editingMeetingId) return;
     if (!confirm('Tem certeza que deseja excluir esta reunião?')) return;
@@ -432,7 +501,6 @@ async function deleteMeetingFromModal() {
         loadMeetings();
         loadStats();
     } catch (error) {
-        console.error(error);
         showAlert('Erro ao excluir reunião', 'error');
     }
 }
@@ -441,62 +509,48 @@ function viewTicket(id) {
     alert('Funcionalidade de ver ticket em breve.');
 }
 
-// ... Settings & Tests ...
-
-
-// --- NEW FEATURES: Conversations & Chat Test ---
-
+// ── Conversations ─────────────────────────────────────────────────────────────
 async function loadConversations() {
     const container = document.getElementById('conversationsList');
-    container.innerHTML = '<p style="text-align: center; color: #6b7280; padding: 2rem;">Carregando histórico...</p>';
+    if (!container) return;
+    container.innerHTML = '<p style="text-align:center;color:#6b7280;padding:2rem;">Carregando histórico...</p>';
 
     try {
-        // Mock implementation for now, will implement backend route next
         const response = await authFetch(`${API_BASE}/conversations?t=${Date.now()}`);
-
         if (response && response.ok) {
             const conversations = await response.json();
             if (conversations.length === 0) {
-                container.innerHTML = '<p style="text-align: center; color: #6b7280; padding: 2rem;">Nenhuma conversa encontrada.</p>';
+                container.innerHTML = '<p style="text-align:center;color:#6b7280;padding:2rem;">Nenhuma conversa encontrada.</p>';
                 return;
             }
-            // Render conversations list (simplified)
             container.innerHTML = conversations.map(c => `
-                <div style="padding: 1rem; border-bottom: 1px solid #e5e7eb; cursor: pointer;" onclick="viewConversationDetail(${c.id})">
-                    <div style="font-weight: bold;">${c.customer_name || c.phone}</div>
-                    <div style="font-size: 0.8rem; color: #6b7280;">${new Date(c.last_message_at).toLocaleString()}</div>
-                    <div style="margin-top: 0.5rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #4b5563;">
-                        ${c.last_message_preview || '...'}
-                    </div>
-                </div>
-            `).join('');
+                <div style="padding:1rem;border-bottom:1px solid #e5e7eb;cursor:pointer;" onclick="viewConversationDetail(${c.id})">
+                    <div style="font-weight:bold;">${c.customer_name || c.phone}</div>
+                    <div style="font-size:0.8rem;color:#6b7280;">${new Date(c.last_message_at).toLocaleString()}</div>
+                    <div style="margin-top:0.5rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#4b5563;">${c.last_message_preview || '...'}</div>
+                </div>`).join('');
         } else {
-            // Fallback if backend route not ready
-            container.innerHTML = '<p style="text-align: center; color: #ef4444; padding: 2rem;">Erro ao carregar (API pendente)</p>';
+            container.innerHTML = '<p style="text-align:center;color:#ef4444;padding:2rem;">Erro ao carregar (API pendente)</p>';
         }
     } catch (error) {
-        console.error('Error loading conversations:', error);
-        container.innerHTML = '<p style="text-align: center; color: #ef4444; padding: 2rem;">Erro ao carregar conversas.</p>';
+        container.innerHTML = '<p style="text-align:center;color:#ef4444;padding:2rem;">Erro ao carregar conversas.</p>';
     }
 }
 
+// ── Chat Test ─────────────────────────────────────────────────────────────────
 async function sendTestMessage() {
     const input = document.getElementById('chatTestInput');
     const message = input.value.trim();
     if (!message) return;
 
     const messagesDiv = document.getElementById('chatTestMessages');
-
-    // Add User Message
     const userDiv = document.createElement('div');
     userDiv.className = 'message user';
     userDiv.textContent = message;
     messagesDiv.appendChild(userDiv);
-
     input.value = '';
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
-    // Add Loading
     const loadingDiv = document.createElement('div');
     loadingDiv.className = 'message agent';
     loadingDiv.textContent = 'Digitando...';
@@ -506,11 +560,9 @@ async function sendTestMessage() {
         const response = await authFetch(`${API_BASE}/chat/test`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: message })
+            body: JSON.stringify({ message })
         });
-
         loadingDiv.remove();
-
         if (response && response.ok) {
             const data = await response.json();
             const agentDiv = document.createElement('div');
@@ -526,13 +578,11 @@ async function sendTestMessage() {
         }
     } catch (error) {
         loadingDiv.remove();
-        console.error(error);
     }
-
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
-// --- Analytics ---
+// ── Analytics ─────────────────────────────────────────────────────────────────
 let channelsChart = null;
 let funnelChart = null;
 
@@ -542,7 +592,6 @@ async function loadAnalytics() {
         if (!response) return;
         const data = await response.json();
 
-        // 1. Update KPI Cards
         document.getElementById('stat-automation-rate').innerText = data.performance.automation_rate + '%';
         document.getElementById('stat-csat').innerText = data.performance.csat;
         document.getElementById('stat-leads').innerText = data.business.new_leads_30d;
@@ -553,59 +602,34 @@ async function loadAnalytics() {
         }
         document.getElementById('stat-tickets-today').innerText = totalTickets;
 
-        // 2. Channels Chart
         const channelCtx = document.getElementById('channelsChart').getContext('2d');
         if (channelsChart) channelsChart.destroy();
-
-        const channelLabels = Object.keys(data.overview.channels);
-        const channelValues = Object.values(data.overview.channels);
-
         channelsChart = new Chart(channelCtx, {
             type: 'doughnut',
             data: {
-                labels: channelLabels,
-                datasets: [{
-                    data: channelValues,
-                    backgroundColor: ['#f56954', '#00a65a', '#f39c12', '#00c0ef', '#3c8dbc', '#d2d6de'],
-                }]
+                labels: Object.keys(data.overview.channels),
+                datasets: [{ data: Object.values(data.overview.channels), backgroundColor: ['#f56954','#00a65a','#f39c12','#00c0ef','#3c8dbc','#d2d6de'] }]
             },
             options: { maintainAspectRatio: false, responsive: true }
         });
 
-        // 3. Funnel Chart
         const funnelCtx = document.getElementById('funnelChart').getContext('2d');
         if (funnelChart) funnelChart.destroy();
-
-        // Ensure strictly ordered pipeline for funnel
         const funnelOrder = ['em_processo', 'briefing', 'proposal', 'monthly', 'completed'];
-        const funnelLabels = funnelOrder;
-        const funnelValues = funnelOrder.map(status => data.business.funnel[status] || 0);
-
         funnelChart = new Chart(funnelCtx, {
             type: 'bar',
             data: {
-                labels: funnelLabels.map(l => l.toUpperCase()),
-                datasets: [{
-                    label: 'Clientes por Fase',
-                    data: funnelValues,
-                    backgroundColor: '#3c8dbc'
-                }]
+                labels: funnelOrder.map(l => l.toUpperCase()),
+                datasets: [{ label: 'Clientes por Fase', data: funnelOrder.map(s => data.business.funnel[s] || 0), backgroundColor: '#3c8dbc' }]
             },
-            options: {
-                indexAxis: 'y',
-                maintainAspectRatio: false,
-                responsive: true
-            }
+            options: { indexAxis: 'y', maintainAspectRatio: false, responsive: true }
         });
-
     } catch (error) {
-        console.error("Error loading analytics:", error);
+        console.error('Error loading analytics:', error);
     }
 }
 
-// ══════════════════════════════════════════════════
-// PERSONALIZAÇÃO DE TEMA
-// ══════════════════════════════════════════════════
+// ── Tema / Branding ───────────────────────────────────────────────────────────
 const PRESET_COLORS = [
     { color: '#6366f1', label: 'Índigo (padrão)' },
     { color: '#8b5cf6', label: 'Violeta' },
@@ -631,30 +655,22 @@ function renderColorSwatches() {
 
 function applyAccentColor(color, swatchEl = null) {
     document.documentElement.style.setProperty('--accent', color);
-
-    // Gerar luz e sombra auto
     document.documentElement.style.setProperty('--accent-glow', color + '40');
     document.documentElement.style.setProperty('--accent-subtle', color + '14');
-
-    // Atualizar picker
     const picker = document.getElementById('customAccent');
     if (picker) picker.value = color;
-
-    // Atualizar swatches selecionados
     document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
     if (swatchEl) swatchEl.classList.add('selected');
-
     localStorage.setItem('accentColor', color);
 }
 
 async function saveThemePreferences() {
     const prefs = {
-        accentColor: document.documentElement.style.getPropertyValue('--accent') || '#6366f1',
-        panelName: document.getElementById('panelName')?.value || 'Auto Tech Lith',
-        panelEmoji: document.getElementById('panelEmoji')?.value || '🤖',
+        accentColor:  document.documentElement.style.getPropertyValue('--accent') || '#6366f1',
+        panelName:    document.getElementById('panelName')?.value || 'Auto Tech Lith',
+        panelEmoji:   document.getElementById('panelEmoji')?.value || '🤖',
         panelLogoUrl: document.getElementById('panelLogoUrl')?.value || ''
     };
-
     try {
         const configs = Object.keys(prefs).map(k => ({ key: k, value: prefs[k] }));
         await authFetch('/api/config', {
@@ -664,36 +680,32 @@ async function saveThemePreferences() {
         });
         showAlert('🎨 Marca global salva com sucesso!', 'success');
     } catch (e) {
-        console.error('Erro ao salvar tema:', e);
         showAlert('Erro ao salvar personalização', 'error');
     }
 }
 
 async function loadThemePreferences() {
     try {
-        const response = await fetch('/api/config'); // public or auth? It's currently authFetch in routes, but lets use authFetch
+        const response = await fetch('/api/config');
         if (response && response.ok) {
             const prefs = await response.json();
             if (prefs.accentColor) applyAccentColor(prefs.accentColor);
-
             if (prefs.panelName) {
                 const sidebarName = document.getElementById('sidebarName');
                 const panelNameInput = document.getElementById('panelName');
                 if (sidebarName) sidebarName.textContent = prefs.panelName;
                 if (panelNameInput) panelNameInput.value = prefs.panelName;
             }
-
             if (prefs.panelEmoji) {
                 const sidebarEmoji = document.getElementById('sidebarEmoji');
                 const panelEmojiInput = document.getElementById('panelEmoji');
                 if (sidebarEmoji) sidebarEmoji.textContent = prefs.panelEmoji;
                 if (panelEmojiInput) panelEmojiInput.value = prefs.panelEmoji;
             }
-
             if (prefs.panelLogoUrl) {
                 const panelLogoUrlInput = document.getElementById('panelLogoUrl');
                 if (panelLogoUrlInput) panelLogoUrlInput.value = prefs.panelLogoUrl;
-                updateSidebarLogo(); // apply logo to sidebar
+                updateSidebarLogo();
             }
         }
     } catch (e) {
@@ -703,65 +715,57 @@ async function loadThemePreferences() {
 }
 
 async function resetTheme() {
-    if (!confirm("Tem certeza que deseja apagar a personalização global?")) return;
-
-    // Default values
+    if (!confirm('Tem certeza que deseja apagar a personalização global?')) return;
     document.getElementById('panelName').value = 'Auto Tech Lith';
     document.getElementById('panelEmoji').value = '🤖';
     document.getElementById('panelLogoUrl').value = '';
     applyAccentColor('#6366f1');
     renderColorSwatches();
-
     await saveThemePreferences();
     showAlert('↩ Tema restaurado ao padrão e salvo.', 'success');
 }
 
-// GUI Helpers for Settings
 function switchSettingsTab(tabName) {
     document.querySelectorAll('.inner-tab').forEach(t => t.classList.remove('active'));
-    document.getElementById('settingsProfilePanel').style.display = 'none';
-    document.getElementById('settingsBrandingPanel').style.display = 'none';
-    document.getElementById('settingsWebhooksPanel').style.display = 'none';
-    document.getElementById('settingsPromptPanel').style.display = 'none';
-
-    if (tabName === 'profile') {
-        document.getElementById('tabMyProfile').classList.add('active');
-        document.getElementById('settingsProfilePanel').style.display = 'block';
-    } else if (tabName === 'branding') {
-        document.getElementById('tabBranding').classList.add('active');
-        document.getElementById('settingsBrandingPanel').style.display = 'block';
-    } else if (tabName === 'webhooks') {
-        document.getElementById('tabSettingsWebhooks').classList.add('active');
-        document.getElementById('settingsWebhooksPanel').style.display = 'block';
-    } else if (tabName === 'prompt') {
-        document.getElementById('tabSettingsPrompt').classList.add('active');
-        document.getElementById('settingsPromptPanel').style.display = 'block';
+    ['settingsProfilePanel','settingsBrandingPanel','settingsWebhooksPanel','settingsPromptPanel'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+    const map = {
+        profile:  ['tabMyProfile',         'settingsProfilePanel'],
+        branding: ['tabBranding',          'settingsBrandingPanel'],
+        webhooks: ['tabSettingsWebhooks',  'settingsWebhooksPanel'],
+        prompt:   ['tabSettingsPrompt',    'settingsPromptPanel'],
+    };
+    if (map[tabName]) {
+        const [tabId, panelId] = map[tabName];
+        document.getElementById(tabId)?.classList.add('active');
+        const panel = document.getElementById(panelId);
+        if (panel) panel.style.display = 'block';
     }
 }
 
 function updateSidebarLogo() {
     const url = document.getElementById('panelLogoUrl')?.value;
     const header = document.querySelector('.sidebar-header h2');
-    if (header) {
-        if (url) {
-            header.innerHTML = `<img src="${url}" alt="Logo" style="max-height: 28px; width: auto; vertical-align: middle; margin-right: 8px;"> <span id="sidebarName">${document.getElementById('panelName').value || 'Auto Tech Lith'}</span><span id="sidebarEmoji" style="display:none;"></span>`;
-        } else {
-            const emoji = document.getElementById('panelEmoji')?.value || '🤖';
-            const name = document.getElementById('panelName')?.value || 'Auto Tech Lith';
-            header.innerHTML = `<span id="sidebarEmoji">${emoji}</span> <span id="sidebarName">${name}</span>`;
-        }
+    if (!header) return;
+    if (url) {
+        header.innerHTML = `<img src="${url}" alt="Logo" style="max-height:28px;width:auto;vertical-align:middle;margin-right:8px;"> <span id="sidebarName">${document.getElementById('panelName')?.value || 'Auto Tech Lith'}</span><span id="sidebarEmoji" style="display:none;"></span>`;
+    } else {
+        const emoji = document.getElementById('panelEmoji')?.value || '🤖';
+        const name  = document.getElementById('panelName')?.value  || 'Auto Tech Lith';
+        header.innerHTML = `<span id="sidebarEmoji">${emoji}</span> <span id="sidebarName">${name}</span>`;
     }
 }
 
 async function saveMyProfile(e) {
     e.preventDefault();
     const data = {
-        name: document.getElementById('myProfileName').value,
+        name:         document.getElementById('myProfileName').value,
         company_role: document.getElementById('myProfileRole').value,
-        avatar_url: document.getElementById('myProfileAvatarUrl').value,
-        bio: document.getElementById('myProfileBio').value
+        avatar_url:   document.getElementById('myProfileAvatarUrl').value,
+        bio:          document.getElementById('myProfileBio').value
     };
-
     try {
         const response = await authFetch('/api/v1/auth/me', {
             method: 'PUT',
@@ -770,73 +774,55 @@ async function saveMyProfile(e) {
         });
         if (response && response.ok) {
             showAlert('👤 Perfil atualizado com sucesso!', 'success');
-            loadUser(); // refresh UI sidebar
+            loadUser();
         }
     } catch (error) {
-        console.error(error);
         showAlert('Erro ao salvar perfil', 'error');
     }
 }
 
-// ══════════════════════════════════════════════════
-// ÉPICO 4: AUTOMAÇÕES E RELATÓRIOS
-// ══════════════════════════════════════════════════
-
+// ── Automações ────────────────────────────────────────────────────────────────
 async function loadAutomations() {
     try {
         const response = await authFetch(`${API_BASE}/automations`);
         if (!response) return;
         const automations = await response.json();
         const tbody = document.getElementById('automationsBody');
+        if (!tbody) return;
 
         if (automations.length === 0) {
             tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:1rem;">Nenhuma regra configurada</td></tr>';
             return;
         }
-
         tbody.innerHTML = automations.map(a => `
             <tr>
                 <td>${a.is_active ? '✅' : '❌'}</td>
                 <td><strong>${a.name}</strong></td>
                 <td><span class="badge" style="background:#6366f1;color:white">${a.trigger_event}</span></td>
                 <td><span class="badge" style="background:#10b981;color:white">${a.action_type}</span></td>
-                <td>
-                    <button class="btn-danger btn-sm" onclick="deleteAutomation(${a.id})">Remover</button>
-                </td>
-            </tr>
-        `).join('');
+                <td><button class="btn-danger btn-sm" onclick="deleteAutomation(${a.id})">Remover</button></td>
+            </tr>`).join('');
     } catch (e) {
         console.error('Erro ao carregar automações:', e);
     }
 }
 
-function openAutomationModal() {
-    document.getElementById('automationModal').classList.add('active');
-}
-
-function closeAutomationModal() {
-    document.getElementById('automationModal').classList.remove('active');
-}
+function openAutomationModal() { document.getElementById('automationModal').classList.add('active'); }
+function closeAutomationModal() { document.getElementById('automationModal').classList.remove('active'); }
 
 async function saveAutomation(e) {
     e.preventDefault();
-    const payloadStr = document.getElementById('autoPayload').value || "{}";
     let payload = {};
-    try {
-        payload = JSON.parse(payloadStr);
-    } catch (err) {
-        showAlert('JSON de payload inválido', 'error');
-        return;
-    }
+    try { payload = JSON.parse(document.getElementById('autoPayload').value || '{}'); }
+    catch (_) { showAlert('JSON de payload inválido', 'error'); return; }
 
     const data = {
-        name: document.getElementById('autoName').value,
-        trigger_event: document.getElementById('autoTrigger').value,
-        action_type: document.getElementById('autoAction').value,
+        name:           document.getElementById('autoName').value,
+        trigger_event:  document.getElementById('autoTrigger').value,
+        action_type:    document.getElementById('autoAction').value,
         action_payload: payload,
-        is_active: document.getElementById('autoActive').checked
+        is_active:      document.getElementById('autoActive').checked
     };
-
     try {
         const res = await authFetch(`${API_BASE}/automations`, {
             method: 'POST',
@@ -849,7 +835,6 @@ async function saveAutomation(e) {
             loadAutomations();
         }
     } catch (err) {
-        console.error(err);
         showAlert('Erro ao salvar automação', 'error');
     }
 }
@@ -860,7 +845,6 @@ async function deleteAutomation(id) {
         await authFetch(`${API_BASE}/automations/${id}`, { method: 'DELETE' });
         loadAutomations();
     } catch (e) {
-        console.error(e);
         showAlert('Erro ao remover automação', 'error');
     }
 }
@@ -879,32 +863,26 @@ async function exportCustomersCSV() {
         a.remove();
         showAlert('📥 Relatório CSV gerado com sucesso!', 'success');
     } catch (e) {
-        console.error(e);
         showAlert('Erro ao exportar CSV', 'error');
     }
 }
 
 async function handleImageUpload(fileInputId, urlInputId) {
     const fileInput = document.getElementById(fileInputId);
-    const urlInput = document.getElementById(urlInputId);
-
+    const urlInput  = document.getElementById(urlInputId);
     if (!fileInput.files || fileInput.files.length === 0) return;
 
-    const file = fileInput.files[0];
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', fileInput.files[0]);
 
     try {
+        const token = localStorage.getItem('token');
         const response = await fetch(`${API_BASE}/upload`, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            },
+            headers: { 'Authorization': `Bearer ${token}` },
             body: formData
         });
-
         const result = await response.json();
-
         if (response.ok && result.status === 'success') {
             urlInput.value = result.url;
             showAlert('Arquivo enviado com sucesso! Clique em Salvar para aplicar.', 'success');
