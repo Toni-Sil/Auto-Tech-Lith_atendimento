@@ -1,158 +1,151 @@
-/**
- * system_config.js — Master Admin System Configuration Panel
- * Handles GET/PUT /api/v1/master/system-config and SMTP test.
- */
+// ═══════════════════════════════════════════════════════════════
+// SYSTEM CONFIG — Master Admin · Auto Tech Lith
+// Carregado junto ao master.js
+// ═══════════════════════════════════════════════════════════════
 
-const API_SYSCONFIG = '/api/v1/master/system-config';
+// ── Aba ativa ─────────────────────────────────────────────────
+window.switchSysTab = function (tab, el) {
+    document.querySelectorAll('.sys-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.sys-panel').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('syspanel-' + tab)?.classList.add('active');
+};
 
-// ── Load ──────────────────────────────────────────────────────────────────
-async function loadSystemConfig() {
-  const token = localStorage.getItem('token');
-  try {
-    const res = await fetch(API_SYSCONFIG, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (!res.ok) throw new Error(await res.text());
-    const d = await res.json();
+// ── Carregar configurações ─────────────────────────────────────
+window.loadSystemConfig = async function () {
+    try {
+        const cfg = await apiFetch('/master/system-config');
+        if (!cfg) return;
 
-    // General
-    _val('scProjectName', d.project_name);
-    _val('scEnv', d.env);
-    _checked('scDebug', d.app_debug);
-    _val('scPublicUrl', d.public_url || '');
-    _val('scVerifyToken', d.verify_token || '');
+        const sv = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ''; };
+        const sc = (id, v) => { const el = document.getElementById(id); if (el) el.checked = !!v; };
 
-    // AI
-    _val('scOpenAIModel', d.openai_model);
-    _val('scOpenAIKey', '');
-    document.getElementById('scOpenAIKeyMask').textContent = d.openai_api_key_masked;
+        // APIs
+        sv('scOpenAiKey', cfg.openai_api_key);
+        sv('scOpenAiModel', cfg.openai_model);
+        sv('scEvolUrl', cfg.evolution_api_url);
+        sv('scEvolKey', cfg.evolution_api_key);
+        sv('scVerifyToken', cfg.verify_token);
+        sv('scPublicUrl', cfg.public_url);
 
-    // Evolution
-    _val('scEvoUrl', d.evolution_api_url);
-    _val('scEvoKey', '');
-    document.getElementById('scEvoKeyMask').textContent = d.evolution_api_key_masked;
+        // Sessão
+        sv('scAccessExp', cfg.access_token_expire_minutes);
+        sv('scRefreshExp', cfg.refresh_token_expire_minutes);
+        sc('scDebug', cfg.app_debug);
+        sv('scCors', cfg.backend_cors_origins);
+        sv('scWhitelist', cfg.rate_limit_whitelist);
 
-    // Tokens
-    _val('scAccessExp', d.access_token_expire_minutes);
-    _val('scRefreshExp', d.refresh_token_expire_minutes);
-    _updateSliderLabel('scAccessExp', 'scAccessExpLabel', ' min');
-    _updateSliderLabel('scRefreshExp', 'scRefreshExpLabel', ' min');
+        // SMTP
+        sv('scSmtpServer', cfg.smtp_server);
+        sv('scSmtpPort', cfg.smtp_port);
+        sv('scSmtpUser', cfg.smtp_user);
 
-    // SMTP
-    _val('scSmtpServer', d.smtp_server || '');
-    _val('scSmtpPort', d.smtp_port);
-    _val('scSmtpUser', d.smtp_user || '');
-    _val('scSmtpPass', '');
-    document.getElementById('scSmtpPassMask').textContent = d.smtp_password_masked;
+        // Preview badge debug
+        const badge = document.getElementById('scDebugBadge');
+        if (badge) {
+            badge.textContent = cfg.app_debug ? '🟡 DEBUG ON' : '🟢 PRODUÇÃO';
+            badge.className = 'badge ' + (cfg.app_debug ? 'warn' : 'active');
+        }
+    } catch (e) {
+        showAlert('Erro ao carregar configurações do sistema: ' + e.message, 'error');
+    }
+};
 
-    // CORS
-    _val('scCorsOrigins', (d.backend_cors_origins || []).join('\n'));
+// ── Salvar configurações ────────────────────────────────────────
+window.saveSystemConfig = async function () {
+    const gv = id => document.getElementById(id)?.value?.trim() ?? null;
+    const gb = id => document.getElementById(id)?.checked ?? false;
+    const gi = id => { const v = parseInt(document.getElementById(id)?.value); return isNaN(v) ? null : v; };
 
-    // Telegram
-    _val('scTelegramToken', '');
-    document.getElementById('scTelegramTokenMask').textContent = d.telegram_bot_token_masked;
-    _val('scTelegramChat', d.telegram_chat_id || '');
+    const payload = {
+        openai_api_key: gv('scOpenAiKey') || null,
+        openai_model: gv('scOpenAiModel') || null,
+        evolution_api_url: gv('scEvolUrl') || null,
+        evolution_api_key: gv('scEvolKey') || null,
+        verify_token: gv('scVerifyToken') || null,
+        public_url: gv('scPublicUrl') || null,
+        access_token_expire_minutes: gi('scAccessExp'),
+        refresh_token_expire_minutes: gi('scRefreshExp'),
+        app_debug: gb('scDebug'),
+        backend_cors_origins: gv('scCors') || null,
+        rate_limit_whitelist: gv('scWhitelist') || null,
+        smtp_server: gv('scSmtpServer') || null,
+        smtp_port: gi('scSmtpPort'),
+        smtp_user: gv('scSmtpUser') || null,
+        smtp_password: gv('scSmtpPassword') || null,
+    };
 
-    showAlert('Configurações carregadas.', 'success');
-  } catch (e) {
-    showAlert('Erro ao carregar configurações: ' + e.message, 'error');
-  }
-}
+    // Remove nulls para não sobrescrever campos não alterados
+    Object.keys(payload).forEach(k => payload[k] === null && delete payload[k]);
 
-// ── Save ──────────────────────────────────────────────────────────────────
-async function saveSystemConfig() {
-  const token = localStorage.getItem('token');
+    const btn = document.getElementById('scSaveBtn');
+    if (btn) { btn.disabled = true; btn.textContent = '💾 Salvando...'; }
 
-  const corsRaw = document.getElementById('scCorsOrigins').value;
-  const corsOrigins = corsRaw
-    .split('\n')
-    .map(s => s.trim())
-    .filter(Boolean);
+    try {
+        const res = await apiFetch('/master/system-config', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+        if (res) {
+            showAlert('✅ Configurações salvas! ' + (res.message || ''), 'success');
+            loadSystemConfig(); // Recarregar para refletir mascaramento
+        }
+    } catch (e) {
+        showAlert('Erro ao salvar: ' + e.message, 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '💾 Salvar Configurações'; }
+    }
+};
 
-  const body = {};
-  _maybeSet(body, 'project_name', 'scProjectName');
-  _maybeSet(body, 'env', 'scEnv');
-  body.app_debug = document.getElementById('scDebug').checked;
-  _maybeSet(body, 'public_url', 'scPublicUrl');
-  _maybeSet(body, 'verify_token', 'scVerifyToken');
-  _maybeSet(body, 'openai_model', 'scOpenAIModel');
-  _maybeSet(body, 'openai_api_key', 'scOpenAIKey'); // only if filled
-  _maybeSet(body, 'evolution_api_url', 'scEvoUrl');
-  _maybeSet(body, 'evolution_api_key', 'scEvoKey');
-  body.access_token_expire_minutes = parseInt(document.getElementById('scAccessExp').value);
-  body.refresh_token_expire_minutes = parseInt(document.getElementById('scRefreshExp').value);
-  _maybeSet(body, 'smtp_server', 'scSmtpServer');
-  body.smtp_port = parseInt(document.getElementById('scSmtpPort').value);
-  _maybeSet(body, 'smtp_user', 'scSmtpUser');
-  _maybeSet(body, 'smtp_password', 'scSmtpPass');
-  if (corsOrigins.length) body.backend_cors_origins = corsOrigins;
-  _maybeSet(body, 'telegram_bot_token', 'scTelegramToken');
-  _maybeSet(body, 'telegram_chat_id', 'scTelegramChat');
+// ── Testar conexão OpenAI ───────────────────────────────────────
+window.testOpenAI = async function () {
+    const btn = document.getElementById('btnTestOpenAI');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Testando...'; }
+    try {
+        const res = await apiFetch('/master/test/openai', { method: 'POST' });
+        if (res?.status === 'ok') showAlert('✅ OpenAI OK — modelo: ' + (res.model || '?'), 'success');
+        else showAlert('❌ Erro OpenAI: ' + (res?.detail || 'Falhou'), 'error');
+    } catch (e) {
+        showAlert('❌ OpenAI inacessível: ' + e.message, 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '⚡ Testar OpenAI'; }
+    }
+};
 
-  try {
-    const res = await fetch(API_SYSCONFIG, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(body)
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
-    showAlert(`✅ ${data.message}`, 'success');
-    loadSystemConfig(); // reload masks
-  } catch (e) {
-    showAlert('Erro ao salvar: ' + e.message, 'error');
-  }
-}
+// ── Testar conexão Evolution API ────────────────────────────────
+window.testEvolution = async function () {
+    const btn = document.getElementById('btnTestEvol');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Testando...'; }
+    try {
+        const res = await apiFetch('/master/test/evolution', { method: 'POST' });
+        if (res?.status === 'ok') showAlert('✅ Evolution API OK!', 'success');
+        else showAlert('❌ Erro Evolution: ' + (res?.detail || 'Falhou'), 'error');
+    } catch (e) {
+        showAlert('❌ Evolution inacessível: ' + e.message, 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '⚡ Testar Evolution'; }
+    }
+};
 
-// ── SMTP Test ─────────────────────────────────────────────────────────────
-async function testSmtp() {
-  const token = localStorage.getItem('token');
-  const to = document.getElementById('scSmtpTestEmail').value.trim();
-  if (!to) { showAlert('Informe um e-mail de destino para o teste.', 'warning'); return; }
+// ── Testar SMTP ─────────────────────────────────────────────────
+window.testSMTP = async function () {
+    const btn = document.getElementById('btnTestSMTP');
+    const dest = prompt('Enviar e-mail de teste para:');
+    if (!dest) return;
+    if (btn) { btn.disabled = true; btn.textContent = '📧 Enviando...'; }
+    try {
+        const res = await apiFetch('/master/test/smtp', {
+            method: 'POST',
+            body: JSON.stringify({ email: dest })
+        });
+        if (res?.status === 'ok') showAlert('✅ E-mail de teste enviado para ' + dest, 'success');
+        else showAlert('❌ Erro SMTP: ' + (res?.detail || 'Falhou'), 'error');
+    } catch (e) {
+        showAlert('❌ SMTP erro: ' + e.message, 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '📧 Testar SMTP'; }
+    }
+};
 
-  try {
-    const res = await fetch(`${API_SYSCONFIG}/test-smtp`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ to_email: to })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
-    showAlert('📧 ' + data.message, 'success');
-  } catch (e) {
-    showAlert('Falha no teste SMTP: ' + e.message, 'error');
-  }
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────
-function _val(id, v) {
-  const el = document.getElementById(id);
-  if (el) el.value = v ?? '';
-}
-function _checked(id, v) {
-  const el = document.getElementById(id);
-  if (el) el.checked = !!v;
-}
-function _maybeSet(obj, key, id) {
-  const el = document.getElementById(id);
-  if (el && el.value.trim()) obj[key] = el.value.trim();
-}
-function _updateSliderLabel(sliderId, labelId, suffix) {
-  const slider = document.getElementById(sliderId);
-  const label = document.getElementById(labelId);
-  if (slider && label) {
-    label.textContent = slider.value + suffix;
-    slider.addEventListener('input', () => { label.textContent = slider.value + suffix; });
-  }
-}
-
-// Auto-load when tab is shown
-document.addEventListener('DOMContentLoaded', () => {
-  // Switch tab hook (master.js calls switchView)
-  const observer = new MutationObserver(() => {
-    const sec = document.getElementById('sys-config');
-    if (sec && sec.classList.contains('active')) loadSystemConfig();
-  });
-  const sc = document.getElementById('sys-config');
-  if (sc) observer.observe(sc, { attributes: true, attributeFilter: ['class'] });
-});
+// Expor para o nav
+window.loadSystemConfig = window.loadSystemConfig;
