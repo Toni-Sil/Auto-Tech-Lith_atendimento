@@ -119,6 +119,7 @@ from src.api.tenant_quota import quota_router
 from src.api.webhooks import webhooks_router
 from src.api.butler import butler_router
 from src.api.products import router as products_router
+from src.api.system_config import system_config_router  # ← NEW
 
 from src.api.metrics import metrics_router
 
@@ -144,6 +145,7 @@ app.include_router(butler_router,  prefix=f"{settings.API_V1_STR}/master", tags=
 app.include_router(webhooks_router, prefix=f"{settings.API_V1_STR}/webhooks", tags=["webhooks"])
 app.include_router(products_router, tags=["products"])  # Products API
 app.include_router(metrics_router, prefix=f"{settings.API_V1_STR}", tags=["observability"])
+app.include_router(system_config_router, prefix=f"{settings.API_V1_STR}/master", tags=["system-config"])  # ← NEW
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
 # --- Legacy Fallbacks ---
