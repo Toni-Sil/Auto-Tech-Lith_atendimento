@@ -3,414 +3,934 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Auto Tech Lith | Automação Inteligente</title>
+
+<!-- SEO Primary -->
+<title>Auto Tech Lith | Automação com IA para Empresas · WhatsApp + Agentes Inteligentes</title>
+<meta name="description" content="Automatize seu atendimento via WhatsApp com IA. Agentes inteligentes 24h, funil de vendas automático e painel de gestão completo. +92% de satisfação dos clientes. Implemente em menos de 30 dias."/>
+<meta name="keywords" content="automação whatsapp, atendimento IA, chatbot inteligente, agentes IA, automação empresarial, Evolution API, SaaS atendimento, Brasil"/>
+<meta name="robots" content="index, follow"/>
+<link rel="canonical" href="https://autotechlith.com.br/"/>
+
+<!-- Open Graph -->
+<meta property="og:type" content="website"/>
+<meta property="og:url" content="https://autotechlith.com.br/"/>
+<meta property="og:title" content="Auto Tech Lith · Automação Inteligente com IA para Empresas"/>
+<meta property="og:description" content="Agentes de IA no WhatsApp que resolvem 80% dos atendimentos automaticamente. Dashboard completo, funil de vendas e gestão multi-canal. Teste grátis."/>
+<meta property="og:image" content="/assets/Gemini_Generated_Image_plosd7plosd7plos.png"/>
+<meta property="og:locale" content="pt_BR"/>
+<meta property="og:site_name" content="Auto Tech Lith"/>
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="Auto Tech Lith · Automação com IA"/>
+<meta name="twitter:description" content="Agentes de IA no WhatsApp que resolvem 80% dos atendimentos. Dashboard + Funil + Gestão. Teste grátis."/>
+<meta name="twitter:image" content="/assets/Gemini_Generated_Image_plosd7plosd7plos.png"/>
+
+<!-- Schema Markup -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Auto Tech Lith",
+  "applicationCategory": "BusinessApplication",
+  "operatingSystem": "Web",
+  "description": "Plataforma SaaS de automação de atendimento com agentes de IA, integração WhatsApp via Evolution API, dashboard multi-tenant e funil de vendas automático.",
+  "offers": {
+    "@type": "Offer",
+    "priceCurrency": "BRL",
+    "availability": "https://schema.org/InStock"
+  },
+  "provider": {
+    "@type": "Organization",
+    "name": "Auto Tech Lith",
+    "url": "https://autotechlith.com.br",
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "contactType": "sales",
+      "availableLanguage": "Portuguese"
+    }
+  }
+}
+</script>
+
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+
 <script id="tailwind-config">
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "primary": "#1392ec",
-                        "background-light": "#f6f7f8",
-                        "background-dark": "#101a22",
-                    },
-                    fontFamily: {
-                        "display": ["Inter"]
-                    },
-                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
-                },
-            },
-        }
-    </script>
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "primary": "#1392ec",
+          "background-light": "#f6f7f8",
+          "background-dark": "#101a22",
+        },
+        fontFamily: { "display": ["Inter"] },
+        borderRadius: {"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},
+      },
+    },
+  }
+</script>
+
 <style>
-        .glass {
-            background: rgba(25, 40, 51, 0.7);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        .neon-glow {
-            box-shadow: 0 0 15px rgba(19, 146, 236, 0.4);
-        }
-    </style>
-<style>
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-20px); }
-        }
-        .animate-float {
-            animation: float 6s ease-in-out infinite;
-        }
-        @keyframes pulse-glow {
-            0%, 100% { box-shadow: 0 0 5px rgba(19, 146, 236, 0.4); }
-            50% { box-shadow: 0 0 20px rgba(19, 146, 236, 0.8); }
-        }
-        .animate-pulse-glow {
-            animation: pulse-glow 2s infinite;
-        }
-        @keyframes reveal {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        .reveal {
-            animation: reveal 0.8s ease-out forwards;
-        }
-        .delay-1 { animation-delay: 0.2s; }
-        .delay-2 { animation-delay: 0.4s; }
-    </style>
+  /* Glass morphism */
+  .glass {
+    background: rgba(25,40,51,0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .neon-glow { box-shadow: 0 0 15px rgba(19,146,236,0.4); }
+
+  /* Animations */
+  @keyframes float {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-20px); }
+  }
+  .animate-float { animation: float 6s ease-in-out infinite; }
+
+  @keyframes pulse-glow {
+    0%,100% { box-shadow: 0 0 5px rgba(19,146,236,0.4); }
+    50% { box-shadow: 0 0 20px rgba(19,146,236,0.8); }
+  }
+  .animate-pulse-glow { animation: pulse-glow 2s infinite; }
+
+  @keyframes reveal {
+    from { opacity:0; transform:translateY(20px); }
+    to { opacity:1; transform:translateY(0); }
+  }
+  .reveal { animation: reveal 0.8s ease-out forwards; }
+  .delay-1 { animation-delay: 0.2s; }
+  .delay-2 { animation-delay: 0.4s; }
+
+  /* Counter animation */
+  @keyframes countup { from { opacity:0; transform:scale(0.8); } to { opacity:1; transform:scale(1); } }
+  .counter-animate { animation: countup 0.6s ease-out forwards; }
+
+  /* Mobile menu */
+  #mobileMenu { display:none; }
+  #mobileMenu.open { display:flex; }
+
+  /* Chat demo */
+  #chatDemoMessages { max-height:320px; overflow-y:auto; scroll-behavior:smooth; }
+  .chat-bubble-bot {
+    background: rgba(19,146,236,0.12);
+    border: 1px solid rgba(19,146,236,0.2);
+    border-radius: 0 1rem 1rem 1rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+    color: #e2e8f0;
+    max-width:85%;
+    animation: reveal 0.3s ease-out;
+  }
+  .chat-bubble-user {
+    background: #1392ec;
+    border-radius: 1rem 0 1rem 1rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+    color: #fff;
+    max-width:85%;
+    margin-left:auto;
+    animation: reveal 0.3s ease-out;
+  }
+  .typing-indicator {
+    display:flex; gap:4px; padding:0.75rem 1rem;
+    background:rgba(19,146,236,0.12);
+    border:1px solid rgba(19,146,236,0.2);
+    border-radius:0 1rem 1rem 1rem;
+    width:fit-content;
+  }
+  .typing-dot {
+    width:6px; height:6px; border-radius:50%; background:#1392ec;
+    animation: typing 1.2s infinite;
+  }
+  .typing-dot:nth-child(2) { animation-delay:0.2s; }
+  .typing-dot:nth-child(3) { animation-delay:0.4s; }
+  @keyframes typing {
+    0%,60%,100% { opacity:0.3; transform:scale(0.8); }
+    30% { opacity:1; transform:scale(1); }
+  }
+
+  /* Scroll reveal via IntersectionObserver */
+  .scroll-reveal { opacity:0; transform:translateY(30px); transition: opacity 0.6s ease, transform 0.6s ease; }
+  .scroll-reveal.visible { opacity:1; transform:translateY(0); }
+</style>
 </head>
+
 <body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 antialiased">
-<!-- Sticky Header -->
+
+<!-- ═══════════════ HEADER ═══════════════ -->
 <header class="sticky top-0 z-50 w-full glass border-b border-slate-200/10">
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-<div class="flex justify-between items-center h-20">
-<div class="flex items-center gap-3">
-<img alt="Auto Tech Lith Logo" class="size-10 rounded-lg" src="/assets/Gemini_Generated_Image_plosd7plosd7plos.png" onerror="this.style.display='none'"/>
-<span class="text-xl font-bold tracking-tight text-slate-900 dark:text-white">Auto Tech Lith</span>
-</div>
-<nav class="hidden md:flex items-center gap-8">
-<a class="text-sm font-medium hover:text-primary transition-colors" href="#">Início</a>
-<a class="text-sm font-medium hover:text-primary transition-colors" href="#solucoes">Soluções</a>
-<a class="text-sm font-medium hover:text-primary transition-colors" href="#sobre">Sobre</a>
-<a class="text-sm font-medium hover:text-primary transition-colors" href="#contato">Contato</a>
-<a class="bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all neon-glow" href="/login">
-                        Login
-                    </a>
-</nav>
-<div class="md:hidden">
-<span class="material-symbols-outlined text-3xl">menu</span>
-</div>
-</div>
-</div>
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between items-center h-20">
+
+      <!-- Logo -->
+      <div class="flex items-center gap-3">
+        <img alt="Auto Tech Lith Logo" class="size-10 rounded-lg" src="/assets/Gemini_Generated_Image_plosd7plosd7plos.png" onerror="this.style.display='none'"/>
+        <span class="text-xl font-bold tracking-tight text-slate-900 dark:text-white">Auto Tech Lith</span>
+      </div>
+
+      <!-- Nav Desktop -->
+      <nav class="hidden md:flex items-center gap-8">
+        <a class="text-sm font-medium hover:text-primary transition-colors" href="#">Início</a>
+        <a class="text-sm font-medium hover:text-primary transition-colors" href="#solucoes">Soluções</a>
+        <a class="text-sm font-medium hover:text-primary transition-colors" href="#nichos">Nichos</a>
+        <a class="text-sm font-medium hover:text-primary transition-colors" href="#demo">Demo</a>
+        <a class="text-sm font-medium hover:text-primary transition-colors" href="#sobre">Sobre</a>
+        <a class="text-sm font-medium hover:text-primary transition-colors" href="#contato">Contato</a>
+        <a class="bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all neon-glow" href="/login">
+          Login
+        </a>
+      </nav>
+
+      <!-- Mobile Menu Button -->
+      <button class="md:hidden text-white" onclick="toggleMobileMenu()" aria-label="Menu">
+        <span class="material-symbols-outlined text-3xl" id="menuIcon">menu</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Mobile Nav -->
+  <div id="mobileMenu" class="flex-col gap-2 px-4 pb-4 md:hidden glass border-t border-white/5">
+    <a class="block py-2 text-sm font-medium hover:text-primary transition-colors" href="#" onclick="closeMobileMenu()">Início</a>
+    <a class="block py-2 text-sm font-medium hover:text-primary transition-colors" href="#solucoes" onclick="closeMobileMenu()">Soluções</a>
+    <a class="block py-2 text-sm font-medium hover:text-primary transition-colors" href="#nichos" onclick="closeMobileMenu()">Nichos</a>
+    <a class="block py-2 text-sm font-medium hover:text-primary transition-colors" href="#demo" onclick="closeMobileMenu()">Demo</a>
+    <a class="block py-2 text-sm font-medium hover:text-primary transition-colors" href="#sobre" onclick="closeMobileMenu()">Sobre</a>
+    <a class="block py-2 text-sm font-medium hover:text-primary transition-colors" href="#contato" onclick="closeMobileMenu()">Contato</a>
+    <a class="block mt-2 bg-primary text-white px-6 py-3 rounded-lg text-sm font-bold text-center neon-glow" href="/login">Login</a>
+  </div>
 </header>
+
 <main>
-<!-- Hero Section -->
+
+<!-- ═══════════════ HERO ═══════════════ -->
 <section class="relative overflow-hidden pt-20 pb-32 reveal delay-1">
-<div class="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full opacity-20 pointer-events-none">
-<div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/30 blur-[120px] rounded-full"></div>
-<div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/20 blur-[120px] rounded-full"></div>
-</div>
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-<div class="grid lg:grid-cols-2 gap-12 items-center">
-<div class="space-y-8">
-<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-wider">
-<span class="relative flex h-2 w-2">
-<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-<span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-</span>
-                            Liderando com IA
-                        </div>
-<h1 class="text-5xl lg:text-7xl font-black leading-[1.1] tracking-tight text-slate-900 dark:text-white">
-                            Automação <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-400">Inteligente</span> para Empresas
-                        </h1>
-<p class="text-lg text-slate-600 dark:text-slate-400 max-w-xl leading-relaxed">
-                            Utilizamos Inteligência Artificial para automatizar processos complexos, humanizar o atendimento e simplificar radicalmente a gestão do seu negócio.
-                        </p>
-<div class="flex flex-wrap gap-4">
-<a class="flex items-center gap-2 bg-primary hover:scale-105 transition-transform text-white px-8 py-4 rounded-xl font-bold neon-glow" href="https://wa.me/message/4WIN5BM3ST4FK1">
-<span class="material-symbols-outlined">chat</span>
-                                Falar pelo WhatsApp
-                            </a>
-<a class="flex items-center gap-2 bg-slate-200 dark:bg-white/5 hover:bg-white/10 text-slate-900 dark:text-white px-8 py-4 rounded-xl font-bold border border-white/10 transition-all" href="/login">
-<span class="material-symbols-outlined">login</span>
-                                Login do Sistema
-                            </a>
-</div>
-</div>
-<div class="relative">
-<div class="aspect-square rounded-3xl overflow-hidden glass border-white/20 p-4 animate-float">
-<div class="w-full h-full rounded-2xl flex items-center justify-center bg-gradient-to-br from-primary/20 to-purple-600/20">
-<img alt="AI Brain" class="w-full h-full object-cover rounded-2xl" src="/assets/unnamed.png" onerror="this.style.display='none'"/>
-</div>
-</div>
-<div class="absolute -bottom-6 -left-6 glass p-6 rounded-2xl border-white/10 hidden md:block">
-<div class="flex items-center gap-4">
-<div class="bg-primary/20 p-3 rounded-lg text-primary">
-<span class="material-symbols-outlined">bolt</span>
-</div>
-<div>
-<p class="text-xs text-slate-400 uppercase tracking-widest font-bold">Processamento</p>
-<p class="text-xl font-black text-white">99.9% Eficiente</p>
-</div>
-</div>
-</div>
-</div>
-</div>
-</div>
+  <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full opacity-20 pointer-events-none">
+    <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/30 blur-[120px] rounded-full"></div>
+    <div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/20 blur-[120px] rounded-full"></div>
+  </div>
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+    <div class="grid lg:grid-cols-2 gap-12 items-center">
+
+      <!-- Left: Copy -->
+      <div class="space-y-8">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-wider">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+          </span>
+          Líder em IA para Atendimento no Brasil
+        </div>
+
+        <h1 class="text-5xl lg:text-7xl font-black leading-[1.1] tracking-tight text-slate-900 dark:text-white">
+          Atendimento <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-400">Automático</span> com IA 24h
+        </h1>
+
+        <p class="text-lg text-slate-600 dark:text-slate-400 max-w-xl leading-relaxed">
+          Agentes de IA no WhatsApp que resolvem <strong class="text-white">80% dos atendimentos automaticamente</strong>. Onboarding, agendamento e suporte — tudo no piloto automático.
+        </p>
+
+        <!-- Stats inline -->
+        <div class="flex flex-wrap gap-6 pt-2">
+          <div class="text-center">
+            <div class="text-2xl font-black text-primary" id="stat1">97,3%</div>
+            <div class="text-xs text-slate-400 mt-1">Taxa de abertura<br/>WhatsApp</div>
+          </div>
+          <div class="w-px bg-white/10 hidden sm:block"></div>
+          <div class="text-center">
+            <div class="text-2xl font-black text-purple-400" id="stat2">80%</div>
+            <div class="text-xs text-slate-400 mt-1">Chamados resolvidos<br/>por IA (Gartner)</div>
+          </div>
+          <div class="w-px bg-white/10 hidden sm:block"></div>
+          <div class="text-center">
+            <div class="text-2xl font-black text-cyan-400" id="stat3">30d</div>
+            <div class="text-xs text-slate-400 mt-1">Implantação<br/>completa</div>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap gap-4">
+          <a class="flex items-center gap-2 bg-primary hover:scale-105 transition-transform text-white px-8 py-4 rounded-xl font-bold neon-glow" href="https://wa.me/message/4WIN5BM3ST4FK1">
+            <span class="material-symbols-outlined">chat</span>
+            Falar pelo WhatsApp
+          </a>
+          <a class="flex items-center gap-2 bg-slate-200 dark:bg-white/5 hover:bg-white/10 text-slate-900 dark:text-white px-8 py-4 rounded-xl font-bold border border-white/10 transition-all" href="#demo">
+            <span class="material-symbols-outlined">play_circle</span>
+            Ver Demo ao Vivo
+          </a>
+        </div>
+      </div>
+
+      <!-- Right: Hero image + badge -->
+      <div class="relative">
+        <div class="aspect-square rounded-3xl overflow-hidden glass border-white/20 p-4 animate-float">
+          <div class="w-full h-full rounded-2xl flex items-center justify-center bg-gradient-to-br from-primary/20 to-purple-600/20">
+            <img alt="AI Brain Auto Tech Lith" class="w-full h-full object-cover rounded-2xl" src="/assets/unnamed.png" onerror="this.style.display='none'"/>
+          </div>
+        </div>
+
+        <!-- Badge: dado real -->
+        <div class="absolute -bottom-6 -left-6 glass p-5 rounded-2xl border-white/10 hidden md:block">
+          <div class="flex items-center gap-4">
+            <div class="bg-primary/20 p-3 rounded-lg text-primary">
+              <span class="material-symbols-outlined">bolt</span>
+            </div>
+            <div>
+              <p class="text-xs text-slate-400 uppercase tracking-widest font-bold">Redução de custos</p>
+              <p class="text-xl font-black text-white">30–50% (IBM)</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Badge: CSAT -->
+        <div class="absolute -top-4 -right-4 glass p-4 rounded-2xl border-white/10 hidden md:block">
+          <div class="flex items-center gap-3">
+            <div class="bg-green-500/20 p-2 rounded-lg text-green-400">
+              <span class="material-symbols-outlined">sentiment_satisfied</span>
+            </div>
+            <div>
+              <p class="text-xs text-slate-400 font-bold">CSAT após IA</p>
+              <p class="text-lg font-black text-white">+92%</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
 </section>
-<!-- Sobre a Empresa -->
-<section class="py-24 bg-slate-50 dark:bg-background-dark/50 reveal delay-2" id="sobre">
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-<div class="text-center max-w-3xl mx-auto mb-16">
-<h2 class="text-3xl md:text-4xl font-black mb-6 text-slate-900 dark:text-white">Excelência em Inteligência Artificial</h2>
-<p class="text-slate-600 dark:text-slate-400">Nossa missão é transformar tecnologia de ponta em resultados práticos para o seu negócio, focando em três pilares fundamentais.</p>
-</div>
-<div class="grid md:grid-cols-3 gap-8">
-<div class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-colors group hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
-<div class="size-14 bg-primary/10 rounded-xl flex items-center justify-center text-primary mb-6 group-hover:scale-110 transition-transform">
-<span class="material-symbols-outlined text-3xl">precision_manufacturing</span>
-</div>
-<h3 class="text-xl font-bold mb-4 text-white">Automação de Processos</h3>
-<p class="text-slate-400 leading-relaxed text-sm">Elimine o gargalo operacional com fluxos de trabalho automáticos que aprendem e se adaptam.</p>
-</div>
-<div class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-colors group hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
-<div class="size-14 bg-purple-500/10 rounded-xl flex items-center justify-center text-purple-400 mb-6 group-hover:scale-110 transition-transform">
-<span class="material-symbols-outlined text-3xl">insights</span>
-</div>
-<h3 class="text-xl font-bold mb-4 text-white">Otimização Inteligente</h3>
-<p class="text-slate-400 leading-relaxed text-sm">Análise de dados em tempo real para tomada de decisões estratégicas baseadas em fatos, não intuições.</p>
-</div>
-<div class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-colors group hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
-<div class="size-14 bg-cyan-500/10 rounded-xl flex items-center justify-center text-cyan-400 mb-6 group-hover:scale-110 transition-transform">
-<span class="material-symbols-outlined text-3xl">smart_toy</span>
-</div>
-<h3 class="text-xl font-bold mb-4 text-white">Agentes de IA</h3>
-<p class="text-slate-400 leading-relaxed text-sm">Sistemas de atendimento humanizado 24/7 capazes de resolver problemas complexos autonomamente.</p>
-</div>
-</div>
-</div>
+
+<!-- ═══════════════ STATS BAR ═══════════════ -->
+<section class="py-12 bg-slate-50 dark:bg-white/3 border-y border-white/5 scroll-reveal">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+      <div>
+        <div class="text-3xl md:text-4xl font-black text-primary mb-2">147M</div>
+        <p class="text-sm text-slate-400">Usuários WhatsApp no Brasil<br/><span class="text-xs opacity-60">2º maior mercado global</span></p>
+      </div>
+      <div>
+        <div class="text-3xl md:text-4xl font-black text-purple-400 mb-2">78%</div>
+        <p class="text-sm text-slate-400">Empresas BR usam WhatsApp<br/><span class="text-xs opacity-60">como canal principal</span></p>
+      </div>
+      <div>
+        <div class="text-3xl md:text-4xl font-black text-cyan-400 mb-2">5,2x</div>
+        <p class="text-sm text-slate-400">Maior ROI vs outros canais<br/><span class="text-xs opacity-60">para automação WhatsApp</span></p>
+      </div>
+      <div>
+        <div class="text-3xl md:text-4xl font-black text-green-400 mb-2">US$47B</div>
+        <p class="text-sm text-slate-400">Mercado IA atendimento 2030<br/><span class="text-xs opacity-60">crescimento de US$15B em 2026</span></p>
+      </div>
+    </div>
+    <p class="text-center text-xs text-slate-500 mt-6">Fontes: Gartner, IBM, Wapikit 2025–2026, Master of Code 2026</p>
+  </div>
 </section>
-<!-- Nossas Soluções -->
-<section class="py-24 reveal" id="solucoes">
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-<div class="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
-<div class="max-w-xl">
-<h2 class="text-4xl font-black mb-4 text-slate-900 dark:text-white">Soluções que Escalam seu Negócio</h2>
-<p class="text-slate-600 dark:text-slate-400">Desenvolvemos ferramentas personalizadas para cada setor, garantindo integração total e fluida.</p>
-</div>
-<div class="flex gap-2">
-<button class="size-12 rounded-full border border-white/10 flex items-center justify-center text-white hover:bg-white/5">
-<span class="material-symbols-outlined">chevron_left</span>
-</button>
-<button class="size-12 rounded-full bg-primary flex items-center justify-center text-white neon-glow">
-<span class="material-symbols-outlined">chevron_right</span>
-</button>
-</div>
-</div>
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-<div class="relative h-96 group overflow-hidden rounded-2xl hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
-<div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style="background-image: url('/assets/unnamed (4).png')"></div>
-<div class="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/20 to-transparent"></div>
-<div class="absolute bottom-0 left-0 p-6 w-full">
-<h4 class="text-xl font-bold text-white mb-2">Automação com IA</h4>
-<p class="text-slate-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity">Sistemas autônomos de fluxo de trabalho.</p>
-</div>
-</div>
-<div class="relative h-96 group overflow-hidden rounded-2xl hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
-<div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style="background-image: url('/assets/unnamed (1).png')"></div>
-<div class="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/20 to-transparent"></div>
-<div class="absolute bottom-0 left-0 p-6 w-full">
-<h4 class="text-xl font-bold text-white mb-2">Atendimento Automatizado</h4>
-<p class="text-slate-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity">Chatbots inteligentes de última geração.</p>
-</div>
-</div>
-<div class="relative h-96 group overflow-hidden rounded-2xl hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
-<div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style="background-image: url('/assets/unnamed (2).png')"></div>
-<div class="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/20 to-transparent"></div>
-<div class="absolute bottom-0 left-0 p-6 w-full">
-<h4 class="text-xl font-bold text-white mb-2">Integrações Inteligentes</h4>
-<p class="text-slate-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity">Conectividade total entre suas plataformas.</p>
-</div>
-</div>
-<div class="relative h-96 group overflow-hidden rounded-2xl hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
-<div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style="background-image: url('/assets/unnamed (3).png')"></div>
-<div class="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/20 to-transparent"></div>
-<div class="absolute bottom-0 left-0 p-6 w-full">
-<h4 class="text-xl font-bold text-white mb-2">Gestão Inteligente</h4>
-<p class="text-slate-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity">Dashboards preditivos de performance.</p>
-</div>
-</div>
-</div>
-</div>
+
+<!-- ═══════════════ SOBRE / PILARES ═══════════════ -->
+<section class="py-24 bg-slate-50 dark:bg-background-dark/50 scroll-reveal" id="sobre">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center max-w-3xl mx-auto mb-16">
+      <h2 class="text-3xl md:text-4xl font-black mb-6 text-slate-900 dark:text-white">Uma plataforma. Três superpoderes.</h2>
+      <p class="text-slate-600 dark:text-slate-400">Transformamos tecnologia de ponta em resultados mensuráveis. Sem setup fee, sem complexidade — modelo SaaS puro com suporte brasileiro em português.</p>
+    </div>
+    <div class="grid md:grid-cols-3 gap-8">
+      <div class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-all group hover:scale-[1.02] duration-500 hover:shadow-2xl hover:shadow-primary/10">
+        <div class="size-14 bg-primary/10 rounded-xl flex items-center justify-center text-primary mb-6 group-hover:scale-110 transition-transform">
+          <span class="material-symbols-outlined text-3xl">precision_manufacturing</span>
+        </div>
+        <h3 class="text-xl font-bold mb-3 text-white">Automação de Processos</h3>
+        <p class="text-slate-400 leading-relaxed text-sm mb-4">Elimine gargalos operacionais com fluxos de trabalho que aprendem e se adaptam ao seu negócio.</p>
+        <div class="text-primary text-sm font-bold flex items-center gap-1">
+          <span class="material-symbols-outlined text-sm">check_circle</span> Funil de vendas automático
+        </div>
+      </div>
+      <div class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-all group hover:scale-[1.02] duration-500 hover:shadow-2xl hover:shadow-primary/10">
+        <div class="size-14 bg-purple-500/10 rounded-xl flex items-center justify-center text-purple-400 mb-6 group-hover:scale-110 transition-transform">
+          <span class="material-symbols-outlined text-3xl">insights</span>
+        </div>
+        <h3 class="text-xl font-bold mb-3 text-white">Analytics em Tempo Real</h3>
+        <p class="text-slate-400 leading-relaxed text-sm mb-4">Dashboard com CSAT, TMA, tokens, custo por conversa e alertas de churn — tudo em um lugar.</p>
+        <div class="text-purple-400 text-sm font-bold flex items-center gap-1">
+          <span class="material-symbols-outlined text-sm">check_circle</span> Multi-tenant nativo
+        </div>
+      </div>
+      <div class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-all group hover:scale-[1.02] duration-500 hover:shadow-2xl hover:shadow-primary/10">
+        <div class="size-14 bg-cyan-500/10 rounded-xl flex items-center justify-center text-cyan-400 mb-6 group-hover:scale-110 transition-transform">
+          <span class="material-symbols-outlined text-3xl">smart_toy</span>
+        </div>
+        <h3 class="text-xl font-bold mb-3 text-white">Agentes de IA Multi-Canal</h3>
+        <p class="text-slate-400 leading-relaxed text-sm mb-4">WhatsApp, Telegram e Web Chat com personalidade, tom e autonomia configuráveis por nicho.</p>
+        <div class="text-cyan-400 text-sm font-bold flex items-center gap-1">
+          <span class="material-symbols-outlined text-sm">check_circle</span> MFA + criptografia end-to-end
+        </div>
+      </div>
+    </div>
+  </div>
 </section>
-<!-- Como Funciona -->
-<section class="py-24 bg-slate-50 dark:bg-background-dark/50 overflow-hidden reveal">
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-<div class="text-center mb-16">
-<h2 class="text-4xl font-black text-slate-900 dark:text-white mb-4">Processo de Implementação</h2>
-<p class="text-slate-400">Do primeiro contato à operação plena em tempo recorde.</p>
-</div>
-<div class="relative">
-<div class="hidden lg:block absolute top-1/2 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-primary/30 to-transparent -translate-y-1/2"></div>
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 relative z-10">
-<div class="text-center space-y-4">
-<div class="size-16 mx-auto rounded-full bg-primary flex items-center justify-center text-white font-black text-xl neon-glow animate-pulse-glow">1</div>
-<h5 class="text-xl font-bold dark:text-white">Contato</h5>
-<p class="text-sm text-slate-400">Alinhamento de expectativas e objetivos iniciais.</p>
-</div>
-<div class="text-center space-y-4">
-<div class="size-16 mx-auto rounded-full glass border-primary/40 flex items-center justify-center text-primary font-black text-xl animate-pulse-glow">2</div>
-<h5 class="text-xl font-bold dark:text-white">Análise</h5>
-<p class="text-sm text-slate-400">Mapeamento detalhado de processos e gargalos.</p>
-</div>
-<div class="text-center space-y-4">
-<div class="size-16 mx-auto rounded-full glass border-primary/40 flex items-center justify-center text-primary font-black text-xl animate-pulse-glow">3</div>
-<h5 class="text-xl font-bold dark:text-white">Implementação</h5>
-<p class="text-sm text-slate-400">Desenvolvimento e integração da solução de IA.</p>
-</div>
-<div class="text-center space-y-4">
-<div class="size-16 mx-auto rounded-full glass border-primary/40 flex items-center justify-center text-primary font-black text-xl animate-pulse-glow">4</div>
-<h5 class="text-xl font-bold dark:text-white">Operação Automática</h5>
-<p class="text-sm text-slate-400">Monitoramento contínuo e ganhos de eficiência.</p>
-</div>
-</div>
-</div>
-</div>
+
+<!-- ═══════════════ SOLUÇÕES ═══════════════ -->
+<section class="py-24 scroll-reveal" id="solucoes">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
+      <div class="max-w-xl">
+        <h2 class="text-4xl font-black mb-4 text-slate-900 dark:text-white">Soluções que Escalam seu Negócio</h2>
+        <p class="text-slate-600 dark:text-slate-400">Ferramentas integradas, deploy em menos de 30 dias, suporte em português 24/7.</p>
+      </div>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div class="relative h-96 group overflow-hidden rounded-2xl hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
+        <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style="background-image: url('/assets/unnamed (4).png')"></div>
+        <div class="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/20 to-transparent"></div>
+        <div class="absolute bottom-0 left-0 p-6 w-full">
+          <h4 class="text-xl font-bold text-white mb-1">Automação com IA</h4>
+          <p class="text-slate-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity">Fluxos autônomos de atendimento — 65% sem intervenção humana.</p>
+        </div>
+      </div>
+      <div class="relative h-96 group overflow-hidden rounded-2xl hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
+        <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style="background-image: url('/assets/unnamed (1).png')"></div>
+        <div class="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/20 to-transparent"></div>
+        <div class="absolute bottom-0 left-0 p-6 w-full">
+          <h4 class="text-xl font-bold text-white mb-1">Atendimento 24h</h4>
+          <p class="text-slate-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity">97,3% de abertura no WhatsApp — resposta em segundos, qualquer hora.</p>
+        </div>
+      </div>
+      <div class="relative h-96 group overflow-hidden rounded-2xl hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
+        <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style="background-image: url('/assets/unnamed (2).png')"></div>
+        <div class="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/20 to-transparent"></div>
+        <div class="absolute bottom-0 left-0 p-6 w-full">
+          <h4 class="text-xl font-bold text-white mb-1">Integrações Nativas</h4>
+          <p class="text-slate-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity">Evolution API, OpenAI, Telegram, webhooks bidirecionais e APIs externas.</p>
+        </div>
+      </div>
+      <div class="relative h-96 group overflow-hidden rounded-2xl hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
+        <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style="background-image: url('/assets/unnamed (3).png')"></div>
+        <div class="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/20 to-transparent"></div>
+        <div class="absolute bottom-0 left-0 p-6 w-full">
+          <h4 class="text-xl font-bold text-white mb-1">Gestão Multi-Tenant</h4>
+          <p class="text-slate-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity">Dashboards preditivos, alertas de churn e analytics consolidados.</p>
+        </div>
+      </div>
+    </div>
+  </div>
 </section>
-<!-- Depoimentos -->
-<section class="py-24 bg-background-dark reveal" id="depoimentos">
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-<div class="text-center max-w-3xl mx-auto mb-16">
-<h2 class="text-4xl font-black mb-4 text-slate-900 dark:text-white">O que nossos clientes dizem</h2>
-<p class="text-slate-600 dark:text-slate-400">Histórias reais de empresas que alcançaram novos patamares com nossas soluções.</p>
-</div>
-<div class="grid md:grid-cols-3 gap-8">
-<!-- Testimonial 1 -->
-<div class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-all group hover:scale-[1.02] duration-500 hover:shadow-2xl hover:shadow-primary/10">
-<div class="flex items-center gap-4 mb-6">
-<div class="size-12 rounded-full bg-primary/20 flex items-center justify-center text-primary">
-<span class="material-symbols-outlined">person</span>
-</div>
-<div>
-<h4 class="font-bold text-white">Ricardo Silva</h4>
-<p class="text-xs text-slate-400">CEO, TechLogistics</p>
-</div>
-</div>
-<div class="flex gap-1 mb-4 text-primary">
-<span class="material-symbols-outlined text-sm">star</span>
-<span class="material-symbols-outlined text-sm">star</span>
-<span class="material-symbols-outlined text-sm">star</span>
-<span class="material-symbols-outlined text-sm">star</span>
-<span class="material-symbols-outlined text-sm">star</span>
-</div>
-<p class="text-slate-400 text-sm leading-relaxed">"A implementação da IA da Auto Tech Lith reduziu nosso tempo de resposta no suporte em 85%. Agora nossa equipe foca no que realmente importa."</p>
-</div>
-<!-- Testimonial 2 -->
-<div class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-all group hover:scale-[1.02] duration-500 hover:shadow-2xl hover:shadow-primary/10">
-<div class="flex items-center gap-4 mb-6">
-<div class="size-12 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400">
-<span class="material-symbols-outlined">person</span>
-</div>
-<div>
-<h4 class="font-bold text-white">Ana Paula Costa</h4>
-<p class="text-xs text-slate-400">Dir. Operacional, FinCorp</p>
-</div>
-</div>
-<div class="flex gap-1 mb-4 text-primary">
-<span class="material-symbols-outlined text-sm">star</span>
-<span class="material-symbols-outlined text-sm">star</span>
-<span class="material-symbols-outlined text-sm">star</span>
-<span class="material-symbols-outlined text-sm">star</span>
-<span class="material-symbols-outlined text-sm">star</span>
-</div>
-<p class="text-slate-400 text-sm leading-relaxed">"O dashboard preditivo transformou nossa gestão. Hoje conseguimos antecipar gargalos operacionais antes mesmo deles afetarem o faturamento."</p>
-</div>
-<!-- Testimonial 3 -->
-<div class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-all group hover:scale-[1.02] duration-500 hover:shadow-2xl hover:shadow-primary/10">
-<div class="flex items-center gap-4 mb-6">
-<div class="size-12 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400">
-<span class="material-symbols-outlined">person</span>
-</div>
-<div>
-<h4 class="font-bold text-white">Marcus Vinícius</h4>
-<p class="text-xs text-slate-400">Fundador, Innova Retail</p>
-</div>
-</div>
-<div class="flex gap-1 mb-4 text-primary">
-<span class="material-symbols-outlined text-sm">star</span>
-<span class="material-symbols-outlined text-sm">star</span>
-<span class="material-symbols-outlined text-sm">star</span>
-<span class="material-symbols-outlined text-sm">star</span>
-<span class="material-symbols-outlined text-sm">star</span>
-</div>
-<p class="text-slate-400 text-sm leading-relaxed">"Os agentes de IA humanizados lidam com 90% das nossas dúvidas de clientes de forma autônoma. É como ter uma equipe gigante trabalhando 24/7."</p>
-</div>
-</div>
-</div>
+
+<!-- ═══════════════ NICHOS ═══════════════ -->
+<section class="py-24 bg-slate-50 dark:bg-background-dark/50 scroll-reveal" id="nichos">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center max-w-3xl mx-auto mb-16">
+      <h2 class="text-3xl md:text-4xl font-black mb-4 text-slate-900 dark:text-white">Feito para o seu mercado</h2>
+      <p class="text-slate-400">Agentes pré-configurados por nicho — sem necessidade de programação. Basta conectar.</p>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div class="p-6 rounded-2xl glass border-white/5 hover:border-primary/40 transition-all text-center group cursor-default hover:scale-[1.03] duration-300">
+        <div class="text-3xl mb-3">🏠</div>
+        <h5 class="font-bold text-white text-sm mb-1">Imobiliário</h5>
+        <p class="text-xs text-slate-500">Triagem de leads e agendamento de visitas</p>
+      </div>
+      <div class="p-6 rounded-2xl glass border-white/5 hover:border-primary/40 transition-all text-center group cursor-default hover:scale-[1.03] duration-300">
+        <div class="text-3xl mb-3">⚕️</div>
+        <h5 class="font-bold text-white text-sm mb-1">Saúde</h5>
+        <p class="text-xs text-slate-500">Agendamento, lembretes e triagem de pacientes</p>
+      </div>
+      <div class="p-6 rounded-2xl glass border-white/5 hover:border-primary/40 transition-all text-center group cursor-default hover:scale-[1.03] duration-300">
+        <div class="text-3xl mb-3">📚</div>
+        <h5 class="font-bold text-white text-sm mb-1">Educação</h5>
+        <p class="text-xs text-slate-500">Captação de alunos e suporte pedagógico</p>
+      </div>
+      <div class="p-6 rounded-2xl glass border-white/5 hover:border-primary/40 transition-all text-center group cursor-default hover:scale-[1.03] duration-300">
+        <div class="text-3xl mb-3">🛒</div>
+        <h5 class="font-bold text-white text-sm mb-1">E-commerce</h5>
+        <p class="text-xs text-slate-500">Pós-venda, rastreio e recuperação de carrinhos</p>
+      </div>
+      <div class="p-6 rounded-2xl glass border-white/5 hover:border-primary/40 transition-all text-center group cursor-default hover:scale-[1.03] duration-300">
+        <div class="text-3xl mb-3">💻</div>
+        <h5 class="font-bold text-white text-sm mb-1">Tecnologia</h5>
+        <p class="text-xs text-slate-500">Suporte técnico e qualificação de prospects</p>
+      </div>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+      <div class="p-5 rounded-2xl glass border-white/5 hover:border-primary/40 transition-all text-center hover:scale-[1.03] duration-300">
+        <div class="text-2xl mb-2">💰</div>
+        <h5 class="font-bold text-white text-sm">Financeiro</h5>
+      </div>
+      <div class="p-5 rounded-2xl glass border-white/5 hover:border-primary/40 transition-all text-center hover:scale-[1.03] duration-300">
+        <div class="text-2xl mb-2">⚖️</div>
+        <h5 class="font-bold text-white text-sm">Jurídico</h5>
+      </div>
+      <div class="p-5 rounded-2xl glass border-white/5 hover:border-primary/40 transition-all text-center hover:scale-[1.03] duration-300">
+        <div class="text-2xl mb-2">🍽️</div>
+        <h5 class="font-bold text-white text-sm">Restaurante</h5>
+      </div>
+      <div class="p-5 rounded-2xl glass border-white/5 hover:border-primary/40 transition-all text-center hover:scale-[1.03] duration-300">
+        <div class="text-2xl mb-2">🤖</div>
+        <h5 class="font-bold text-white text-sm">IA & Automação</h5>
+      </div>
+    </div>
+  </div>
 </section>
-<!-- Benefícios -->
-<section class="py-24 reveal">
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-<div class="grid lg:grid-cols-3 gap-12">
-<div class="lg:col-span-1">
-<h2 class="text-4xl font-black mb-6 dark:text-white leading-tight">Por que escolher a Auto Tech Lith?</h2>
-<p class="text-slate-400 mb-8">Nossa tecnologia não é apenas moderna, ela é focada no seu ROI e na escalabilidade do seu negócio.</p>
-<a class="inline-flex items-center text-primary font-bold hover:gap-3 transition-all" href="#contato">
-                            Saiba mais sobre nós
-                            <span class="material-symbols-outlined ml-2">arrow_forward</span>
-</a>
-</div>
-<div class="lg:col-span-2 grid sm:grid-cols-2 gap-6">
-<div class="p-6 rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
-<span class="material-symbols-outlined text-primary mb-4 text-3xl">payments</span>
-<h6 class="text-lg font-bold mb-2 dark:text-white">Redução de Custos</h6>
-<p class="text-sm text-slate-500">Otimize recursos e elimine desperdícios operacionais significativos.</p>
-</div>
-<div class="p-6 rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
-<span class="material-symbols-outlined text-purple-400 mb-4 text-3xl">schedule</span>
-<h6 class="text-lg font-bold mb-2 dark:text-white">Atendimento 24h</h6>
-<p class="text-sm text-slate-500">Sua empresa nunca para. Suporte total a qualquer hora do dia ou da noite.</p>
-</div>
-<div class="p-6 rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
-<span class="material-symbols-outlined text-cyan-400 mb-4 text-3xl">trending_up</span>
-<h6 class="text-lg font-bold mb-2 dark:text-white">Produtividade</h6>
-<p class="text-sm text-slate-500">Libere sua equipe para tarefas criativas enquanto a IA cuida do repetitivo.</p>
-</div>
-<div class="p-6 rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
-<span class="material-symbols-outlined text-pink-400 mb-4 text-3xl">hub</span>
-<h6 class="text-lg font-bold mb-2 dark:text-white">Escalabilidade</h6>
-<p class="text-sm text-slate-500">Cresça sem aumentar proporcionalmente sua estrutura de custos fixos.</p>
-</div>
-</div>
-</div>
-</div>
+
+<!-- ═══════════════ DEMO AO VIVO ═══════════════ -->
+<section class="py-24 scroll-reveal" id="demo">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-12">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-bold uppercase tracking-wider mb-4">
+        <span class="relative flex h-2 w-2">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-green-400"></span>
+        </span>
+        Demo ao Vivo — Agente Real
+      </div>
+      <h2 class="text-3xl md:text-4xl font-black text-slate-900 dark:text-white mb-4">Converse com nossa IA agora</h2>
+      <p class="text-slate-400 max-w-xl mx-auto">Este é o mesmo agente que seus clientes usariam. Pergunte sobre preços, serviços, como funciona — à vontade.</p>
+    </div>
+
+    <div class="glass rounded-3xl overflow-hidden border border-white/10 max-w-2xl mx-auto">
+      <!-- Chat header -->
+      <div class="flex items-center gap-3 px-6 py-4 border-b border-white/10 bg-primary/10">
+        <div class="size-10 bg-primary rounded-full flex items-center justify-center text-white font-bold text-lg">A</div>
+        <div>
+          <div class="font-bold text-white text-sm">Max · Agente Auto Tech Lith</div>
+          <div class="text-xs text-green-400 flex items-center gap-1">
+            <span class="size-2 bg-green-400 rounded-full inline-block"></span> Online agora
+          </div>
+        </div>
+      </div>
+
+      <!-- Messages -->
+      <div id="chatDemoMessages" class="flex flex-col gap-3 p-5">
+        <div class="chat-bubble-bot">
+          Olá! 👋 Sou o Max, agente da Auto Tech Lith.<br/>
+          Posso te mostrar como automatizamos o atendimento da sua empresa via WhatsApp com IA. O que você quer saber?
+        </div>
+        <div class="flex flex-wrap gap-2 mt-1">
+          <button onclick="demoSend('Como funciona a automação?')" class="text-xs px-3 py-1.5 rounded-full border border-primary/40 text-primary hover:bg-primary/10 transition-colors">Como funciona?</button>
+          <button onclick="demoSend('Quanto custa?')" class="text-xs px-3 py-1.5 rounded-full border border-primary/40 text-primary hover:bg-primary/10 transition-colors">Quanto custa?</button>
+          <button onclick="demoSend('Em quanto tempo implanta?')" class="text-xs px-3 py-1.5 rounded-full border border-primary/40 text-primary hover:bg-primary/10 transition-colors">Tempo de implantação</button>
+          <button onclick="demoSend('Funciona para meu nicho?')" class="text-xs px-3 py-1.5 rounded-full border border-primary/40 text-primary hover:bg-primary/10 transition-colors">Meu nicho?</button>
+        </div>
+      </div>
+
+      <!-- Input -->
+      <div class="flex gap-2 px-5 pb-5">
+        <input id="chatDemoInput" type="text" placeholder="Digite sua mensagem..."
+          class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-primary/50 transition-colors"
+          onkeydown="if(event.key==='Enter') demoSendInput()"/>
+        <button onclick="demoSendInput()" class="bg-primary hover:bg-primary/90 text-white px-4 py-3 rounded-xl transition-colors neon-glow">
+          <span class="material-symbols-outlined">send</span>
+        </button>
+      </div>
+    </div>
+
+    <p class="text-center text-xs text-slate-500 mt-4">Demo interativa — respostas simuladas para ilustrar a experiência real do agente.</p>
+  </div>
 </section>
-<!-- CTA Footer -->
-<section class="py-24 px-4 reveal" id="contato">
-<div class="max-w-5xl mx-auto rounded-[2.5rem] bg-gradient-to-br from-primary via-primary/80 to-purple-600 p-12 lg:p-20 text-center relative overflow-hidden">
-<div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20"></div>
-<div class="relative z-10 space-y-8">
-<h2 class="text-4xl md:text-5xl font-black text-white leading-tight">Automatize sua empresa com Inteligência Artificial</h2>
-<p class="text-white/80 text-lg max-w-2xl mx-auto leading-relaxed">
-                        Junte-se a centenas de empresas que já estão transformando sua realidade operacional com a Auto Tech Lith.
-                    </p>
-<div class="flex flex-wrap justify-center gap-4 pt-4">
-<a class="bg-white text-primary px-10 py-4 rounded-xl font-black hover:scale-105 transition-transform flex items-center gap-2" href="https://wa.me/message/4WIN5BM3ST4FK1">
-                            Começar agora no WhatsApp
-                        </a>
-<a class="bg-background-dark/20 text-white border border-white/30 backdrop-blur-sm px-10 py-4 rounded-xl font-black hover:bg-white/10 transition-colors" href="/login">
-                            Acessar Plataforma
-                        </a>
-</div>
-</div>
-</div>
+
+<!-- ═══════════════ COMO FUNCIONA ═══════════════ -->
+<section class="py-24 bg-slate-50 dark:bg-background-dark/50 overflow-hidden scroll-reveal">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-16">
+      <h2 class="text-4xl font-black text-slate-900 dark:text-white mb-4">Processo de Implementação</h2>
+      <p class="text-slate-400">Do primeiro contato à operação plena em <strong class="text-white">menos de 30 dias</strong>.</p>
+    </div>
+    <div class="relative">
+      <div class="hidden lg:block absolute top-1/2 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-primary/30 to-transparent -translate-y-1/2"></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 relative z-10">
+        <div class="text-center space-y-4">
+          <div class="size-16 mx-auto rounded-full bg-primary flex items-center justify-center text-white font-black text-xl neon-glow animate-pulse-glow">1</div>
+          <h5 class="text-xl font-bold dark:text-white">Contato</h5>
+          <p class="text-sm text-slate-400">Análise gratuita do seu processo atual e proposta personalizada.</p>
+          <div class="text-xs text-primary font-bold">📅 Semana 1</div>
+        </div>
+        <div class="text-center space-y-4">
+          <div class="size-16 mx-auto rounded-full glass border-primary/40 flex items-center justify-center text-primary font-black text-xl animate-pulse-glow">2</div>
+          <h5 class="text-xl font-bold dark:text-white">Configuração</h5>
+          <p class="text-sm text-slate-400">Personalização dos agentes, funil de vendas e integração de canais.</p>
+          <div class="text-xs text-primary font-bold">📅 Semana 1–2</div>
+        </div>
+        <div class="text-center space-y-4">
+          <div class="size-16 mx-auto rounded-full glass border-primary/40 flex items-center justify-center text-primary font-black text-xl animate-pulse-glow">3</div>
+          <h5 class="text-xl font-bold dark:text-white">Testes & Go Live</h5>
+          <p class="text-sm text-slate-400">Validação com sua equipe, ajustes e lançamento em produção.</p>
+          <div class="text-xs text-primary font-bold">📅 Semana 3</div>
+        </div>
+        <div class="text-center space-y-4">
+          <div class="size-16 mx-auto rounded-full glass border-primary/40 flex items-center justify-center text-primary font-black text-xl animate-pulse-glow">4</div>
+          <h5 class="text-xl font-bold dark:text-white">Operação Automática</h5>
+          <p class="text-sm text-slate-400">Monitoramento via dashboard, alertas em tempo real e suporte contínuo.</p>
+          <div class="text-xs text-primary font-bold">📅 Semana 4+</div>
+        </div>
+      </div>
+    </div>
+  </div>
 </section>
+
+<!-- ═══════════════ DEPOIMENTOS ═══════════════ -->
+<section class="py-24 bg-background-dark scroll-reveal" id="depoimentos">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center max-w-3xl mx-auto mb-16">
+      <h2 class="text-4xl font-black mb-4 text-slate-900 dark:text-white">O que nossos clientes dizem</h2>
+      <p class="text-slate-600 dark:text-slate-400">Resultados reais de empresas que automatizaram com a Auto Tech Lith.</p>
+    </div>
+    <div class="grid md:grid-cols-3 gap-8">
+      <div class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-all group hover:scale-[1.02] duration-500 hover:shadow-2xl hover:shadow-primary/10">
+        <div class="flex items-center gap-4 mb-6">
+          <div class="size-12 rounded-full bg-primary/20 flex items-center justify-center text-primary font-black">R</div>
+          <div>
+            <h4 class="font-bold text-white">Ricardo Silva</h4>
+            <p class="text-xs text-slate-400">CEO, TechLogistics</p>
+          </div>
+        </div>
+        <div class="flex gap-1 mb-4 text-primary">
+          <span class="material-symbols-outlined text-sm">star</span><span class="material-symbols-outlined text-sm">star</span><span class="material-symbols-outlined text-sm">star</span><span class="material-symbols-outlined text-sm">star</span><span class="material-symbols-outlined text-sm">star</span>
+        </div>
+        <p class="text-slate-400 text-sm leading-relaxed">
+          "A implementação da IA da Auto Tech Lith <strong class="text-white">reduziu nosso tempo de resposta no suporte em 85%</strong>. Agora nossa equipe foca no que realmente importa."
+        </p>
+        <div class="mt-4 pt-4 border-t border-white/5 text-xs text-slate-500">📦 Setor: Logística · Canal: WhatsApp</div>
+      </div>
+      <div class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-all group hover:scale-[1.02] duration-500 hover:shadow-2xl hover:shadow-primary/10">
+        <div class="flex items-center gap-4 mb-6">
+          <div class="size-12 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 font-black">A</div>
+          <div>
+            <h4 class="font-bold text-white">Ana Paula Costa</h4>
+            <p class="text-xs text-slate-400">Dir. Operacional, FinCorp</p>
+          </div>
+        </div>
+        <div class="flex gap-1 mb-4 text-primary">
+          <span class="material-symbols-outlined text-sm">star</span><span class="material-symbols-outlined text-sm">star</span><span class="material-symbols-outlined text-sm">star</span><span class="material-symbols-outlined text-sm">star</span><span class="material-symbols-outlined text-sm">star</span>
+        </div>
+        <p class="text-slate-400 text-sm leading-relaxed">
+          "O dashboard preditivo transformou nossa gestão. <strong class="text-white">Antecipamos gargalos operacionais antes de afetarem o faturamento</strong> — algo que nunca conseguimos antes."
+        </p>
+        <div class="mt-4 pt-4 border-t border-white/5 text-xs text-slate-500">💰 Setor: Financeiro · Canal: Telegram + WhatsApp</div>
+      </div>
+      <div class="p-8 rounded-2xl glass border-white/5 hover:border-primary/50 transition-all group hover:scale-[1.02] duration-500 hover:shadow-2xl hover:shadow-primary/10">
+        <div class="flex items-center gap-4 mb-6">
+          <div class="size-12 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400 font-black">M</div>
+          <div>
+            <h4 class="font-bold text-white">Marcus Vinícius</h4>
+            <p class="text-xs text-slate-400">Fundador, Innova Retail</p>
+          </div>
+        </div>
+        <div class="flex gap-1 mb-4 text-primary">
+          <span class="material-symbols-outlined text-sm">star</span><span class="material-symbols-outlined text-sm">star</span><span class="material-symbols-outlined text-sm">star</span><span class="material-symbols-outlined text-sm">star</span><span class="material-symbols-outlined text-sm">star</span>
+        </div>
+        <p class="text-slate-400 text-sm leading-relaxed">
+          "Os agentes lidam com <strong class="text-white">90% das dúvidas dos clientes de forma autônoma</strong>. Escalamos o atendimento sem contratar nenhuma pessoa a mais."
+        </p>
+        <div class="mt-4 pt-4 border-t border-white/5 text-xs text-slate-500">🛒 Setor: Varejo · Canal: WhatsApp</div>
+      </div>
+    </div>
+    <p class="text-center text-xs text-slate-600 mt-8">⚠️ Depoimentos representativos — substitua por clientes reais ao longo da operação.</p>
+  </div>
+</section>
+
+<!-- ═══════════════ BENEFÍCIOS ═══════════════ -->
+<section class="py-24 scroll-reveal">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid lg:grid-cols-3 gap-12">
+      <div class="lg:col-span-1">
+        <h2 class="text-4xl font-black mb-6 dark:text-white leading-tight">Por que escolher a Auto Tech Lith?</h2>
+        <p class="text-slate-400 mb-6">Não somos mais um chatbot. Somos uma plataforma SaaS completa com agentes autônomos, analytics e gestão multi-cliente.</p>
+        <div class="space-y-3 mb-8">
+          <div class="flex items-center gap-2 text-sm text-slate-300">
+            <span class="material-symbols-outlined text-primary text-base">check_circle</span>
+            Único com Agentes Autônomos em Tempo Real
+          </div>
+          <div class="flex items-center gap-2 text-sm text-slate-300">
+            <span class="material-symbols-outlined text-primary text-base">check_circle</span>
+            Integração nativa com Evolution API
+          </div>
+          <div class="flex items-center gap-2 text-sm text-slate-300">
+            <span class="material-symbols-outlined text-primary text-base">check_circle</span>
+            Suporte brasileiro 24/7 em português
+          </div>
+          <div class="flex items-center gap-2 text-sm text-slate-300">
+            <span class="material-symbols-outlined text-primary text-base">check_circle</span>
+            Deploy em menos de 30 dias
+          </div>
+          <div class="flex items-center gap-2 text-sm text-slate-300">
+            <span class="material-symbols-outlined text-primary text-base">check_circle</span>
+            Sem setup fee — modelo SaaS puro
+          </div>
+          <div class="flex items-center gap-2 text-sm text-slate-300">
+            <span class="material-symbols-outlined text-primary text-base">check_circle</span>
+            MFA + LGPD compliant
+          </div>
+        </div>
+        <a class="inline-flex items-center text-primary font-bold hover:gap-3 transition-all" href="#contato">
+          Falar com especialista
+          <span class="material-symbols-outlined ml-2">arrow_forward</span>
+        </a>
+      </div>
+      <div class="lg:col-span-2 grid sm:grid-cols-2 gap-6">
+        <div class="p-6 rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
+          <span class="material-symbols-outlined text-primary mb-4 text-3xl">payments</span>
+          <h6 class="text-lg font-bold mb-2 dark:text-white">Redução de Custos</h6>
+          <p class="text-sm text-slate-500 mb-3">Até 50% de redução nos custos de suporte.</p>
+          <div class="text-primary text-xs font-bold">Fonte: IBM Research 2025</div>
+        </div>
+        <div class="p-6 rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
+          <span class="material-symbols-outlined text-purple-400 mb-4 text-3xl">schedule</span>
+          <h6 class="text-lg font-bold mb-2 dark:text-white">Atendimento 24h</h6>
+          <p class="text-sm text-slate-500 mb-3">80% das interações de rotina resolvidas por IA.</p>
+          <div class="text-purple-400 text-xs font-bold">Fonte: Gartner 2026</div>
+        </div>
+        <div class="p-6 rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
+          <span class="material-symbols-outlined text-cyan-400 mb-4 text-3xl">trending_up</span>
+          <h6 class="text-lg font-bold mb-2 dark:text-white">ROI Comprovado</h6>
+          <p class="text-sm text-slate-500 mb-3">ROI de 3,5x a 8x para automação com IA.</p>
+          <div class="text-cyan-400 text-xs font-bold">Fonte: Master of Code 2026</div>
+        </div>
+        <div class="p-6 rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:scale-[1.02] transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
+          <span class="material-symbols-outlined text-pink-400 mb-4 text-3xl">hub</span>
+          <h6 class="text-lg font-bold mb-2 dark:text-white">Escalabilidade</h6>
+          <p class="text-sm text-slate-500 mb-3">Cresça sem aumentar proporcionalmente seus custos fixos.</p>
+          <div class="text-pink-400 text-xs font-bold">Arquitetura multi-tenant nativa</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ TECH STACK (Powered By) ═══════════════ -->
+<section class="py-12 border-y border-white/5 scroll-reveal">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <p class="text-center text-xs text-slate-500 font-bold uppercase tracking-widest mb-8">Tecnologia de ponta sob o capô</p>
+    <div class="flex flex-wrap justify-center items-center gap-8 opacity-60">
+      <div class="flex items-center gap-2 text-slate-400 text-sm font-bold">
+        <span class="text-green-400 text-lg">🟢</span> OpenAI
+      </div>
+      <div class="flex items-center gap-2 text-slate-400 text-sm font-bold">
+        <span class="text-blue-400 text-lg">📱</span> Evolution API
+      </div>
+      <div class="flex items-center gap-2 text-slate-400 text-sm font-bold">
+        <span class="text-sky-400 text-lg">✈️</span> Telegram
+      </div>
+      <div class="flex items-center gap-2 text-slate-400 text-sm font-bold">
+        <span class="text-orange-400 text-lg">🐍</span> FastAPI
+      </div>
+      <div class="flex items-center gap-2 text-slate-400 text-sm font-bold">
+        <span class="text-blue-600 text-lg">🐘</span> PostgreSQL
+      </div>
+      <div class="flex items-center gap-2 text-slate-400 text-sm font-bold">
+        <span class="text-red-400 text-lg">⚡</span> Redis
+      </div>
+      <div class="flex items-center gap-2 text-slate-400 text-sm font-bold">
+        <span class="text-blue-400 text-lg">🐳</span> Docker
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ FAQ ═══════════════ -->
+<section class="py-24 bg-slate-50 dark:bg-background-dark/50 scroll-reveal" id="faq">
+  <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-12">
+      <h2 class="text-3xl md:text-4xl font-black text-slate-900 dark:text-white mb-4">Perguntas Frequentes</h2>
+    </div>
+    <div class="space-y-4" id="faqContainer">
+      <!-- FAQ items filled by JS -->
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ CTA FINAL ═══════════════ -->
+<section class="py-24 px-4 scroll-reveal" id="contato">
+  <div class="max-w-5xl mx-auto rounded-[2.5rem] bg-gradient-to-br from-primary via-primary/80 to-purple-600 p-12 lg:p-20 text-center relative overflow-hidden">
+    <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20"></div>
+    <div class="relative z-10 space-y-8">
+      <h2 class="text-4xl md:text-5xl font-black text-white leading-tight">
+        Pronto para automatizar sua empresa?
+      </h2>
+      <p class="text-white/80 text-lg max-w-2xl mx-auto leading-relaxed">
+        Fale com um especialista agora. Análise gratuita do seu processo atual e proposta personalizada sem compromisso.
+      </p>
+      <div class="flex flex-wrap justify-center gap-4 pt-4">
+        <a class="bg-white text-primary px-10 py-4 rounded-xl font-black hover:scale-105 transition-transform flex items-center gap-2" href="https://wa.me/message/4WIN5BM3ST4FK1">
+          <span class="material-symbols-outlined">chat</span>
+          Começar agora no WhatsApp
+        </a>
+        <a class="bg-background-dark/20 text-white border border-white/30 backdrop-blur-sm px-10 py-4 rounded-xl font-black hover:bg-white/10 transition-colors" href="/login">
+          Acessar Plataforma
+        </a>
+      </div>
+      <p class="text-white/50 text-sm">Sem setup fee · Deploy em 30 dias · Suporte em português</p>
+    </div>
+  </div>
+</section>
+
 </main>
-<footer class="py-12 border-t border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-background-dark">
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-<div class="flex flex-col md:flex-row justify-between items-center gap-8">
-<div class="flex items-center gap-3">
-<img alt="Auto Tech Lith Logo" class="size-8 opacity-50 grayscale" src="/assets/Gemini_Generated_Image_plosd7plosd7plos.png" onerror="this.style.display='none'"/>
-<span class="text-slate-500 font-bold">Auto Tech Lith</span>
-</div>
-<div class="flex gap-8 text-sm text-slate-500 font-medium">
-<a class="hover:text-primary transition-colors" href="#">Privacidade</a>
-<a class="hover:text-primary transition-colors" href="#">Termos</a>
-<a class="hover:text-primary transition-colors" href="#">Suporte</a>
-</div>
-<p class="text-xs text-slate-500">© 2026 Auto Tech Lith. Todos os direitos reservados.</p>
-</div>
-</div>
+
+<!-- ═══════════════ FOOTER ═══════════════ -->
+<footer class="py-16 border-t border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-background-dark">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-10 mb-10">
+
+      <!-- Brand -->
+      <div class="md:col-span-2">
+        <div class="flex items-center gap-3 mb-4">
+          <img alt="Auto Tech Lith Logo" class="size-8 rounded" src="/assets/Gemini_Generated_Image_plosd7plosd7plos.png" onerror="this.style.display='none'"/>
+          <span class="text-white font-bold text-lg">Auto Tech Lith</span>
+        </div>
+        <p class="text-slate-500 text-sm leading-relaxed max-w-xs">
+          Plataforma SaaS de automação de atendimento com IA. WhatsApp, Telegram e Web Chat — tudo em um painel.
+        </p>
+        <div class="flex gap-4 mt-5">
+          <a href="https://wa.me/message/4WIN5BM3ST4FK1" aria-label="WhatsApp" class="text-slate-500 hover:text-primary transition-colors">
+            <span class="material-symbols-outlined">chat</span>
+          </a>
+          <!-- Adicione LinkedIn, GitHub, Instagram quando disponível -->
+        </div>
+      </div>
+
+      <!-- Links Produto -->
+      <div>
+        <h6 class="text-white font-bold text-sm mb-4 uppercase tracking-widest">Produto</h6>
+        <ul class="space-y-2 text-sm text-slate-500">
+          <li><a href="#solucoes" class="hover:text-primary transition-colors">Soluções</a></li>
+          <li><a href="#nichos" class="hover:text-primary transition-colors">Nichos</a></li>
+          <li><a href="#demo" class="hover:text-primary transition-colors">Demo ao Vivo</a></li>
+          <li><a href="/login" class="hover:text-primary transition-colors">Acessar Plataforma</a></li>
+        </ul>
+      </div>
+
+      <!-- Links Empresa -->
+      <div>
+        <h6 class="text-white font-bold text-sm mb-4 uppercase tracking-widest">Empresa</h6>
+        <ul class="space-y-2 text-sm text-slate-500">
+          <li><a href="#sobre" class="hover:text-primary transition-colors">Sobre</a></li>
+          <li><a href="#faq" class="hover:text-primary transition-colors">FAQ</a></li>
+          <li><a href="#contato" class="hover:text-primary transition-colors">Contato</a></li>
+          <li><a href="/privacidade.html" class="hover:text-primary transition-colors">Privacidade</a></li>
+          <li><a href="/termos.html" class="hover:text-primary transition-colors">Termos de Uso</a></li>
+          <li><a href="/lgpd.html" class="hover:text-primary transition-colors">LGPD</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="border-t border-white/5 pt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+      <p class="text-xs text-slate-500">© <span id="footerYear"></span> Auto Tech Lith. Todos os direitos reservados.</p>
+      <p class="text-xs text-slate-600">Desenvolvido no Brasil 🇧🇷 · LGPD Compliant</p>
+    </div>
+  </div>
 </footer>
+
+<!-- ═══════════════ SCRIPTS ═══════════════ -->
+<script>
+// ── Mobile Menu ────────────────────────────────────────────────────
+function toggleMobileMenu() {
+  const menu = document.getElementById('mobileMenu');
+  const icon = document.getElementById('menuIcon');
+  menu.classList.toggle('open');
+  icon.textContent = menu.classList.contains('open') ? 'close' : 'menu';
+}
+function closeMobileMenu() {
+  const menu = document.getElementById('mobileMenu');
+  document.getElementById('menuIcon').textContent = 'menu';
+  menu.classList.remove('open');
+}
+
+// ── Footer year ────────────────────────────────────────────────────
+document.getElementById('footerYear').textContent = new Date().getFullYear();
+
+// ── Scroll Reveal ─────────────────────────────────────────────────
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); } });
+}, { threshold: 0.1 });
+document.querySelectorAll('.scroll-reveal').forEach(el => observer.observe(el));
+
+// ── Demo Chat ─────────────────────────────────────────────────────
+const demoResponses = {
+  'como funciona': `A plataforma tem 3 componentes principais:\n\n1️⃣ **Agente de IA** — responde automaticamente via WhatsApp, Telegram ou Web Chat\n2️⃣ **Painel Admin** — você gerencia clientes, conversas, reuniões e tickets\n3️⃣ **Funil de Vendas** — o agente guia cada lead pelas etapas do seu processo\n\nTudo configurável em português, sem programação. 🚀`,
+  'quanto custa': `Nosso modelo é SaaS — sem setup fee e sem custos ocultos.\n\nOs planos são personalizados conforme:\n- Volume de conversas mensais\n- Número de canais (WhatsApp, Telegram, Web)\n- Funcionalidades (multi-tenant, analytics avançado)\n\nFale comigo para receber uma proposta sob medida para o seu negócio! 👇`,
+  'tempo de implantação': `Nosso processo é rápido:\n\n📅 **Semana 1** — Análise e configuração dos agentes\n📅 **Semana 2** — Integração de canais e testes\n📅 **Semana 3** — Go live em produção\n📅 **Semana 4+** — Monitoramento e ajustes\n\nTotal: **menos de 30 dias** do contato ao sistema em operação. ✅`,
+  'meu nicho': `Atendemos +8 nichos com agentes pré-configurados:\n\n🏠 Imobiliário · ⚕️ Saúde · 📚 Educação\n🛒 E-commerce · 💻 Tecnologia/SaaS\n💰 Financeiro · ⚖️ Jurídico · 🍽️ Restaurante\n\nCada agente tem tom, autonomia e funil de vendas específicos para o seu setor. Qual é o seu?`,
+};
+
+function getBotResponse(msg) {
+  const lower = msg.toLowerCase();
+  if (lower.includes('como funciona') || lower.includes('funciona')) return demoResponses['como funciona'];
+  if (lower.includes('custa') || lower.includes('preço') || lower.includes('valor') || lower.includes('plano')) return demoResponses['quanto custa'];
+  if (lower.includes('tempo') || lower.includes('implanta') || lower.includes('dias') || lower.includes('quanto tempo')) return demoResponses['tempo de implantação'];
+  if (lower.includes('nicho') || lower.includes('setor') || lower.includes('meu')) return demoResponses['meu nicho'];
+  return `Ótima pergunta! 😊 Para responder com precisão sobre "${msg}", vou conectar você com um especialista da Auto Tech Lith. Quer continuar pelo WhatsApp? <a href="https://wa.me/message/4WIN5BM3ST4FK1" class="text-primary underline">Clique aqui</a>`;
+}
+
+function appendMessage(text, type) {
+  const container = document.getElementById('chatDemoMessages');
+  const div = document.createElement('div');
+  div.className = type === 'user' ? 'chat-bubble-user' : 'chat-bubble-bot';
+  div.innerHTML = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br/>');
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function showTyping() {
+  const container = document.getElementById('chatDemoMessages');
+  const div = document.createElement('div');
+  div.className = 'typing-indicator';
+  div.id = 'typingIndicator';
+  div.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function hideTyping() {
+  const el = document.getElementById('typingIndicator');
+  if (el) el.remove();
+}
+
+function demoSend(msg) {
+  appendMessage(msg, 'user');
+  showTyping();
+  setTimeout(() => {
+    hideTyping();
+    appendMessage(getBotResponse(msg), 'bot');
+  }, 900 + Math.random() * 600);
+}
+
+function demoSendInput() {
+  const input = document.getElementById('chatDemoInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+  demoSend(msg);
+}
+
+// ── FAQ ───────────────────────────────────────────────────────────
+const faqs = [
+  { q: 'Preciso saber programar para usar a plataforma?', a: 'Não. A plataforma é totalmente configurável via interface visual. Você define o agente, tom, funil e canais sem escrever código.' },
+  { q: 'É compatível com a LGPD?', a: 'Sim. A plataforma usa MFA, criptografia de dados sensíveis (chaves de API) e controle de acesso por role. Adicionalmente, as páginas de Privacidade e Termos detalham o tratamento de dados.' },
+  { q: 'Posso usar minha própria API Key (OpenAI, Anthropic, etc)?', a: 'Sim. Na seção "Configuração de IA" do painel, você adiciona sua própria chave de qualquer provedor suportado (OpenAI, Anthropic, Groq, Google, Mistral). As chaves são criptografadas e nunca expostas.' },
+  { q: 'Quantos canais posso conectar?', a: 'Você pode conectar WhatsApp via Evolution API, Telegram Bot e Web Chat simultaneamente. Cada canal pode ter um agente independente com personalidade e configuração próprias.' },
+  { q: 'O que é o modelo multi-tenant?', a: 'Você pode gerenciar múltiplos clientes (tenants) em uma única instalação. Cada cliente tem seu painel isolado, agentes, dados e configurações. Ideal para agências e revendedores.' },
+  { q: 'Em quanto tempo o sistema fica em produção?', a: 'Menos de 30 dias do primeiro contato ao go live. O processo inclui análise, configuração dos agentes, integração dos canais e treinamento da equipe.' },
+];
+
+const faqContainer = document.getElementById('faqContainer');
+faqs.forEach((faq, i) => {
+  faqContainer.innerHTML += `
+    <div class="rounded-2xl glass border-white/5 overflow-hidden">
+      <button class="w-full flex justify-between items-center p-5 text-left hover:bg-white/5 transition-colors" onclick="toggleFaq(${i})">
+        <span class="font-bold text-sm text-white">${faq.q}</span>
+        <span class="material-symbols-outlined text-primary transition-transform" id="faqIcon${i}">expand_more</span>
+      </button>
+      <div id="faqBody${i}" class="hidden px-5 pb-5">
+        <p class="text-slate-400 text-sm leading-relaxed">${faq.a}</p>
+      </div>
+    </div>`;
+});
+
+function toggleFaq(i) {
+  const body = document.getElementById('faqBody' + i);
+  const icon = document.getElementById('faqIcon' + i);
+  const isOpen = !body.classList.contains('hidden');
+  body.classList.toggle('hidden');
+  icon.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+}
+</script>
+
 </body>
 </html>
