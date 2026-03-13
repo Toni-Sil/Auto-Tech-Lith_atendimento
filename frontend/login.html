@@ -5,7 +5,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login · Auto Tech Lith</title>
+
+    <!-- CSP: libera fonts, self e conexão com a API -->
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline';
+        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+        font-src 'self' https://fonts.gstatic.com;
+        connect-src 'self' http://localhost:8000 http://127.0.0.1:8000;
+        img-src 'self' data:;
+    ">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         *,
@@ -33,7 +45,6 @@
             overflow: hidden;
         }
 
-        /* Animated background orbs */
         body::before,
         body::after {
             content: '';
@@ -62,15 +73,8 @@
         }
 
         @keyframes float {
-
-            0%,
-            100% {
-                transform: translateY(0) scale(1);
-            }
-
-            50% {
-                transform: translateY(-30px) scale(1.05);
-            }
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-30px) scale(1.05); }
         }
 
         .login-wrapper {
@@ -81,7 +85,6 @@
             padding: 1.5rem;
         }
 
-        /* Logo / Brand */
         .brand {
             text-align: center;
             margin-bottom: 2rem;
@@ -113,7 +116,6 @@
             margin-top: 0.25rem;
         }
 
-        /* Card */
         .login-card {
             background: rgba(255, 255, 255, 0.07);
             backdrop-filter: blur(24px);
@@ -190,9 +192,7 @@
             box-shadow: 0 8px 24px var(--accent-glow);
         }
 
-        .btn-login:active {
-            transform: translateY(0);
-        }
+        .btn-login:active { transform: translateY(0); }
 
         .btn-login:disabled {
             opacity: 0.6;
@@ -200,7 +200,6 @@
             transform: none;
         }
 
-        /* Spinner */
         .spinner {
             display: none;
             width: 20px;
@@ -212,13 +211,8 @@
             margin: 0 auto;
         }
 
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* Error */
         .error-banner {
             display: none;
             background: rgba(239, 68, 68, 0.15);
@@ -231,7 +225,6 @@
             text-align: center;
         }
 
-        /* Portal badges (shown after role detected) */
         .portal-hint {
             display: none;
             margin-top: 1.5rem;
@@ -260,7 +253,6 @@
             color: #6ee7b7;
         }
 
-        /* Footer */
         .login-footer {
             text-align: center;
             margin-top: 1.5rem;
@@ -288,8 +280,7 @@
                 </div>
                 <div class="form-group">
                     <label for="password">Senha</label>
-                    <input type="password" id="password" placeholder="••••••••" required
-                        autocomplete="current-password">
+                    <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
                 </div>
 
                 <button type="submit" class="btn-login" id="btnLogin">
@@ -301,7 +292,6 @@
                     ❌ Usuário ou senha inválidos. Tente novamente.
                 </div>
 
-                <!-- Role detected hint -->
                 <div class="portal-hint" id="portalHint">
                     <div class="portal-badge master" id="masterBadge" style="display:none;">
                         🛡️ Redirecionando para o Painel Master Admin...
@@ -314,48 +304,46 @@
         </div>
 
         <div class="login-footer">
-            Auto Tech Lith · Antigravity Admin v3.0 · © 2025
+            Auto Tech Lith · © <span id="footerYear"></span>
         </div>
     </div>
 
     <script>
+        document.getElementById('footerYear').textContent = new Date().getFullYear();
+
         function b64DecodeUnicode(str) {
             try {
                 return decodeURIComponent(atob(str).split('').map(function (c) {
                     return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
                 }).join(''));
             } catch (e) {
-                return atob(str); // Fallback to raw atob
+                return atob(str);
             }
         }
+
+        const apiBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? `http://${window.location.hostname}:8000`
+            : '';
 
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const btn = document.getElementById('btnLogin');
-            const btnText = document.getElementById('btnText');
-            const spinner = document.getElementById('spinner');
+            const btn        = document.getElementById('btnLogin');
+            const btnText    = document.getElementById('btnText');
+            const spinner    = document.getElementById('spinner');
             const errorBanner = document.getElementById('errorBanner');
             const portalHint = document.getElementById('portalHint');
 
-            // Loading state
             btn.disabled = true;
             btnText.style.display = 'none';
             spinner.style.display = 'block';
             errorBanner.style.display = 'none';
 
-            // Clear legacy tokens to ensure cookie-based auth is preferred
             localStorage.removeItem('token');
 
             const formData = new URLSearchParams();
             formData.append('username', document.getElementById('username').value.trim());
             formData.append('password', document.getElementById('password').value);
-
-            const apiBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                ? `http://${window.location.hostname}:8000`
-                : '';
-
-            console.log('API Request to:', `${apiBase}/api/v1/auth/token`);
 
             try {
                 const response = await fetch(`${apiBase}/api/v1/auth/token`, {
@@ -365,31 +353,18 @@
                     credentials: 'include'
                 });
 
-                if (!response.ok) {
-                    const errBody = await response.text();
-                    console.error('Login error:', response.status, errBody);
-                    throw new Error('Credenciais inválidas');
-                }
-                const data = await response.json();
+                if (!response.ok) throw new Error('Credenciais inválidas');
 
-                // O token agora é enviado via HttpOnly Cookie pelo backend, 
-                // mas ainda precisamos dele no localStorage para os guards do frontend.
+                const data = await response.json();
                 localStorage.setItem('token', data.access_token);
 
-                // ── RBAC Portal Routing ──────────────────────────────────
-                // Decode JWT to determine which portal to show
-                let targetPortal = '/admin';  // ✅ FIXED: default tenant admin goes to /admin
+                let targetPortal = '/admin';
                 try {
-                    const tokenParts = data.access_token.split('.');
-                    // Base64URL decode: replace chars and add padding if needed
-                    const base64Url = tokenParts[1].replace(/-/g, '+').replace(/_/g, '/');
-                    const base64 = b64DecodeUnicode(base64Url);
-                    const payload = JSON.parse(base64);
-
+                    const base64Url = data.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+                    const payload = JSON.parse(b64DecodeUnicode(base64Url));
                     const role = (payload.role || '').toLowerCase();
                     const masterRoles = ['owner', 'master_admin', 'admin', 'master', 'super admin', 'superadmin'];
                     const tenantRoles = ['tenant', 'client', 'user'];
-
                     const isMaster = masterRoles.includes(role) && (!payload.tenant_id || payload.tenant_id === null);
                     const isTenant = tenantRoles.includes(role) || (payload.tenant_id && !masterRoles.includes(role));
 
@@ -397,32 +372,21 @@
                         targetPortal = '/master.html';
                     } else if (isTenant) {
                         targetPortal = '/client.html';
-                    } else {
-                        targetPortal = '/admin'; // ✅ FIXED: tenant admin → /admin (not /)
                     }
 
-                    // Show redirect badge
                     portalHint.style.display = 'flex';
                     if (isMaster) {
                         document.getElementById('masterBadge').style.display = 'block';
                     } else {
                         document.getElementById('lojistaBadge').style.display = 'block';
+                        if (isTenant) {
+                            document.getElementById('lojistaBadge').textContent = '🏪 Redirecionando para o Portal do Cliente...';
+                        }
                     }
-
-                    // Update lojista badge text for client portal
-                    if (isTenant) {
-                        document.getElementById('lojistaBadge').textContent = '🏪 Redirecionando para o Portal do Cliente...';
-                    }
-
-                } catch (e) {
-                    console.error('JWT Decode Error:', e);
-                    // JWT decode failed — go to admin by default
+                } catch (_) {
                     targetPortal = '/admin';
                 }
 
-                console.log('Redirecting to:', targetPortal); // ✅ Debug log
-
-                // Short delay to show badge, then redirect
                 setTimeout(() => { window.location.href = targetPortal; }, 800);
 
             } catch (error) {
@@ -433,7 +397,6 @@
             }
         });
 
-        // Press Enter on username → focus password
         document.getElementById('username').addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
