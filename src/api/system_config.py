@@ -1,257 +1,241 @@
 """
-System Config API — Master Admin only.
+System Config Router — Allows Master Admin to read/update platform settings at runtime.
+Values are read from the environment (via `settings`) and can be overridden in a
+persistent JSON file (`system_config_override.json`) so the app doesn't need a restart.
 
-Allows reading and writing platform-level settings that would otherwise
-require a code/env change. Sensitive values are stored encrypted in DB.
-Falls back to the current settings.* values when no DB record exists.
+Security: all endpoints require role=owner/master_admin with NO tenant affiliation.
 """
 
 from __future__ import annotations
 
 import json
-from typing import Annotated, Any, Dict, Optional
+import os
+import smtplib
+from email.mime.text import MIMEText
+from pathlib import Path
+from typing import Annotated, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.config import settings
-from src.models.database import get_db
-from src.models.admin import AdminUser
-from src.models.system_config import SystemConfig
 from src.api.auth import get_current_user
+from src.config import settings
+from src.models.admin import AdminUser
 from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
-sysconfig_router = APIRouter()
+system_config_router = APIRouter()
+
+# Path to the override file (lives beside the .env, outside src/)
+OVERRIDE_FILE = Path(os.getenv("SYSTEM_CONFIG_FILE", "system_config_override.json"))
 
 
-# ── Gate ─────────────────────────────────────────────────────────
+# ── Gate ─────────────────────────────────────────────────────────────────────
+
 def _require_master(current_user: AdminUser = Depends(get_current_user)) -> AdminUser:
     allowed = ["owner", "admin", "master_admin", "master", "super admin", "superadmin"]
     role = (current_user.role or "").lower()
     if role not in allowed or current_user.tenant_id is not None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
-                            detail="Master Admin access required.")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Master Admin access required.")
     return current_user
 
 
-# ── Keys considered sensitive (will be masked on GET) ────────────
-SENSITIVE = {"openai_api_key", "evolution_api_key", "smtp_password", "secret_key"}
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
-# ── Keys that are safe to expose as-is ───────────────────────────
-PUBLIC_KEYS = {
-    "openai_model", "evolution_api_url", "evolution_instance_name",
-    "verify_token", "smtp_server", "smtp_port", "smtp_user",
-    "access_token_expire_minutes", "refresh_token_expire_minutes",
-    "app_debug", "backend_cors_origins", "public_url",
-}
-
-ALL_KEYS = PUBLIC_KEYS | SENSITIVE
-
-
-def _fernet():
-    try:
-        from cryptography.fernet import Fernet
-        import os
-        key = os.environ.get("ENCRYPTION_KEY")
-        if not key:
-            return None
-        return Fernet(key.encode() if isinstance(key, str) else key)
-    except ImportError:
-        return None
-
-
-def _encrypt(value: str) -> str:
-    f = _fernet()
-    if f:
-        return f.encrypt(value.encode()).decode()
-    return value  # store plain if no ENCRYPTION_KEY
-
-
-def _decrypt(value: str) -> str:
-    f = _fernet()
-    if f:
+def _load_overrides() -> dict:
+    if OVERRIDE_FILE.exists():
         try:
-            return f.decrypt(value.encode()).decode()
+            return json.loads(OVERRIDE_FILE.read_text(encoding="utf-8"))
         except Exception:
-            pass
-    return value
+            return {}
+    return {}
 
 
-def _settings_default(key: str) -> Any:
-    """Return the current in-memory settings value for a given key."""
-    mapping = {
-        "openai_api_key":                  getattr(settings, "OPENAI_API_KEY", ""),
-        "openai_model":                    getattr(settings, "OPENAI_MODEL", "gpt-4o-mini"),
-        "evolution_api_url":               getattr(settings, "EVOLUTION_API_URL", ""),
-        "evolution_api_key":               getattr(settings, "EVOLUTION_API_KEY", ""),
-        "evolution_instance_name":         getattr(settings, "EVOLUTION_INSTANCE_NAME", "default"),
-        "verify_token":                    getattr(settings, "VERIFY_TOKEN", ""),
-        "smtp_server":                     getattr(settings, "SMTP_SERVER", ""),
-        "smtp_port":                       str(getattr(settings, "SMTP_PORT", 587)),
-        "smtp_user":                       getattr(settings, "SMTP_USER", ""),
-        "smtp_password":                   getattr(settings, "SMTP_PASSWORD", ""),
-        "access_token_expire_minutes":     str(getattr(settings, "ACCESS_TOKEN_EXPIRE_MINUTES", 30)),
-        "refresh_token_expire_minutes":    str(getattr(settings, "REFRESH_TOKEN_EXPIRE_MINUTES", 1440)),
-        "app_debug":                       str(getattr(settings, "APP_DEBUG", True)).lower(),
-        "backend_cors_origins":            json.dumps(getattr(settings, "BACKEND_CORS_ORIGINS", [])),
-        "public_url":                      getattr(settings, "PUBLIC_URL", "") or "",
-        "secret_key":                      getattr(settings, "SECRET_KEY", ""),
-    }
-    return mapping.get(key, "")
+def _save_overrides(data: dict) -> None:
+    OVERRIDE_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
-# ── Schemas ───────────────────────────────────────────────────────
-
-class ConfigEntry(BaseModel):
-    key: str
-    value: str
-
-class SystemConfigPayload(BaseModel):
-    configs: Dict[str, str]
+def _get(key: str, default=None):
+    """Return override value first, then settings, then default."""
+    overrides = _load_overrides()
+    if key in overrides:
+        return overrides[key]
+    return getattr(settings, key, default)
 
 
-# ── Helpers ───────────────────────────────────────────────────────
+# ── Schemas ───────────────────────────────────────────────────────────────────
 
-async def _get_all(db: AsyncSession) -> Dict[str, str]:
-    rows = (await db.execute(select(SystemConfig))).scalars().all()
-    db_map = {r.key: r for r in rows}
-    result = {}
-    for key in ALL_KEYS:
-        if key in db_map:
-            raw = db_map[key].value
-            result[key] = _decrypt(raw) if key in SENSITIVE else raw
-        else:
-            result[key] = _settings_default(key)
-    return result
+class SystemConfigResponse(BaseModel):
+    # General
+    project_name: str
+    env: str
+    app_debug: bool
+    public_url: Optional[str]
+    verify_token: str
+    # AI
+    openai_model: str
+    openai_api_key_masked: str
+    # Evolution
+    evolution_api_url: str
+    evolution_api_key_masked: str
+    # Tokens
+    access_token_expire_minutes: int
+    refresh_token_expire_minutes: int
+    # SMTP
+    smtp_server: Optional[str]
+    smtp_port: int
+    smtp_user: Optional[str]
+    smtp_password_masked: str
+    # CORS
+    backend_cors_origins: List[str]
+    # Telegram
+    telegram_bot_token_masked: str
+    telegram_chat_id: Optional[str]
 
 
-# ── Endpoints ─────────────────────────────────────────────────────
+class SystemConfigUpdate(BaseModel):
+    # General
+    project_name: Optional[str] = None
+    env: Optional[str] = None
+    app_debug: Optional[bool] = None
+    public_url: Optional[str] = None
+    verify_token: Optional[str] = None
+    # AI
+    openai_model: Optional[str] = None
+    openai_api_key: Optional[str] = None
+    # Evolution
+    evolution_api_url: Optional[str] = None
+    evolution_api_key: Optional[str] = None
+    # Tokens
+    access_token_expire_minutes: Optional[int] = None
+    refresh_token_expire_minutes: Optional[int] = None
+    # SMTP
+    smtp_server: Optional[str] = None
+    smtp_port: Optional[int] = None
+    smtp_user: Optional[str] = None
+    smtp_password: Optional[str] = None
+    # CORS
+    backend_cors_origins: Optional[List[str]] = None
+    # Telegram
+    telegram_bot_token: Optional[str] = None
+    telegram_chat_id: Optional[str] = None
 
-@sysconfig_router.get("/system-config")
+
+class SmtpTestRequest(BaseModel):
+    to_email: str
+
+
+def _mask(value: Optional[str], show: int = 4) -> str:
+    if not value:
+        return "(não definido)"
+    if len(value) <= show:
+        return "****"
+    return f"{'*' * (len(value) - show)}{value[-show:]}"
+
+
+# ── Endpoints ─────────────────────────────────────────────────────────────────
+
+@system_config_router.get("/system-config", response_model=SystemConfigResponse)
 async def get_system_config(
     master: Annotated[AdminUser, Depends(_require_master)],
-    db: AsyncSession = Depends(get_db),
 ):
-    """Return all config keys. Sensitive keys are masked (****last4)."""
-    data = await _get_all(db)
-    masked = {}
-    for k, v in data.items():
-        if k in SENSITIVE and v:
-            tail = v[-4:] if len(v) >= 4 else "****"
-            masked[k] = f"****{tail}"
-        else:
-            masked[k] = v
-    return masked
+    """Return current platform configuration (secrets masked)."""
+    return SystemConfigResponse(
+        project_name=_get("PROJECT_NAME", ""),
+        env=_get("ENV", "development"),
+        app_debug=_get("APP_DEBUG", True),
+        public_url=_get("PUBLIC_URL"),
+        verify_token=_get("VERIFY_TOKEN", ""),
+        openai_model=_get("OPENAI_MODEL", "gpt-4o-mini"),
+        openai_api_key_masked=_mask(_get("OPENAI_API_KEY", "")),
+        evolution_api_url=_get("EVOLUTION_API_URL", ""),
+        evolution_api_key_masked=_mask(_get("EVOLUTION_API_KEY", "")),
+        access_token_expire_minutes=_get("ACCESS_TOKEN_EXPIRE_MINUTES", 30),
+        refresh_token_expire_minutes=_get("REFRESH_TOKEN_EXPIRE_MINUTES", 1440),
+        smtp_server=_get("SMTP_SERVER"),
+        smtp_port=_get("SMTP_PORT", 587),
+        smtp_user=_get("SMTP_USER"),
+        smtp_password_masked=_mask(_get("SMTP_PASSWORD")),
+        backend_cors_origins=_get("BACKEND_CORS_ORIGINS", []),
+        telegram_bot_token_masked=_mask(_get("TELEGRAM_BOT_TOKEN")),
+        telegram_chat_id=_get("TELEGRAM_CHAT_ID"),
+    )
 
 
-@sysconfig_router.post("/system-config")
-async def save_system_config(
-    body: SystemConfigPayload,
+@system_config_router.put("/system-config")
+async def update_system_config(
+    body: SystemConfigUpdate,
     master: Annotated[AdminUser, Depends(_require_master)],
-    db: AsyncSession = Depends(get_db),
 ):
-    """Persist one or more config keys. Ignores unknown keys."""
-    from src.models.audit import AuditLog
+    """Persist non-null fields to the override file."""
+    overrides = _load_overrides()
+    mapping = {
+        "project_name": "PROJECT_NAME",
+        "env": "ENV",
+        "app_debug": "APP_DEBUG",
+        "public_url": "PUBLIC_URL",
+        "verify_token": "VERIFY_TOKEN",
+        "openai_model": "OPENAI_MODEL",
+        "openai_api_key": "OPENAI_API_KEY",
+        "evolution_api_url": "EVOLUTION_API_URL",
+        "evolution_api_key": "EVOLUTION_API_KEY",
+        "access_token_expire_minutes": "ACCESS_TOKEN_EXPIRE_MINUTES",
+        "refresh_token_expire_minutes": "REFRESH_TOKEN_EXPIRE_MINUTES",
+        "smtp_server": "SMTP_SERVER",
+        "smtp_port": "SMTP_PORT",
+        "smtp_user": "SMTP_USER",
+        "smtp_password": "SMTP_PASSWORD",
+        "backend_cors_origins": "BACKEND_CORS_ORIGINS",
+        "telegram_bot_token": "TELEGRAM_BOT_TOKEN",
+        "telegram_chat_id": "TELEGRAM_CHAT_ID",
+    }
+    changed = []
+    for field, env_key in mapping.items():
+        val = getattr(body, field, None)
+        if val is not None:
+            overrides[env_key] = val
+            changed.append(env_key)
 
-    updated = []
-    for key, value in body.configs.items():
-        if key not in ALL_KEYS:
-            continue
-        # Skip placeholder masks — user didn't change the value
-        if key in SENSITIVE and value.startswith("****"):
-            continue
+    if changed:
+        _save_overrides(overrides)
+        logger.info(f"[SystemConfig] Updated by {master.username}: {changed}")
 
-        stored = _encrypt(value) if key in SENSITIVE else value
+    return {"status": "success", "updated": changed,
+            "message": f"{len(changed)} configuração(ões) salva(s). Reinicie o container para aplicar mudanças em runtime."}
 
-        existing = await db.scalar(
-            select(SystemConfig).where(SystemConfig.key == key)
+
+@system_config_router.post("/system-config/test-smtp")
+async def test_smtp(
+    body: SmtpTestRequest,
+    master: Annotated[AdminUser, Depends(_require_master)],
+):
+    """Send a test e-mail using current SMTP config."""
+    server = _get("SMTP_SERVER")
+    port = _get("SMTP_PORT", 587)
+    user = _get("SMTP_USER")
+    password = _get("SMTP_PASSWORD")
+
+    if not server or not user or not password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Configurações SMTP incompletas. Preencha servidor, usuário e senha primeiro.",
         )
-        if existing:
-            existing.value = stored
-        else:
-            db.add(SystemConfig(key=key, value=stored))
-        updated.append(key)
-
-    if updated:
-        db.add(AuditLog(
-            tenant_id=None,
-            event_type="system_config_updated",
-            username=master.username,
-            details=json.dumps({"keys_updated": updated}),
-        ))
-        await db.commit()
-
-    return {"status": "success", "updated": updated}
-
-
-@sysconfig_router.post("/system-config/test-connection")
-async def test_connection(
-    body: ConfigEntry,
-    master: Annotated[AdminUser, Depends(_require_master)],
-    db: AsyncSession = Depends(get_db),
-):
-    """Quick connectivity test for a specific service."""
-    import httpx
-
-    key = body.key
-    value = body.value
-
-    # If masked, resolve real value from DB / settings
-    if value.startswith("****"):
-        real = await db.scalar(select(SystemConfig).where(SystemConfig.key == key))
-        value = _decrypt(real.value) if real else _settings_default(key)
 
     try:
-        if key == "openai_api_key":
-            async with httpx.AsyncClient() as c:
-                r = await c.get(
-                    "https://api.openai.com/v1/models",
-                    headers={"Authorization": f"Bearer {value}"},
-                    timeout=8,
-                )
-                if r.status_code == 200:
-                    return {"ok": True, "message": "✅ OpenAI: chave válida"}
-                return {"ok": False, "message": f"❌ OpenAI: HTTP {r.status_code}"}
+        msg = MIMEText("Este é um e-mail de teste enviado pela plataforma Auto Tech Lith.")
+        msg["Subject"] = "[Auto Tech Lith] Teste de SMTP"
+        msg["From"] = user
+        msg["To"] = body.to_email
 
-        if key == "evolution_api_key":
-            # Resolve URL too
-            url_row = await db.scalar(select(SystemConfig).where(SystemConfig.key == "evolution_api_url"))
-            url = url_row.value if url_row else _settings_default("evolution_api_url")
-            if not url:
-                return {"ok": False, "message": "❌ Evolution API URL não configurada"}
-            async with httpx.AsyncClient() as c:
-                r = await c.get(
-                    f"{url.rstrip('/')}/instance/fetchInstances",
-                    headers={"apikey": value},
-                    timeout=8,
-                )
-                if r.status_code in (200, 201):
-                    return {"ok": True, "message": "✅ Evolution API: conexão OK"}
-                return {"ok": False, "message": f"❌ Evolution API: HTTP {r.status_code}"}
+        with smtplib.SMTP(server, port, timeout=10) as smtp:
+            smtp.ehlo()
+            smtp.starttls()
+            smtp.login(user, password)
+            smtp.sendmail(user, [body.to_email], msg.as_string())
 
-        if key == "smtp_server":
-            import smtplib
-            port_row = await db.scalar(select(SystemConfig).where(SystemConfig.key == "smtp_port"))
-            port = int(port_row.value if port_row else _settings_default("smtp_port") or 587)
-            user_row = await db.scalar(select(SystemConfig).where(SystemConfig.key == "smtp_user"))
-            user = user_row.value if user_row else _settings_default("smtp_user")
-            pass_row = await db.scalar(select(SystemConfig).where(SystemConfig.key == "smtp_password"))
-            pwd = _decrypt(pass_row.value) if pass_row else _settings_default("smtp_password")
-            try:
-                with smtplib.SMTP(value, port, timeout=8) as s:
-                    s.ehlo()
-                    if port in (587, 465):
-                        s.starttls()
-                    if user and pwd:
-                        s.login(user, pwd)
-                return {"ok": True, "message": f"✅ SMTP: conectado em {value}:{port}"}
-            except Exception as e:
-                return {"ok": False, "message": f"❌ SMTP: {str(e)[:80]}"}
-
-        return {"ok": False, "message": "Teste não disponível para esta chave"}
+        return {"status": "success", "message": f"E-mail de teste enviado para {body.to_email}!"}
     except Exception as e:
-        logger.error(f"test_connection error ({key}): {e}")
-        return {"ok": False, "message": f"Erro: {str(e)[:100]}"}
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Falha ao enviar e-mail: {str(e)}",
+        )
