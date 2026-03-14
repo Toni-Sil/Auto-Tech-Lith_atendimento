@@ -1,12 +1,12 @@
 """
-Handoff Service — Sprint 1
+Handoff Service — Sprint 2 (atualizado)
 
 Gerencia a escalada de atendimento da IA para humano.
 
 Fluxo:
 1. Agente IA detecta gatilho (keyword, baixa confiança, frustração)
 2. HandoffService pausa o agente para aquela conversa
-3. Operador recebe alerta com resumo + histórico
+3. Operador recebe alerta com resumo + histórico via Telegram E WhatsApp
 4. Operador responde pelo painel
 5. Operador 'libera' conversa → agente retoma
 """
@@ -43,12 +43,13 @@ class HandoffContext:
 class HandoffService:
     """
     Gerencia pausar, retomar e registrar handoffs de conversa.
+    Sprint 2: notificações via Telegram e WhatsApp completamente integradas.
     """
 
     HANDOFF_MESSAGE = (
         "👤 *Transferindo para atendente humano...*\n\n"
         "Estou passando seu atendimento para nossa equipe. "
-        "Em breve alguém vai te atender! Por favor, aguarde. \u23f3"
+        "Em breve alguém vai te atender! Por favor, aguarde. ⏳"
     )
 
     RESUME_MESSAGE = (
@@ -58,7 +59,7 @@ class HandoffService:
 
     async def escalate(self, ctx: HandoffContext, db: AsyncSession) -> bool:
         """
-        Pausa o agente IA e notifica o operador.
+        Pausa o agente IA e notifica o operador via Telegram + WhatsApp.
         Retorna True se handoff foi iniciado com sucesso.
         """
         try:
@@ -99,15 +100,20 @@ class HandoffService:
 
             await db.commit()
 
-            # 3. Preparar alerta para operador
+            # 3. Construir alerta
             alert = self._build_operator_alert(ctx)
-            logger.info(
-                "[Handoff] tenant=%s conv=%s reason=%s | Alerta enviado ao operador.",
-                ctx.tenant_id, ctx.conversation_id, ctx.trigger_reason
-            )
-            # TODO Sprint 2: telegram_service.send(ctx.tenant_id, alert)
-            # TODO Sprint 2: whatsapp_service.send_to_operator(ctx.tenant_id, alert)
 
+            # 4. Notificar operador via Telegram (primário)
+            telegram_sent = await self._notify_via_telegram(ctx.tenant_id, alert)
+
+            # 5. Fallback: WhatsApp se Telegram falhar
+            if not telegram_sent:
+                await self._notify_via_whatsapp(ctx.tenant_id, alert, db)
+
+            logger.info(
+                "[Handoff] tenant=%s conv=%s reason=%s | Alerta enviado (telegram=%s).",
+                ctx.tenant_id, ctx.conversation_id, ctx.trigger_reason, telegram_sent
+            )
             return True
 
         except Exception as e:
@@ -117,6 +123,7 @@ class HandoffService:
     async def release(self, conversation_id: int, tenant_id: int, db: AsyncSession) -> bool:
         """
         Operador libera a conversa → agente IA retoma.
+        Notifica o cliente que a IA voltou.
         """
         try:
             await db.execute(
@@ -136,62 +143,146 @@ class HandoffService:
             logger.exception("[Handoff] Erro ao liberar conversa %s: %s", conversation_id, e)
             return False
 
-    def should_handoff(self, message: str, triggers: list[str], confidence: float = 1.0) -> tuple[bool, str]:
+    def should_handoff(
+        self,
+        message: str,
+        triggers: list[str],
+        confidence: float = 1.0
+    ) -> tuple[bool, str]:
         """
         Verifica se uma mensagem deve acionar handoff.
         Retorna (deve_escalar, motivo).
-
-        Gatilhos:
-        - Keyword match (configurável por tenant via agent_profile.handoff_triggers)
-        - Baixa confiança da IA (< 0.4)
-        - Expressões de frustração universais
         """
         msg_lower = message.lower()
 
-        # 1. Baixa confiança da IA
         if confidence < 0.4:
             return True, "low_confidence"
 
-        # 2. Expressões de frustração universais
         frustration_phrases = [
             "falar com humano", "falar com atendente", "quero um humano",
             "isso não ajuda", "inútil", "não entendeu", "gerente", "responsável",
-            "cancelar", "processo", "reclamação", "procon",
+            "cancelar", "processo", "reclamação", "procon", "absurdo",
+            "péssimo", "horrível", "não funciona", "quero cancelar",
         ]
         for phrase in frustration_phrases:
             if phrase in msg_lower:
                 return True, "frustration"
 
-        # 3. Keywords configuradas pelo tenant
         for trigger in triggers:
             if trigger.lower() in msg_lower:
                 return True, f"keyword:{trigger}"
 
         return False, ""
 
+    # ─────────────────────────────────────────────────────────
+    # NOTIFICAÇÕES — Sprint 2
+    # ─────────────────────────────────────────────────────────
+
+    async def _notify_via_telegram(
+        self, tenant_id: int, message: str
+    ) -> bool:
+        """
+        Envia alerta de handoff para o operador via Telegram.
+        Busca o chat_id do operador nas preferências do tenant.
+        """
+        try:
+            from src.services.telegram_service import telegram_service
+            from src.models.database import async_session
+            from sqlalchemy import select
+            from src.models.preferences import TenantPreference
+
+            async with async_session() as db:
+                result = await db.execute(
+                    select(TenantPreference).where(
+                        TenantPreference.tenant_id == tenant_id
+                    )
+                )
+                pref = result.scalar_one_or_none()
+
+            if not pref:
+                logger.warning("[Handoff] Sem preferências de notificação para tenant %s", tenant_id)
+                return False
+
+            # Suporte a campo telegram_operator_chat_id ou telegram_chat_id
+            chat_id = (
+                getattr(pref, "telegram_operator_chat_id", None)
+                or getattr(pref, "telegram_chat_id", None)
+            )
+
+            if not chat_id:
+                logger.warning("[Handoff] Sem telegram_chat_id para tenant %s", tenant_id)
+                return False
+
+            await telegram_service.send_message_to_chat(str(chat_id), message)
+            return True
+
+        except Exception as e:
+            logger.error("[Handoff] Telegram notify falhou para tenant %s: %s", tenant_id, e)
+            return False
+
+    async def _notify_via_whatsapp(
+        self, tenant_id: int, message: str, db: AsyncSession
+    ) -> bool:
+        """
+        Fallback: envia alerta de handoff via WhatsApp para o número do operador.
+        Usa a instância Evolution API do tenant.
+        """
+        try:
+            from src.services.whatsapp_service import WhatsAppService
+            from sqlalchemy import select
+            from src.models.preferences import TenantPreference
+
+            result = await db.execute(
+                select(TenantPreference).where(
+                    TenantPreference.tenant_id == tenant_id
+                )
+            )
+            pref = result.scalar_one_or_none()
+
+            if not pref:
+                return False
+
+            operator_phone = getattr(pref, "operator_whatsapp_phone", None)
+            if not operator_phone:
+                logger.warning("[Handoff] Sem operator_whatsapp_phone para tenant %s", tenant_id)
+                return False
+
+            wa_service = WhatsAppService(tenant_id=tenant_id)
+            await wa_service.send_text(phone=operator_phone, text=message)
+            logger.info("[Handoff] Alerta enviado via WhatsApp para operador tenant %s", tenant_id)
+            return True
+
+        except Exception as e:
+            logger.error("[Handoff] WhatsApp notify falhou para tenant %s: %s", tenant_id, e)
+            return False
+
     def _build_operator_alert(self, ctx: HandoffContext) -> str:
         """Monta mensagem de alerta para o operador com contexto completo."""
         lines = [
-            f"🔔 *ATENDIMENTO PARA HUMANO*",
-            f"",
+            "🔔 *ATENDIMENTO PARA HUMANO*",
+            "",
             f"👤 Cliente: {ctx.customer_name}",
             f"📱 Telefone: {ctx.customer_phone}",
             f"⚠️ Motivo: {ctx.trigger_reason}",
-            f"",
-            f"📝 *Resumo da conversa:*",
-            f"{ctx.conversation_summary}",
-            f"",
-            f"💬 *Últimas mensagens:*",
+            "",
+            "📝 *Resumo da conversa:*",
+            ctx.conversation_summary,
+            "",
+            "💬 *Últimas mensagens:*",
         ]
 
         for msg in ctx.last_messages[-3:]:
             role = "👤" if msg.get("role") == "user" else "🤖"
-            lines.append(f"{role} {msg.get('content', '')[:100]}")
+            lines.append(f"{role} {msg.get('content', '')[:120]}")
 
         lines += [
-            f"",
-            f"⏰ Escalado em: {ctx.escalated_at.strftime('%d/%m %H:%M')}",
-            f"Responda nesta conversa para assumir o atendimento.",
+            "",
+            f"⏰ Escalado em: {ctx.escalated_at.strftime('%d/%m/%Y %H:%M')}",
+            "Acesse o painel para assumir o atendimento.",
         ]
 
         return "\n".join(lines)
+
+
+# Singleton para uso global
+handoff_service = HandoffService()
