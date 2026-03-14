@@ -1,1214 +1,626 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    <title>Portal do Cliente · Auto Tech Lith</title>
-    <link rel="stylesheet" href="css/admin.css?v=3.0">
-    <link rel="stylesheet" href="css/style.css?v=1.5">
-    <style>
-        body {
-            display: flex;
-            flex-direction: row;
-        }
-
-        .container {
-            max-width: none;
-            margin: 0;
-            padding: 0;
-            width: 100%;
-        }
-
-        /* Status indicator */
-        .status-dot {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin-right: 6px;
-            vertical-align: middle;
-        }
-
-        .status-dot.connected {
-            background: #10b981;
-            box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
-            animation: pulse-green 2s ease-in-out infinite;
-        }
-
-        .status-dot.disconnected {
-            background: #ef4444;
-            box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
-        }
-
-        .status-dot.checking {
-            background: #f59e0b;
-            animation: pulse-yellow 1.5s ease-in-out infinite;
-        }
-
-        @keyframes pulse-green {
-
-            0%,
-            100% {
-                opacity: 1;
-                transform: scale(1);
-            }
-
-            50% {
-                opacity: 0.7;
-                transform: scale(1.2);
-            }
-        }
-
-        @keyframes pulse-yellow {
-
-            0%,
-            100% {
-                opacity: 1;
-            }
-
-            50% {
-                opacity: 0.5;
-            }
-        }
-
-        /* Badge status */
-        .wa-badge {
-            padding: 0.35rem 0.85rem;
-            border-radius: 999px;
-            font-size: 0.78rem;
-            font-weight: 700;
-            display: inline-flex;
-            align-items: center;
-        }
-
-        .wa-badge.connected {
-            background: rgba(16, 185, 129, 0.15);
-            color: #10b981;
-            border: 1px solid rgba(16, 185, 129, 0.35);
-        }
-
-        .wa-badge.disconnected {
-            background: rgba(239, 68, 68, 0.12);
-            color: #f87171;
-            border: 1px solid rgba(239, 68, 68, 0.3);
-        }
-
-        .wa-badge.checking {
-            background: rgba(245, 158, 11, 0.12);
-            color: #f59e0b;
-            border: 1px solid rgba(245, 158, 11, 0.3);
-        }
-
-        /* Pagination */
-        .pagination {
-            display: flex;
-            gap: 0.5rem;
-            justify-content: center;
-            align-items: center;
-            margin-top: 1.25rem;
-        }
-
-        .pagination button {
-            padding: 0.4rem 0.85rem;
-            border-radius: 8px;
-            border: 1px solid var(--card-border, #e5e7eb);
-            background: white;
-            font-size: 0.82rem;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-family: inherit;
-        }
-
-        .pagination button:hover:not(:disabled) {
-            background: var(--accent, #6366f1);
-            color: white;
-            border-color: var(--accent, #6366f1);
-        }
-
-        .pagination button.active {
-            background: var(--accent, #6366f1);
-            color: white;
-            border-color: var(--accent, #6366f1);
-        }
-
-        .pagination button:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-
-        /* AI Config readonly card */
-        .ai-config-card {
-            background: var(--card-bg, white);
-            border: 1px solid var(--card-border, #e5e7eb);
-            border-radius: var(--radius-lg, 12px);
-            padding: 1.25rem 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            margin-bottom: 0.75rem;
-        }
-
-        .ai-config-icon {
-            width: 44px;
-            height: 44px;
-            border-radius: 10px;
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.35rem;
-            flex-shrink: 0;
-        }
-
-        .ai-config-info {
-            flex: 1;
-        }
-
-        .ai-config-info h4 {
-            font-size: 0.95rem;
-            font-weight: 700;
-            margin: 0 0 0.2rem;
-        }
-
-        .ai-config-info p {
-            font-size: 0.82rem;
-            color: var(--text-muted, #6b7280);
-            margin: 0;
-        }
-
-        .ai-status-badge {
-            padding: 0.3rem 0.75rem;
-            border-radius: 999px;
-            font-size: 0.75rem;
-            font-weight: 700;
-        }
-
-        .ai-status-badge.active {
-            background: rgba(16, 185, 129, 0.12);
-            color: #10b981;
-            border: 1px solid rgba(16, 185, 129, 0.3);
-        }
-
-        .ai-status-badge.inactive {
-            background: rgba(107, 114, 128, 0.12);
-            color: #6b7280;
-            border: 1px solid rgba(107, 114, 128, 0.3);
-        }
-
-        /* Readonly notice */
-        .readonly-notice {
-            display: flex;
-            align-items: center;
-            gap: 0.6rem;
-            background: rgba(99, 102, 241, 0.07);
-            border: 1px solid rgba(99, 102, 241, 0.2);
-            border-radius: 10px;
-            padding: 0.75rem 1rem;
-            margin-bottom: 1.25rem;
-            font-size: 0.83rem;
-            color: var(--text-muted, #6b7280);
-        }
-
-        .readonly-notice span:first-child {
-            font-size: 1.1rem;
-        }
-
-        /* Empty state */
-        .empty-state {
-            text-align: center;
-            padding: 3rem 2rem;
-            color: var(--text-muted, #6b7280);
-        }
-
-        .empty-state .icon {
-            font-size: 2.5rem;
-            margin-bottom: 0.75rem;
-        }
-
-        .empty-state p {
-            font-size: 0.9rem;
-            margin: 0;
-        }
-
-        /* --- ONBOARDING WIZARD --- */
-        #onboardingModal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(15, 23, 42, 0.75);
-            backdrop-filter: blur(8px);
-            z-index: 9999;
-            align-items: center;
-            justify-content: center;
-            animation: fadeIn 0.3s ease;
-        }
-
-        .wizard-card {
-            background: rgba(255, 255, 255, 0.95);
-            width: 100%;
-            max-width: 500px;
-            border-radius: 24px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-            padding: 2.5rem;
-            position: relative;
-            overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-
-        .wizard-step {
-            display: none;
-        }
-
-        .wizard-step.active {
-            display: block;
-            animation: slideUp 0.4s ease;
-        }
-
-        .wizard-header {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-
-        .wizard-header .icon {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            display: block;
-        }
-
-        .wizard-header h2 {
-            font-size: 1.5rem;
-            font-weight: 800;
-            color: #1e293b;
-            margin: 0;
-        }
-
-        .wizard-header p {
-            color: #64748b;
-            font-size: 0.95rem;
-            margin-top: 0.5rem;
-        }
-
-        .progress-bar {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 2rem;
-            justify-content: center;
-        }
-
-        .progress-dot {
-            width: 40px;
-            height: 6px;
-            border-radius: 10px;
-            background: #e2e8f0;
-            transition: all 0.3s ease;
-        }
-
-        .progress-dot.active {
-            background: var(--accent, #6366f1);
-            width: 60px;
-        }
-
-        .wizard-footer {
-            margin-top: 2rem;
-            display: flex;
-            justify-content: flex-end;
-            gap: 1rem;
-        }
-
-        .pairing-code-container {
-            background: #f8fafc;
-            border: 2px dashed #cbd5e1;
-            border-radius: 16px;
-            padding: 1.5rem;
-            text-align: center;
-            margin: 1.5rem 0;
-        }
-
-        .pairing-code {
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 2.5rem;
-            font-weight: 900;
-            letter-spacing: 8px;
-            color: #1e293b;
-            margin: 0.5rem 0;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-
-            to {
-                opacity: 1;
-            }
-        }
-
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .copy-btn {
-            background: #f1f5f9;
-            border: 1px solid #e2e8f0;
-            padding: 4px 12px;
-            border-radius: 6px;
-            font-size: 0.75rem;
-            cursor: pointer;
-            transition: all 0.2s;
-            margin-top: 5px;
-        }
-
-        .copy-btn:hover {
-            background: #e2e8f0;
-        }
-
-        .spinner {
-            width: 30px;
-            height: 30px;
-            border: 3px solid #e2e8f0;
-            border-top: 3px solid var(--accent, #6366f1);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 15px;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Painel do Cliente — Auto Tech Lith</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --accent: #6366f1;
+      --accent-dark: #4f46e5;
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #f59e0b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; }
+    .sidebar { width: 240px; min-height: 100vh; background: var(--card); border-right: 1px solid var(--border); }
+    .main { flex: 1; overflow-y: auto; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; }
+    .btn-primary { background: var(--accent); color: white; border: none; border-radius: 8px; padding: 10px 20px; cursor: pointer; font-weight: 600; transition: background 0.2s; }
+    .btn-primary:hover { background: var(--accent-dark); }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius: 8px; padding: 8px 16px; cursor: pointer; transition: all 0.2s; }
+    .btn-ghost:hover { color: var(--text); border-color: var(--accent); }
+    .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+    .badge-green { background: #14532d; color: var(--green); }
+    .badge-red { background: #450a0a; color: var(--red); }
+    .badge-yellow { background: #451a03; color: var(--yellow); }
+    .badge-blue { background: #1e3a5f; color: #60a5fa; }
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 8px; cursor: pointer; color: var(--muted); font-size: 14px; transition: all 0.2s; margin: 2px 8px; }
+    .nav-item:hover, .nav-item.active { background: rgba(99,102,241,0.15); color: var(--text); }
+    .nav-item.active { color: var(--accent); }
+    input, select, textarea { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 10px 14px; width: 100%; font-size: 14px; outline: none; transition: border-color 0.2s; }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    .tab { padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--muted); transition: all 0.2s; }
+    .tab.active { background: var(--accent); color: white; }
+    .stat-card { padding: 20px; text-align: center; }
+    .stat-value { font-size: 32px; font-weight: 700; margin: 8px 0 4px; }
+    .stat-label { font-size: 13px; color: var(--muted); }
+    .progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+    .toggle { width: 44px; height: 24px; background: var(--border); border-radius: 12px; position: relative; cursor: pointer; transition: background 0.2s; }
+    .toggle.on { background: var(--accent); }
+    .toggle::after { content: ''; position: absolute; width: 18px; height: 18px; background: white; border-radius: 50%; top: 3px; left: 3px; transition: transform 0.2s; }
+    .toggle.on::after { transform: translateX(20px); }
+    #toast { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .toast-item { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 18px; font-size: 14px; display: flex; align-items: center; gap: 8px; animation: slideIn 0.3s ease; min-width: 260px; }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
 </head>
-
 <body>
-    <script>
-        // ── Guard: Auth ─────────────────────────────────────────────────────────
-        const _token = localStorage.getItem('token');
-        if (!_token) { window.location.href = '/login.html'; }
 
-        // ── Guard: Role — client/tenant only ────────────────────────────────────
-        // Admins e masters devem ir para index.html / master.html
-        try {
-            const _b64 = _token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-            const _p = JSON.parse(decodeURIComponent(escape(atob(_b64))));
-            const _r = (_p.role || '').toLowerCase();
-            const _masterRoles = ['owner', 'master_admin', 'admin', 'master', 'super admin', 'superadmin'];
-            if (_masterRoles.includes(_r) && !_p.tenant_id) {
-                window.location.href = '/master.html';
-            } else if (_masterRoles.includes(_r) && _p.tenant_id) {
-                // Admin de tenant vai para o painel admin normal
-                window.location.href = '/';
-            }
-            // tenant / client / user → fica nesta página
-        } catch (_) { }
-    </script>
+<!-- Toast container -->
+<div id="toast"></div>
 
-    <!-- ═══════════════════════════ SIDEBAR ═══════════════════════════ -->
-    <aside class="sidebar">
-        <div class="sidebar-header">
-            <h2><span id="sidebarEmoji">🏪</span> <span id="sidebarName">Meu Portal</span></h2>
-            <div class="sidebar-version">Auto Tech Lith · v3.0</div>
+<div style="display:flex; min-height:100vh;">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" style="display:flex; flex-direction:column; padding: 16px 0;">
+    <div style="padding: 0 16px 24px;">
+      <div style="display:flex; align-items:center; gap:10px; padding: 8px;">
+        <div style="width:36px; height:36px; background:var(--accent); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:18px;">🤖</div>
+        <div>
+          <div style="font-weight:700; font-size:14px;" id="sidebar-tenant-name">Carregando...</div>
+          <div class="badge badge-green" id="sidebar-status">● ativo</div>
         </div>
-
-        <nav class="sidebar-nav">
-            <div class="nav-group-label">Visão Geral</div>
-            <a class="nav-item active" data-target="dashboard">
-                <span class="nav-icon">📊</span> Dashboard
-            </a>
-
-            <div class="sidebar-divider"></div>
-            <div class="nav-group-label">Atendimento</div>
-            <a class="nav-item" data-target="conversations">
-                <span class="nav-icon">💬</span> Conversas
-            </a>
-            <a class="nav-item" data-target="tickets">
-                <span class="nav-icon">🎫</span> Tickets
-            </a>
-
-            <div class="sidebar-divider"></div>
-            <div class="nav-group-label">Canais & IA</div>
-            <a class="nav-item" data-target="whatsapp-status">
-                <span class="nav-icon">📱</span> Status WhatsApp
-            </a>
-            <a class="nav-item" data-target="ai-config">
-                <span class="nav-icon">🤖</span> Configuração de IA
-            </a>
-        </nav>
-
-        <div class="sidebar-footer">
-            <div class="user-info">
-                <div class="user-avatar" id="userAvatar">C</div>
-                <div class="user-details">
-                    <div class="user-name" id="userNameDisplay">Carregando...</div>
-                    <div class="user-role" id="userRoleDisplay">Cliente</div>
-                </div>
-                <button onclick="logout()" class="btn-logout" title="Sair">🚪</button>
-            </div>
-        </div>
-    </aside>
-
-    <!-- ═══════════════════════════ MAIN ═══════════════════════════ -->
-    <main class="main-content">
-        <header class="top-bar">
-            <h1 class="page-title" id="pageTitle">Dashboard</h1>
-            <div class="top-actions">
-                <button class="btn-secondary btn-sm" onclick="refreshCurrentView()">🔄 Atualizar</button>
-            </div>
-        </header>
-
-        <div class="content-wrapper">
-
-            <!-- ─────────────── DASHBOARD ─────────────── -->
-            <section id="dashboard" class="view-section active">
-                <div class="grid-4" style="margin-bottom:1.75rem;">
-                    <div class="stat-card">
-                        <h3>Conversas</h3>
-                        <div class="value" id="statConversations">—</div>
-                    </div>
-                    <div class="stat-card success">
-                        <h3>Tickets Abertos</h3>
-                        <div class="value" id="statTickets">—</div>
-                    </div>
-                    <div class="stat-card warning">
-                        <h3>Reuniões Agendadas</h3>
-                        <div class="value" id="statMeetings">—</div>
-                    </div>
-                    <div class="stat-card" id="waStatusCard">
-                        <h3>WhatsApp</h3>
-                        <div class="value" id="statWhatsapp">
-                            <span class="status-dot checking" id="dashWaDot"></span>
-                            <span id="dashWaText">Verificando...</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Recent conversations preview -->
-                <div class="panel-card">
-                    <div class="panel-card-header">
-                        <h3>💬 Conversas Recentes</h3>
-                        <button class="btn-secondary btn-sm" onclick="switchTab('conversations')">Ver todas →</button>
-                    </div>
-                    <div class="panel-card-body" style="padding:0;">
-                        <div class="table-responsive">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Cliente</th>
-                                        <th>Telefone</th>
-                                        <th>Última mensagem</th>
-                                        <th>Data</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="dashConversationsBody">
-                                    <tr>
-                                        <td colspan="4" style="text-align:center;color:#6b7280;padding:1.5rem;">
-                                            Carregando...</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ─────────────── CONVERSAS ─────────────── -->
-            <section id="conversations" class="view-section">
-                <div class="flex-between mb-2">
-                    <div>
-                        <h2 style="margin:0;font-size:1.1rem;font-weight:700;">Conversas</h2>
-                        <p class="text-muted mt-1">Histórico de conversas via WhatsApp.</p>
-                    </div>
-                </div>
-                <div class="table-responsive">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Cliente</th>
-                                <th>Telefone</th>
-                                <th>Última mensagem</th>
-                                <th>Data</th>
-                            </tr>
-                        </thead>
-                        <tbody id="conversationsBody">
-                            <tr>
-                                <td colspan="4" style="text-align:center;color:#6b7280;padding:2rem;">Carregando...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="pagination" id="conversationsPagination"></div>
-            </section>
-
-            <!-- ─────────────── TICKETS ─────────────── -->
-            <section id="tickets" class="view-section">
-                <div class="flex-between mb-2">
-                    <div>
-                        <h2 style="margin:0;font-size:1.1rem;font-weight:700;">Tickets</h2>
-                        <p class="text-muted mt-1">Tickets de suporte ativos e histórico.</p>
-                    </div>
-                </div>
-                <div class="table-responsive">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Cliente</th>
-                                <th>Assunto</th>
-                                <th>Status</th>
-                                <th>Prioridade</th>
-                                <th>Data</th>
-                            </tr>
-                        </thead>
-                        <tbody id="ticketsBody">
-                            <tr>
-                                <td colspan="6" style="text-align:center;color:#6b7280;padding:2rem;">Carregando...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="pagination" id="ticketsPagination"></div>
-            </section>
-
-            <!-- ─────────────── STATUS WHATSAPP ─────────────── -->
-            <section id="whatsapp-status" class="view-section">
-                <h2 style="margin-bottom:1.5rem;font-size:1.1rem;font-weight:700;">📱 Status do WhatsApp</h2>
-
-                <div class="panel-card" style="max-width:560px;">
-                    <div class="panel-card-header">
-                        <h3>Instância WhatsApp</h3>
-                        <span class="wa-badge checking" id="waBadge">
-                            <span class="status-dot checking" id="waDot"></span>
-                            Verificando...
-                        </span>
-                    </div>
-                    <div class="panel-card-body">
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem;">
-                            <div>
-                                <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.35rem;">Instância
-                                </div>
-                                <div style="font-weight:700;" id="waInstance">—</div>
-                            </div>
-                            <div>
-                                <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.35rem;">Estado
-                                </div>
-                                <div style="font-weight:700;" id="waState">—</div>
-                            </div>
-                        </div>
-                        <button class="btn-secondary btn-sm" onclick="loadWhatsAppStatus()">🔄 Verificar
-                            novamente</button>
-                    </div>
-                </div>
-
-                <div class="panel-card" style="max-width:560px;margin-top:1rem;">
-                    <div class="panel-card-header">
-                        <h3>ℹ️ Sobre a conexão</h3>
-                    </div>
-                    <div class="panel-card-body">
-                        <p style="font-size:0.875rem;color:var(--text-muted);margin:0;line-height:1.7;">
-                            O WhatsApp é conectado via <strong>Evolution API</strong>. Quando o status aparece
-                            como <strong>Conectado</strong>, as mensagens dos seus clientes são processadas
-                            automaticamente pelo agente de IA. Se estiver <strong>Desconectado</strong>,
-                            entre em contato com o suporte para reconectar.
-                        </p>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ─────────────── CONFIGURAÇÃO DE IA ─────────────── -->
-            <section id="ai-config" class="view-section">
-                <h2 style="margin-bottom:1rem;font-size:1.1rem;font-weight:700;">🤖 Configuração de IA</h2>
-
-                <div class="readonly-notice">
-                    <span>🔒</span>
-                    <span>Esta seção é somente leitura. Para alterar configurações de IA, entre em contato com o
-                        administrador.</span>
-                </div>
-
-                <div id="aiConfigList">
-                    <div class="ai-config-card">
-                        <div class="ai-config-icon">🧠</div>
-                        <div class="ai-config-info">
-                            <h4>Agente de Atendimento</h4>
-                            <p>Modelo de linguagem ativo para processar mensagens dos clientes.</p>
-                        </div>
-                        <span class="ai-status-badge active" id="aiAgentBadge">✓ Ativo</span>
-                    </div>
-
-                    <div class="ai-config-card">
-                        <div class="ai-config-icon">🎙️</div>
-                        <div class="ai-config-info">
-                            <h4>Transcrição de Áudio</h4>
-                            <p>Converte mensagens de voz em texto automaticamente via Whisper.</p>
-                        </div>
-                        <span class="ai-status-badge active">✓ Ativo</span>
-                    </div>
-
-                    <div class="ai-config-card">
-                        <div class="ai-config-icon">🔄</div>
-                        <div class="ai-config-info">
-                            <h4>Funil de Vendas</h4>
-                            <p>Guia automático das etapas do processo comercial via IA.</p>
-                        </div>
-                        <span class="ai-status-badge inactive" id="aiFunnelBadge">Não configurado</span>
-                    </div>
-                </div>
-            </section>
-
-        </div>
-    </main>
-
-    <!-- ═══════════════════════════ ONBOARDING MODAL ═══════════════════════════ -->
-    <div id="onboardingModal">
-        <div class="wizard-card">
-            <div class="progress-bar">
-                <div class="progress-dot active" id="dot1"></div>
-                <div class="progress-dot" id="dot2"></div>
-                <div class="progress-dot" id="dot3"></div>
-            </div>
-
-            <!-- STEP 1: Welcome & Setup -->
-            <div class="wizard-step active" id="step1">
-                <div class="wizard-header">
-                    <span class="icon">🚀</span>
-                    <h2>Bem-vindo ao Futuro!</h2>
-                    <p>Vamos configurar o seu assistente de IA em menos de 2 minutos.</p>
-                </div>
-                <div class="form-group">
-                    <label>Nome da sua Empresa/Instância</label>
-                    <input type="text" id="obInstanceName" placeholder="Ex: Minha Loja" class="w-100">
-                    <small class="text-muted">Este nome ajuda a identificar sua conexão.</small>
-                </div>
-                <div class="wizard-footer">
-                    <button class="btn-primary w-100" id="btnStep1" onclick="submitStep1()">Começar Agora →</button>
-                </div>
-            </div>
-
-            <!-- STEP 2: WhatsApp Connection -->
-            <div class="wizard-step" id="step2">
-                <div class="wizard-header">
-                    <span class="icon">📱</span>
-                    <h2>Conectar WhatsApp</h2>
-                    <p
-                        style="font-size: 0.85rem; background: #fffbeb; padding: 10px; border-radius: 12px; border: 1px solid #fef3c7; color: #92400e; margin-bottom: 1.5rem;">
-                        <strong>Instrução:</strong> Abra o WhatsApp no seu celular > Configurações > Aparelhos
-                        conectados > Conectar com número de telefone.
-                    </p>
-                </div>
-
-                <div class="form-group">
-                    <label>Seu número de WhatsApp</label>
-                    <input type="text" id="obPhoneNumber" placeholder="5511999999999" class="w-100">
-                    <small class="text-muted">DDI + DDD + Número (apenas dígitos).</small>
-                </div>
-
-                <div class="pairing-code-container" id="pairingContainer" style="display:none;">
-                    <p style="font-size:0.75rem; color:#64748b; margin-bottom:0;">DIGITE ESTE CÓDIGO NO WHATSAPP:</p>
-                    <div class="pairing-code" id="displayPairingCode">--------</div>
-                    <button class="copy-btn" onclick="copyPairingCode()">📋 Copiar Código</button>
-                </div>
-
-                <div class="wizard-footer" id="footerStep2">
-                    <button class="btn-primary w-100" onclick="getPairingCode()">Gerar Código de Pareamento</button>
-                </div>
-            </div>
-
-            <!-- STEP 3: Confirmation -->
-            <div class="wizard-step" id="step3">
-                <div class="wizard-header">
-                    <span class="icon" id="step3Icon">⏳</span>
-                    <h2 id="step3Title">Conectando...</h2>
-                    <p id="step3Desc">Seu WhatsApp está sendo conectado!</p>
-                </div>
-
-                <div id="pollingStatus" style="text-align:center; padding: 1.5rem 0;">
-                    <div class="spinner"></div>
-                    <p id="pollingText" style="font-size:0.85rem; color:#64748b;">Aguardando sinal do seu celular...
-                        (60s)</p>
-                </div>
-
-                <div class="wizard-footer" id="footerStep3" style="display:none;">
-                    <button class="btn-secondary w-100" onclick="nextStep(1)">Tentar novamente</button>
-                </div>
-            </div>
-        </div>
+      </div>
     </div>
 
-    <script>
-        // ── Utilidades ─────────────────────────────────────────────────────────
-        const token = localStorage.getItem('token');
-
-        const apiBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-            ? `http://${window.location.hostname}:8000`
-            : '';
-
-        const authHeaders = {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        };
-
-        function logout() {
-            localStorage.removeItem('token');
-            window.location.href = '/login.html';
-        }
-
-        function fmt(dateStr) {
-            if (!dateStr) return '—';
-            try {
-                return new Date(dateStr).toLocaleString('pt-BR', {
-                    day: '2-digit', month: '2-digit', year: 'numeric',
-                    hour: '2-digit', minute: '2-digit'
-                });
-            } catch (_) { return dateStr; }
-        }
-
-        function statusBadge(status) {
-            const map = {
-                open: { label: 'Aberto', cls: 'danger' },
-                in_progress: { label: 'Em andamento', cls: 'warning' },
-                resolved: { label: 'Resolvido', cls: 'success' },
-                closed: { label: 'Fechado', cls: '' },
-            };
-            const s = map[status] || { label: status || '—', cls: '' };
-            return `<span class="badge badge-${s.cls}">${s.label}</span>`;
-        }
-
-        function priorityBadge(priority) {
-            const map = {
-                high: { label: '⬆ Alta', cls: 'danger' },
-                medium: { label: '➡ Média', cls: 'warning' },
-                low: { label: '⬇ Baixa', cls: 'success' },
-            };
-            const p = map[priority] || { label: priority || '—', cls: '' };
-            return `<span class="badge badge-${p.cls}">${p.label}</span>`;
-        }
-
-        // ── Navegação ─────────────────────────────────────────────────────────
-        const pageTitles = {
-            dashboard: 'Dashboard',
-            conversations: 'Conversas',
-            tickets: 'Tickets',
-            'whatsapp-status': 'Status do WhatsApp',
-            'ai-config': 'Configuração de IA',
-        };
-
-        function switchTab(targetId) {
-            document.querySelectorAll('.nav-item').forEach(el => {
-                el.classList.toggle('active', el.dataset.target === targetId);
-            });
-            document.querySelectorAll('.view-section').forEach(section => {
-                section.classList.toggle('active', section.id === targetId);
-            });
-            document.getElementById('pageTitle').textContent = pageTitles[targetId] || targetId;
-
-            // Lazy load on switch
-            if (targetId === 'conversations') loadConversations();
-            if (targetId === 'tickets') loadTickets();
-            if (targetId === 'whatsapp-status') loadWhatsAppStatus();
-        }
-
-        document.querySelectorAll('.nav-item[data-target]').forEach(el => {
-            el.addEventListener('click', () => switchTab(el.dataset.target));
-        });
-
-        function refreshCurrentView() {
-            const active = document.querySelector('.view-section.active');
-            if (active) switchTab(active.id);
-            loadStats();
-        }
-
-        // ── Dados do usuário ─────────────────────────────────────────────────
-        try {
-            const parts = token.split('.');
-            const payload = JSON.parse(decodeURIComponent(escape(atob(
-                parts[1].replace(/-/g, '+').replace(/_/g, '/')
-            ))));
-            const name = payload.name || payload.username || 'Cliente';
-            document.getElementById('userNameDisplay').textContent = name;
-            document.getElementById('userRoleDisplay').textContent = payload.role || 'client';
-            document.getElementById('userAvatar').textContent = name.charAt(0).toUpperCase();
-            document.getElementById('sidebarName').textContent = name;
-        } catch (_) { }
-
-        // ── Stats ─────────────────────────────────────────────────────────────
-        async function loadStats() {
-            try {
-                const res = await fetch(`${apiBase}/api/v1/stats`, { headers: authHeaders });
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const data = await res.json();
-                document.getElementById('statConversations').textContent = data.today_conversations ?? '—';
-                document.getElementById('statTickets').textContent = data.open_tickets ?? '—';
-                document.getElementById('statMeetings').textContent = data.scheduled_meetings ?? '—';
-            } catch (e) {
-                console.error('Erro ao carregar stats:', e);
-            }
-        }
-
-        // ── WhatsApp Status ───────────────────────────────────────────────────
-        async function loadWhatsAppStatus() {
-            const badge = document.getElementById('waBadge');
-            const dot = document.getElementById('waDot');
-            const dashDot = document.getElementById('dashWaDot');
-            const dashText = document.getElementById('dashWaText');
-            const statDashWa = document.getElementById('statWhatsapp');
-
-            // Reset to checking
-            ['waBadge', 'waDot', 'dashWaDot'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) { el.className = el.tagName === 'SPAN' && el.classList.contains('wa-badge') ? 'wa-badge checking' : 'status-dot checking'; }
-            });
-            if (badge) badge.innerHTML = '<span class="status-dot checking"></span> Verificando...';
-            if (dashText) dashText.textContent = 'Verificando...';
-
-            try {
-                const res = await fetch(`${apiBase}/api/v1/webhooks/evolution/status`, { headers: authHeaders });
-
-                // --- ONBOARDING TRIGGER ---
-                // If 404 or instance is explicitly "None", we might need onboarding
-                if (res.status === 404) {
-                    console.log("No instance found. Triggering onboarding...");
-                    showOnboarding();
-                }
-
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const data = await res.json();
-
-                if (!data || !data.instance) {
-                    showOnboarding();
-                }
-
-                const isConnected = data.status === 'connected';
-                const stateText = isConnected ? 'Conectado ✓' : 'Desconectado';
-                const instanceName = data.instance || '—';
-
-                // Update badge
-                if (badge) {
-                    badge.className = `wa-badge ${isConnected ? 'connected' : 'disconnected'}`;
-                    badge.innerHTML = `<span class="status-dot ${isConnected ? 'connected' : 'disconnected'}"></span> ${stateText}`;
-                }
-
-                // Update detail fields
-                const waInst = document.getElementById('waInstance');
-                const waState = document.getElementById('waState');
-                if (waInst) waInst.textContent = instanceName;
-                if (waState) waState.textContent = stateText;
-
-                // Update dashboard card
-                if (dashDot) dashDot.className = `status-dot ${isConnected ? 'connected' : 'disconnected'}`;
-                if (dashText) dashText.textContent = stateText;
-
-            } catch (e) {
-                console.error('Erro ao verificar WhatsApp:', e);
-                if (badge) {
-                    badge.className = 'wa-badge disconnected';
-                    badge.innerHTML = '<span class="status-dot disconnected"></span> Erro ao verificar';
-                }
-                if (dashText) dashText.textContent = 'Erro';
-            }
-        }
-
-        // ── Conversas ─────────────────────────────────────────────────────────
-        let allConversations = [];
-        let convPage = 1;
-        const PER_PAGE = 10;
-
-        async function loadConversations() {
-            const body = document.getElementById('conversationsBody');
-            const dashBody = document.getElementById('dashConversationsBody');
-            if (body) body.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:#6b7280;">Carregando...</td></tr>';
-
-            try {
-                const res = await fetch(`${apiBase}/api/v1/conversations`, { headers: authHeaders });
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                allConversations = await res.json();
-                renderConversationsPage(1);
-
-                // Dashboard preview (top 5)
-                if (dashBody) {
-                    const preview = allConversations.slice(0, 5);
-                    if (!preview.length) {
-                        dashBody.innerHTML = '<tr><td colspan="4" class="empty-state"><p>Nenhuma conversa ainda.</p></td></tr>';
-                    } else {
-                        dashBody.innerHTML = preview.map(c => `
-                            <tr>
-                                <td>${c.customer_name || '—'}</td>
-                                <td>${c.phone || '—'}</td>
-                                <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.last_message_preview || '—'}</td>
-                                <td>${fmt(c.last_message_at)}</td>
-                            </tr>`).join('');
-                    }
-                }
-            } catch (e) {
-                console.error('Erro ao carregar conversas:', e);
-                if (body) body.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:#ef4444;">Erro ao carregar conversas.</td></tr>';
-                if (dashBody) dashBody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:1.5rem;color:#ef4444;">Erro ao carregar.</td></tr>';
-            }
-        }
-
-        function renderConversationsPage(page) {
-            convPage = page;
-            const body = document.getElementById('conversationsBody');
-            const pagContainer = document.getElementById('conversationsPagination');
-            const totalPages = Math.ceil(allConversations.length / PER_PAGE);
-            const slice = allConversations.slice((page - 1) * PER_PAGE, page * PER_PAGE);
-
-            if (!slice.length) {
-                body.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2.5rem;color:#6b7280;">Nenhuma conversa encontrada.</td></tr>';
-            } else {
-                body.innerHTML = slice.map(c => `
-                    <tr>
-                        <td>${c.customer_name || '—'}</td>
-                        <td>${c.phone || '—'}</td>
-                        <td style="max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.last_message_preview || '—'}</td>
-                        <td>${fmt(c.last_message_at)}</td>
-                    </tr>`).join('');
-            }
-
-            renderPagination(pagContainer, totalPages, page, renderConversationsPage);
-        }
-
-        // ── Tickets ───────────────────────────────────────────────────────────
-        let allTickets = [];
-        let ticketPage = 1;
-
-        async function loadTickets() {
-            const body = document.getElementById('ticketsBody');
-            if (body) body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#6b7280;">Carregando...</td></tr>';
-
-            try {
-                const res = await fetch(`${apiBase}/api/v1/tickets`, { headers: authHeaders });
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                allTickets = await res.json();
-                renderTicketsPage(1);
-            } catch (e) {
-                console.error('Erro ao carregar tickets:', e);
-                if (body) body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#ef4444;">Erro ao carregar tickets.</td></tr>';
-            }
-        }
-
-        function renderTicketsPage(page) {
-            ticketPage = page;
-            const body = document.getElementById('ticketsBody');
-            const pagContainer = document.getElementById('ticketsPagination');
-            const totalPages = Math.ceil(allTickets.length / PER_PAGE);
-            const slice = allTickets.slice((page - 1) * PER_PAGE, page * PER_PAGE);
-
-            if (!slice.length) {
-                body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2.5rem;color:#6b7280;">Nenhum ticket encontrado.</td></tr>';
-            } else {
-                body.innerHTML = slice.map(t => `
-                    <tr>
-                        <td>#${t.id}</td>
-                        <td>${t.customer_name || '—'}</td>
-                        <td>${t.subject || '—'}</td>
-                        <td>${statusBadge(t.status)}</td>
-                        <td>${priorityBadge(t.priority)}</td>
-                        <td>${fmt(t.created_at)}</td>
-                    </tr>`).join('');
-            }
-
-            renderPagination(pagContainer, totalPages, page, renderTicketsPage);
-        }
-
-        // ── Paginação genérica ────────────────────────────────────────────────
-        function renderPagination(container, totalPages, currentPage, onPageChange) {
-            if (!container) return;
-            if (totalPages <= 1) { container.innerHTML = ''; return; }
-
-            let html = `<button ${currentPage === 1 ? 'disabled' : ''} onclick="(${onPageChange.name})(${currentPage - 1})">← Anterior</button>`;
-
-            for (let i = 1; i <= totalPages; i++) {
-                if (totalPages > 7 && Math.abs(i - currentPage) > 2 && i !== 1 && i !== totalPages) {
-                    if (i === 2 || i === totalPages - 1) html += `<button disabled>…</button>`;
-                    continue;
-                }
-                html += `<button class="${i === currentPage ? 'active' : ''}" onclick="(${onPageChange.name})(${i})">${i}</button>`;
-            }
-
-            html += `<button ${currentPage === totalPages ? 'disabled' : ''} onclick="(${onPageChange.name})(${currentPage + 1})">Próxima →</button>`;
-            container.innerHTML = html;
-        }
-
-        // ── Init ──────────────────────────────────────────────────────────────
-        (async function init() {
-            await Promise.allSettled([
-                loadStats(),
-                loadWhatsAppStatus(),
-                loadConversations(),
-            ]);
-        })();
-
-        // ── ONBOARDING LOGIC ──────────────────────────────────────────────────
-        let currentStep = 1;
-        let createdInstanceName = '';
-        let pollingInterval = null;
-        let pollingTimeout = null;
-
-        function showOnboarding() {
-            document.getElementById('onboardingModal').style.display = 'flex';
-        }
-
-        function nextStep(step) {
-            document.querySelectorAll('.wizard-step').forEach(s => s.classList.remove('active'));
-            document.querySelectorAll('.progress-dot').forEach(d => d.classList.remove('active'));
-
-            document.getElementById(`step${step}`).classList.add('active');
-            document.getElementById(`dot${step}`).classList.add('active');
-            currentStep = step;
-
-            if (step === 3) startPolling();
-            else clearPolling();
-        }
-
-        function clearPolling() {
-            if (pollingInterval) clearInterval(pollingInterval);
-            if (pollingTimeout) clearTimeout(pollingTimeout);
-        }
-
-        async function submitStep1() {
-            const nameInput = document.getElementById('obInstanceName');
-            const name = nameInput.value.trim();
-            if (!name) return alert('Por favor, dê um nome para sua instância.');
-
-            const btn = document.getElementById('btnStep1');
-            btn.disabled = true;
-            btn.textContent = 'Criando instância...';
-
-            try {
-                // Slugify name
-                const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
-                const finalInstanceName = `${slug}-${Math.floor(Math.random() * 1000)}`;
-
-                const res = await fetch(`${apiBase}/api/v1/master/whatsapp`, {
-                    method: 'POST',
-                    headers: authHeaders,
-                    body: JSON.stringify({
-                        instance_name: finalInstanceName,
-                        display_name: name
-                    })
-                });
-
-                if (!res.ok) {
-                    const err = await res.json();
-                    throw new Error(err.detail || 'Erro ao criar instância. Tente um nome diferente.');
-                }
-
-                createdInstanceName = finalInstanceName;
-                nextStep(2);
-            } catch (e) {
-                alert('Erro: ' + e.message);
-                btn.disabled = false;
-                btn.textContent = 'Começar Agora →';
-            }
-        }
-
-        async function getPairingCode() {
-            const phone = document.getElementById('obPhoneNumber').value.trim();
-            if (!phone) return alert('Digite o seu número de WhatsApp com DDI (ex: 5511...)');
-
-            const container = document.getElementById('pairingContainer');
-            const display = document.getElementById('displayPairingCode');
-            const footer = document.getElementById('footerStep2');
-
-            footer.innerHTML = '<button class="btn-secondary w-100" disabled>Gerando código...</button>';
-
-            try {
-                const res = await fetch(`${apiBase}/api/v1/master/whatsapp/${createdInstanceName}/pairing-code?phone=${phone}`, {
-                    headers: authHeaders
-                });
-
-                if (!res.ok) throw new Error('Não foi possível gerar o código. Verifique o número.');
-
-                const data = await res.json();
-                if (data.code) {
-                    display.textContent = data.code;
-                    container.style.display = 'block';
-                    footer.innerHTML = '<button class="btn-primary w-100" onclick="nextStep(3)">Já digitei o código! Próximo Passo →</button>';
-                } else {
-                    throw new Error('Código não recebido da API');
-                }
-            } catch (e) {
-                alert('Erro: ' + e.message);
-                footer.innerHTML = '<button class="btn-primary w-100" onclick="getPairingCode()">Tentar novamente</button>';
-            }
-        }
-
-        function copyPairingCode() {
-            const code = document.getElementById('displayPairingCode').textContent;
-            navigator.clipboard.writeText(code);
-            alert('Código copiado: ' + code);
-        }
-
-        function startPolling() {
-            clearPolling();
-            let seconds = 60;
-            const textEl = document.getElementById('pollingText');
-            const footer3 = document.getElementById('footerStep3');
-
-            footer3.style.display = 'none';
-            document.getElementById('pollingStatus').style.display = 'block';
-
-            pollingInterval = setInterval(async () => {
-                seconds -= 5;
-                if (textEl) textEl.textContent = `Aguardando sinal do seu celular... (${seconds}s)`;
-
-                try {
-                    const res = await fetch(`${apiBase}/api/v1/webhooks/evolution/status`, { headers: authHeaders });
-                    const data = await res.json();
-
-                    if (data.status === 'connected') {
-                        showSuccess();
-                    }
-                } catch (e) { console.error('Erro no polling:', e); }
-
-                if (seconds <= 0) {
-                    clearPolling();
-                    showTimeout();
-                }
-            }, 5000);
-        }
-
-        function showSuccess() {
-            clearPolling();
-            document.getElementById('step3Icon').textContent = '✅';
-            document.getElementById('step3Title').textContent = 'WhatsApp conectado!';
-            document.getElementById('step3Desc').textContent = 'Excelente! Sua IA já está ativa.';
-            document.getElementById('pollingStatus').innerHTML = '<div style="font-size:3rem; color:#10b981; margin-top:1rem;">🎉</div>';
-
-            setTimeout(() => finishOnboarding(), 3000);
-        }
-
-        function showTimeout() {
-            document.getElementById('step3Icon').textContent = '⚠️';
-            document.getElementById('step3Title').textContent = 'Tempo esgotado';
-            document.getElementById('step3Desc').textContent = 'Não detectamos a conexão a tempo. Deseja tentar novamente?';
-            document.getElementById('pollingStatus').style.display = 'none';
-            document.getElementById('footerStep3').style.display = 'flex';
-        }
-
-        function finishOnboarding() {
-            document.getElementById('onboardingModal').style.display = 'none';
-            refreshCurrentView();
-        }
-    </script>
+    <nav style="flex:1;">
+      <div class="nav-item active" onclick="showSection('overview')" id="nav-overview">
+        <span>📊</span> Dashboard
+      </div>
+      <div class="nav-item" onclick="showSection('agent')" id="nav-agent">
+        <span>🤖</span> Meu Agente
+      </div>
+      <div class="nav-item" onclick="showSection('whatsapp')" id="nav-whatsapp">
+        <span>📱</span> WhatsApp
+      </div>
+      <div class="nav-item" onclick="showSection('handoff')" id="nav-handoff">
+        <span>👤</span> Atendimentos
+      </div>
+      <div class="nav-item" onclick="showSection('billing')" id="nav-billing">
+        <span>💳</span> Plano & Cobrança
+      </div>
+      <div class="nav-item" onclick="showSection('settings')" id="nav-settings">
+        <span>⚙️</span> Configurações
+      </div>
+    </nav>
+
+    <div style="padding: 16px;">
+      <button class="btn-ghost" style="width:100%; font-size:13px;" onclick="logout()">🚪 Sair</button>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main" style="padding: 32px;">
+
+    <!-- ── OVERVIEW ── -->
+    <section id="section-overview">
+      <div style="margin-bottom:28px;">
+        <h1 style="font-size:24px; font-weight:700;">Olá, <span id="greeting-name">...</span> 👋</h1>
+        <p style="color:var(--muted); margin-top:4px;">Aqui está o resumo do seu atendimento</p>
+      </div>
+
+      <!-- Stats grid -->
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:16px; margin-bottom:28px;">
+        <div class="card stat-card">
+          <div style="font-size:24px;">💬</div>
+          <div class="stat-value" id="stat-msgs">—</div>
+          <div class="stat-label">Mensagens este mês</div>
+        </div>
+        <div class="card stat-card">
+          <div style="font-size:24px;">🎫</div>
+          <div class="stat-value" id="stat-tickets">—</div>
+          <div class="stat-label">Tickets abertos</div>
+        </div>
+        <div class="card stat-card">
+          <div style="font-size:24px;">🔥</div>
+          <div class="stat-value" id="stat-leads">—</div>
+          <div class="stat-label">Leads qualificados</div>
+        </div>
+        <div class="card stat-card">
+          <div style="font-size:24px;">👤</div>
+          <div class="stat-value" id="stat-handoffs">—</div>
+          <div class="stat-label">Handoffs hoje</div>
+        </div>
+      </div>
+
+      <!-- Quota bar -->
+      <div class="card" style="padding:20px; margin-bottom:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <span style="font-weight:600;">Uso de mensagens</span>
+          <span style="color:var(--muted); font-size:13px;" id="quota-text">0 / 0</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="quota-fill" style="width:0%; background:var(--accent);"></div>
+        </div>
+        <div style="font-size:12px; color:var(--muted); margin-top:8px;">Renova no início do próximo mês</div>
+      </div>
+
+      <!-- Agent status card -->
+      <div class="card" style="padding:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div style="font-size:28px;" id="agent-avatar-overview">🤖</div>
+            <div>
+              <div style="font-weight:600;" id="agent-name-overview">Meu Agente</div>
+              <div style="font-size:13px; color:var(--muted);">Agente de atendimento</div>
+            </div>
+          </div>
+          <div>
+            <span id="agent-status-badge" class="badge badge-green">● ativo</span>
+            <button class="btn-ghost" style="margin-left:12px; font-size:13px;" onclick="showSection('agent')">Editar →</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── MEU AGENTE ── -->
+    <section id="section-agent" style="display:none;">
+      <div style="margin-bottom:28px;">
+        <h1 style="font-size:24px; font-weight:700;">🤖 Meu Agente</h1>
+        <p style="color:var(--muted); margin-top:4px;">Configure a personalidade e comportamento do seu assistente</p>
+      </div>
+
+      <!-- Template picker -->
+      <div class="card" style="padding:20px; margin-bottom:20px;">
+        <h3 style="font-weight:600; margin-bottom:12px;">🎯 Templates por nicho</h3>
+        <div style="display:flex; flex-wrap:wrap; gap:8px;" id="template-list">
+          <span style="color:var(--muted); font-size:13px;">Carregando templates...</span>
+        </div>
+      </div>
+
+      <!-- Editor form -->
+      <div class="card" style="padding:24px;">
+        <h3 style="font-weight:600; margin-bottom:20px;">✏️ Editor de personalidade</h3>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+          <div>
+            <label style="font-size:13px; color:var(--muted); display:block; margin-bottom:6px;">Nome do agente</label>
+            <input type="text" id="agent-name" placeholder="Ex: Max, Sofia, Lia" />
+          </div>
+          <div>
+            <label style="font-size:13px; color:var(--muted); display:block; margin-bottom:6px;">Avatar (emoji)</label>
+            <input type="text" id="agent-avatar" placeholder="🤖" maxlength="4" />
+          </div>
+          <div>
+            <label style="font-size:13px; color:var(--muted); display:block; margin-bottom:6px;">Tom de voz</label>
+            <select id="agent-tone">
+              <option value="amigavel">😊 Amigável</option>
+              <option value="formal">👔 Formal</option>
+              <option value="descontraido">🙌 Descontraído</option>
+              <option value="tecnico">🔧 Técnico</option>
+              <option value="neutro">⚖️ Neutro</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:13px; color:var(--muted); display:block; margin-bottom:6px;">Autonomia da IA</label>
+            <select id="agent-autonomy">
+              <option value="conservadora">🔒 Conservadora</option>
+              <option value="equilibrada">⚖️ Equilibrada</option>
+              <option value="proativa">🚀 Proativa</option>
+            </select>
+          </div>
+          <div style="grid-column:1/-1;">
+            <label style="font-size:13px; color:var(--muted); display:block; margin-bottom:6px;">Objetivo principal</label>
+            <input type="text" id="agent-objective" placeholder="Ex: Agendar consultas e tirar dúvidas sobre serviços" />
+          </div>
+          <div style="grid-column:1/-1;">
+            <label style="font-size:13px; color:var(--muted); display:block; margin-bottom:6px;">Público-alvo</label>
+            <input type="text" id="agent-audience" placeholder="Ex: Donos de veículos com problemas elétricos" />
+          </div>
+          <div style="grid-column:1/-1;">
+            <label style="font-size:13px; color:var(--muted); display:block; margin-bottom:6px;">O que o agente NÃO deve fazer</label>
+            <textarea id="agent-constraints" rows="3" placeholder="Ex: Não discuta preços. Não faça promessas de prazo."></textarea>
+          </div>
+        </div>
+        <div style="display:flex; gap:12px; margin-top:20px;">
+          <button class="btn-primary" onclick="saveAgentProfile()">💾 Salvar</button>
+          <button class="btn-ghost" onclick="previewAgent()">🔍 Testar resposta</button>
+          <button class="btn-ghost" onclick="activateAgent()" id="btn-activate">✅ Publicar agente</button>
+        </div>
+      </div>
+
+      <!-- Preview modal -->
+      <div id="preview-box" class="card" style="padding:20px; margin-top:16px; display:none;">
+        <h4 style="font-weight:600; margin-bottom:12px;">🧪 Resultado do preview</h4>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:13px; color:var(--muted);">Mensagem de teste</label>
+          <input type="text" id="preview-input" placeholder="Ex: Qual o preço do serviço?" style="margin-top:6px;" />
+        </div>
+        <button class="btn-primary" style="font-size:13px;" onclick="runPreview()">Enviar →</button>
+        <div id="preview-response" style="margin-top:16px; padding:12px; background:var(--bg); border-radius:8px; font-size:14px; color:var(--text); display:none;"></div>
+      </div>
+    </section>
+
+    <!-- ── WHATSAPP ── -->
+    <section id="section-whatsapp" style="display:none;">
+      <div style="margin-bottom:28px;">
+        <h1 style="font-size:24px; font-weight:700;">📱 WhatsApp</h1>
+        <p style="color:var(--muted); margin-top:4px;">Status da conexão da sua instância</p>
+      </div>
+      <div class="card" style="padding:24px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+          <div>
+            <div style="font-weight:600;">Instância WhatsApp</div>
+            <div style="font-size:13px; color:var(--muted); margin-top:4px;" id="wa-instance-name">Carregando...</div>
+          </div>
+          <span id="wa-status-badge" class="badge badge-yellow">⏳ verificando</span>
+        </div>
+        <div id="wa-qr-container" style="display:none; text-align:center; padding:20px;">
+          <p style="color:var(--muted); margin-bottom:12px;">Escaneie o QR code com o WhatsApp:</p>
+          <img id="wa-qr-img" src="" alt="QR Code" style="max-width:240px; border-radius:12px;" />
+        </div>
+        <div id="wa-connected" style="display:none; text-align:center; padding:20px;">
+          <div style="font-size:48px; margin-bottom:12px;">✅</div>
+          <div style="font-weight:600;">WhatsApp conectado!</div>
+          <div style="color:var(--muted); font-size:13px; margin-top:4px;">Seu agente está ativo e recebendo mensagens.</div>
+        </div>
+        <div style="display:flex; gap:12px; margin-top:16px;">
+          <button class="btn-primary" onclick="checkWAStatus()">🔄 Verificar status</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── ATENDIMENTOS ── -->
+    <section id="section-handoff" style="display:none;">
+      <div style="margin-bottom:28px;">
+        <h1 style="font-size:24px; font-weight:700;">👤 Atendimentos em espera</h1>
+        <p style="color:var(--muted); margin-top:4px;">Conversas escaladas para atendimento humano</p>
+      </div>
+      <div class="card" style="padding:0; overflow:hidden;">
+        <div style="padding:16px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between;">
+          <span style="font-weight:600;">Fila de atendimento</span>
+          <button class="btn-ghost" style="font-size:13px;" onclick="loadHandoffs()">🔄 Atualizar</button>
+        </div>
+        <div id="handoff-list" style="padding:16px;">
+          <div style="text-align:center; color:var(--muted); padding:32px;">Carregando...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── BILLING ── -->
+    <section id="section-billing" style="display:none;">
+      <div style="margin-bottom:28px;">
+        <h1 style="font-size:24px; font-weight:700;">💳 Plano & Cobrança</h1>
+        <p style="color:var(--muted); margin-top:4px;">Gerencie sua assinatura</p>
+      </div>
+
+      <!-- Plano atual -->
+      <div class="card" style="padding:24px; margin-bottom:20px;">
+        <h3 style="font-weight:600; margin-bottom:16px;">Plano atual</h3>
+        <div id="current-plan-info">
+          <div style="color:var(--muted);">Carregando...</div>
+        </div>
+      </div>
+
+      <!-- Planos disponíveis -->
+      <div id="plans-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:16px;"></div>
+    </section>
+
+    <!-- ── CONFIGURAÇÕES ── -->
+    <section id="section-settings" style="display:none;">
+      <div style="margin-bottom:28px;">
+        <h1 style="font-size:24px; font-weight:700;">⚙️ Configurações</h1>
+      </div>
+      <div class="card" style="padding:24px;">
+        <h3 style="font-weight:600; margin-bottom:20px;">Notificações do operador</h3>
+        <div style="display:grid; gap:16px;">
+          <div>
+            <label style="font-size:13px; color:var(--muted); display:block; margin-bottom:6px;">Telegram Chat ID do operador</label>
+            <input type="text" id="setting-telegram-chat" placeholder="Ex: 123456789" />
+          </div>
+          <div>
+            <label style="font-size:13px; color:var(--muted); display:block; margin-bottom:6px;">WhatsApp do operador (com DDI)</label>
+            <input type="text" id="setting-operator-wa" placeholder="Ex: 5519999999999" />
+          </div>
+          <div>
+            <label style="font-size:13px; color:var(--muted); display:block; margin-bottom:6px;">Horário de atendimento</label>
+            <input type="text" id="setting-hours" placeholder="Ex: Seg-Sex 8h-18h, Sáb 9h-13h" />
+          </div>
+        </div>
+        <button class="btn-primary" style="margin-top:20px;" onclick="saveSettings()">💾 Salvar configurações</button>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+const API = '';
+let TOKEN = localStorage.getItem('access_token') || '';
+let currentSection = 'overview';
+
+function authHeaders() {
+  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` };
+}
+
+function toast(msg, type = 'info') {
+  const el = document.createElement('div');
+  const icons = { info: 'ℹ️', success: '✅', error: '❌', warning: '⚠️' };
+  el.className = 'toast-item';
+  el.innerHTML = `${icons[type] || 'ℹ️'} ${msg}`;
+  document.getElementById('toast').appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+function showSection(name) {
+  document.querySelectorAll('section[id^="section-"]').forEach(s => s.style.display = 'none');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(`section-${name}`).style.display = 'block';
+  document.getElementById(`nav-${name}`)?.classList.add('active');
+  currentSection = name;
+  if (name === 'overview') loadOverview();
+  if (name === 'agent') loadAgentProfile();
+  if (name === 'billing') loadBilling();
+  if (name === 'handoff') loadHandoffs();
+  if (name === 'whatsapp') checkWAStatus();
+}
+
+async function api(method, path, body) {
+  const opts = { method, headers: authHeaders() };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(API + path, opts);
+  if (r.status === 401) { logout(); return null; }
+  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || 'Erro na requisição'); }
+  return r.json();
+}
+
+async function loadOverview() {
+  try {
+    const [quota, profile] = await Promise.all([
+      api('GET', '/api/v1/usage/current'),
+      api('GET', '/api/v1/agent/profile'),
+    ]);
+    if (quota) {
+      const used = quota.messages_used || 0;
+      const limit = quota.messages_limit || 1;
+      const pct = Math.min(100, Math.round(used / limit * 100));
+      document.getElementById('stat-msgs').textContent = used.toLocaleString();
+      document.getElementById('quota-text').textContent = `${used.toLocaleString()} / ${limit.toLocaleString()}`;
+      const fill = document.getElementById('quota-fill');
+      fill.style.width = pct + '%';
+      fill.style.background = pct > 90 ? 'var(--red)' : pct > 70 ? 'var(--yellow)' : 'var(--accent)';
+    }
+    if (profile) {
+      const avatar = profile.agent_avatar || '🤖';
+      const name = profile.agent_name_display || 'Meu Agente';
+      document.getElementById('agent-avatar-overview').textContent = avatar;
+      document.getElementById('agent-name-overview').textContent = name;
+      document.getElementById('sidebar-tenant-name').textContent = name;
+      const activeEl = document.getElementById('agent-status-badge');
+      if (profile.is_active) { activeEl.className = 'badge badge-green'; activeEl.textContent = '● ativo'; }
+      else { activeEl.className = 'badge badge-yellow'; activeEl.textContent = '○ inativo'; }
+    }
+  } catch(e) { console.error('loadOverview', e); }
+  // Tickets, leads, handoffs
+  try {
+    const tickets = await api('GET', '/api/v1/tickets?status=open&limit=1');
+    if (tickets) document.getElementById('stat-tickets').textContent = tickets.total ?? tickets.length ?? '—';
+  } catch(_) {}
+  try {
+    const leads = await api('GET', '/api/v1/master/leads?status=qualified&limit=1');
+    if (leads) document.getElementById('stat-leads').textContent = leads.total ?? leads.length ?? '—';
+  } catch(_) {}
+}
+
+async function loadAgentProfile() {
+  try {
+    const templates = await api('GET', '/api/v1/agent/profile/templates');
+    if (templates?.templates) {
+      const container = document.getElementById('template-list');
+      container.innerHTML = templates.templates.map(t =>
+        `<button class="btn-ghost" style="font-size:13px;" onclick="applyTemplate('${t.niche}')">${t.avatar} ${t.niche}</button>`
+      ).join('');
+    }
+  } catch(e) {}
+  try {
+    const profile = await api('GET', '/api/v1/agent/profile');
+    if (profile) {
+      document.getElementById('agent-name').value = profile.agent_name_display || '';
+      document.getElementById('agent-avatar').value = profile.agent_avatar || '🤖';
+      document.getElementById('agent-tone').value = profile.tone || 'amigavel';
+      document.getElementById('agent-autonomy').value = profile.autonomy_level || 'equilibrada';
+      document.getElementById('agent-objective').value = profile.objective || '';
+      document.getElementById('agent-audience').value = profile.target_audience || '';
+      document.getElementById('agent-constraints').value = profile.constraints || '';
+      document.getElementById('btn-activate').textContent = profile.is_active ? '✅ Publicado' : '✅ Publicar agente';
+    }
+  } catch(e) { toast('Erro ao carregar perfil do agente', 'error'); }
+}
+
+async function saveAgentProfile() {
+  try {
+    await api('PUT', '/api/v1/agent/profile', {
+      agent_name_display: document.getElementById('agent-name').value,
+      agent_avatar: document.getElementById('agent-avatar').value,
+      tone: document.getElementById('agent-tone').value,
+      autonomy_level: document.getElementById('agent-autonomy').value,
+      objective: document.getElementById('agent-objective').value,
+      target_audience: document.getElementById('agent-audience').value,
+      constraints: document.getElementById('agent-constraints').value,
+    });
+    toast('Perfil salvo com sucesso!', 'success');
+  } catch(e) { toast('Erro ao salvar: ' + e.message, 'error'); }
+}
+
+function previewAgent() {
+  const box = document.getElementById('preview-box');
+  box.style.display = box.style.display === 'none' ? 'block' : 'none';
+}
+
+async function runPreview() {
+  const msg = document.getElementById('preview-input').value;
+  if (!msg) return toast('Digite uma mensagem de teste', 'warning');
+  try {
+    const r = await api('POST', '/api/v1/agent/profile/preview', { test_message: msg });
+    const el = document.getElementById('preview-response');
+    el.style.display = 'block';
+    el.innerHTML = `<strong>🤖 Resposta:</strong><br><br>${r.simulated_response}`;
+  } catch(e) { toast('Erro no preview: ' + e.message, 'error'); }
+}
+
+async function activateAgent() {
+  try {
+    await api('POST', '/api/v1/agent/profile/activate');
+    toast('Agente publicado com sucesso! ✅', 'success');
+    document.getElementById('btn-activate').textContent = '✅ Publicado';
+  } catch(e) { toast('Erro ao publicar: ' + e.message, 'error'); }
+}
+
+async function applyTemplate(niche) {
+  try {
+    await api('POST', `/api/v1/agent/profile/apply-template/${niche}`);
+    toast(`Template ${niche} aplicado!`, 'success');
+    loadAgentProfile();
+  } catch(e) { toast('Erro: ' + e.message, 'error'); }
+}
+
+async function checkWAStatus() {
+  document.getElementById('wa-status-badge').textContent = '⏳ verificando';
+  document.getElementById('wa-status-badge').className = 'badge badge-yellow';
+  document.getElementById('wa-instance-name').textContent = 'Verificando...';
+  document.getElementById('wa-qr-container').style.display = 'none';
+  document.getElementById('wa-connected').style.display = 'none';
+  try {
+    const r = await api('GET', '/api/v1/webhooks/status');
+    if (r?.connected || r?.status === 'open') {
+      document.getElementById('wa-status-badge').textContent = '● conectado';
+      document.getElementById('wa-status-badge').className = 'badge badge-green';
+      document.getElementById('wa-instance-name').textContent = r.instance_name || 'Conectado';
+      document.getElementById('wa-connected').style.display = 'block';
+    } else {
+      document.getElementById('wa-status-badge').textContent = '● desconectado';
+      document.getElementById('wa-status-badge').className = 'badge badge-red';
+      document.getElementById('wa-instance-name').textContent = r.instance_name || 'Aguardando conexão';
+    }
+  } catch(e) {
+    document.getElementById('wa-status-badge').textContent = '● erro';
+    document.getElementById('wa-status-badge').className = 'badge badge-red';
+    document.getElementById('wa-instance-name').textContent = 'Não configurado';
+  }
+}
+
+async function loadHandoffs() {
+  const container = document.getElementById('handoff-list');
+  try {
+    const r = await api('GET', '/api/v1/tickets?source=handoff&status=open&limit=20');
+    const tickets = r?.items || r?.tickets || r || [];
+    if (!tickets.length) {
+      container.innerHTML = `<div style="text-align:center; color:var(--muted); padding:32px;">🎉 Nenhum atendimento em espera!</div>`;
+      return;
+    }
+    container.innerHTML = tickets.map(t => `
+      <div style="padding:16px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-weight:600;">${t.title || 'Atendimento'}</div>
+          <div style="font-size:13px; color:var(--muted); margin-top:2px;">Ticket #${t.id} · ${t.handoff_reason || t.source || 'handoff'}</div>
+        </div>
+        <span class="badge badge-yellow">⏳ aguardando</span>
+      </div>
+    `).join('');
+  } catch(e) {
+    container.innerHTML = `<div style="text-align:center; color:var(--muted); padding:32px;">Erro ao carregar atendimentos</div>`;
+  }
+}
+
+async function loadBilling() {
+  try {
+    const [sub, plans] = await Promise.all([
+      api('GET', '/api/v1/stripe/subscription'),
+      api('GET', '/api/v1/stripe/plans'),
+    ]);
+    if (sub) {
+      const planInfo = document.getElementById('current-plan-info');
+      if (sub.status === 'no_subscription') {
+        planInfo.innerHTML = `<div style="color:var(--muted);">Sem plano ativo. Escolha um plano abaixo.</div>`;
+      } else {
+        const pct = sub.status === 'active' ? 'badge-green' : sub.status === 'cancel_scheduled' ? 'badge-yellow' : 'badge-red';
+        planInfo.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <span class="badge ${pct}" style="margin-bottom:8px;">${sub.status}</span>
+              <div style="font-size:20px; font-weight:700; margin-top:4px;">Plano ${sub.plan || '—'}</div>
+            </div>
+            <div style="display:flex; gap:10px;">
+              <button class="btn-ghost" onclick="openPortal()">🔧 Gerenciar pagamento</button>
+              ${sub.cancel_at_period_end ? '' : '<button class="btn-ghost" onclick="cancelSub()">❌ Cancelar</button>'}
+            </div>
+          </div>`;
+      }
+    }
+    if (plans?.plans) {
+      document.getElementById('plans-grid').innerHTML = plans.plans.map(p => `
+        <div class="card" style="padding:24px;">
+          <div style="font-size:24px; margin-bottom:8px;">${p.key === 'starter' ? '🚀' : p.key === 'pro' ? '⭐' : '🏆'}</div>
+          <div style="font-weight:700; font-size:18px;">${p.name}</div>
+          <div style="font-size:28px; font-weight:700; color:var(--accent); margin:12px 0;">R$ ${p.price_brl}<span style="font-size:14px; color:var(--muted);">/mês</span></div>
+          <ul style="list-style:none; margin-bottom:20px; display:grid; gap:6px;">
+            ${p.features.map(f => `<li style="font-size:13px; color:var(--muted);">✓ ${f}</li>`).join('')}
+          </ul>
+          <button class="btn-primary" style="width:100%;" onclick="subscribe('${p.key}')">Assinar ${p.name}</button>
+        </div>
+      `).join('');
+    }
+  } catch(e) { toast('Erro ao carregar billing: ' + e.message, 'error'); }
+}
+
+async function subscribe(plan) {
+  try {
+    const r = await api('POST', '/api/v1/stripe/subscribe', {
+      plan,
+      success_url: window.location.href,
+      cancel_url: window.location.href,
+    });
+    if (r?.checkout_url) window.location.href = r.checkout_url;
+  } catch(e) { toast('Erro ao iniciar assinatura: ' + e.message, 'error'); }
+}
+
+async function cancelSub() {
+  if (!confirm('Confirma o cancelamento? A assinatura será mantida até o fim do período.')) return;
+  try {
+    await api('POST', '/api/v1/stripe/cancel');
+    toast('Cancelamento agendado para o fim do período.', 'warning');
+    loadBilling();
+  } catch(e) { toast('Erro: ' + e.message, 'error'); }
+}
+
+async function openPortal() {
+  try {
+    const r = await api('POST', `/api/v1/stripe/portal?return_url=${encodeURIComponent(window.location.href)}`);
+    if (r?.portal_url) window.location.href = r.portal_url;
+  } catch(e) { toast('Erro: ' + e.message, 'error'); }
+}
+
+async function saveSettings() {
+  try {
+    await api('PUT', '/api/v1/preferences', {
+      telegram_operator_chat_id: document.getElementById('setting-telegram-chat').value,
+      operator_whatsapp_phone: document.getElementById('setting-operator-wa').value,
+      service_hours: document.getElementById('setting-hours').value,
+    });
+    toast('Configurações salvas!', 'success');
+  } catch(e) { toast('Erro: ' + e.message, 'error'); }
+}
+
+function logout() {
+  localStorage.removeItem('access_token');
+  window.location.href = '/login';
+}
+
+// Init
+document.addEventListener('DOMContentLoaded', () => {
+  if (!TOKEN) { window.location.href = '/login'; return; }
+  loadOverview();
+  const name = localStorage.getItem('tenant_name') || 'Cliente';
+  document.getElementById('greeting-name').textContent = name;
+});
+</script>
 </body>
-
 </html>
