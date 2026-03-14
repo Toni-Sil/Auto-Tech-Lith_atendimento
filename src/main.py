@@ -12,7 +12,9 @@ from src.middleware.metrics import PrometheusMetricsMiddleware
 from src.middleware.rate_limit_middleware import RateLimitMiddleware
 from src.middleware.tenant_context import TenantContextMiddleware  # Sprint 1
 
-# ── UTF-8 fix for Windows Console ───────────────────────────────────────────
+# -------------------------------------------------------------------------
+# CRITICAL FIX: Force UTF-8 encoding for Windows Console
+# -------------------------------------------------------------------------
 if sys.platform == "win32":
     if hasattr(sys.stdout, "reconfigure"):
         try:
@@ -30,15 +32,14 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
 )
 
-# ── Middlewares (aplicados de baixo para cima por Starlette) ────────────────
-# 1. Tenant context: resolve tenant_id de todo request
+# ── Middleware order (applied bottom-up by Starlette) ─────────────────────
+# 1. Tenant context: resolve tenant_id para cada request (Sprint 1)
 app.add_middleware(TenantContextMiddleware)
 # 2. Métricas: captura latência e status de TODAS as requisições
 app.add_middleware(PrometheusMetricsMiddleware)
-# 3. Rate Limit global: bloqueia IPs abusivos
+# 3. Rate Limit global
 app.add_middleware(RateLimitMiddleware)
 
-# Cache-Control em modo debug
 if getattr(settings, "APP_DEBUG", False):
     @app.middleware("http")
     async def add_no_cache_header(request: Request, call_next):
@@ -55,7 +56,6 @@ if getattr(settings, "APP_DEBUG", False):
             response.headers["Expires"] = "0"
         return response
 
-# CORS
 if settings.BACKEND_CORS_ORIGINS:
     origins = list(settings.BACKEND_CORS_ORIGINS)
     if settings.PUBLIC_URL:
@@ -70,13 +70,11 @@ if settings.BACKEND_CORS_ORIGINS:
         allow_headers=["*"],
     )
 
-# Security headers
+
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
     response = await call_next(request)
-    response.headers["Strict-Transport-Security"] = (
-        "max-age=31536000; includeSubDomains"
-    )
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
@@ -106,7 +104,7 @@ async def health_check():
     }
 
 
-# ── Routers ─────────────────────────────────────────────────────────────────
+# ── Routers ──────────────────────────────────────────────────────────────
 from src.api.ai_config import ai_config_router
 from src.api.apikeys import apikey_router
 from src.api.auth import auth_router
@@ -129,10 +127,9 @@ from src.api.tenant_quota import quota_router
 from src.api.usage import billing_router, usage_router
 from src.api.webhooks import webhooks_router
 from src.api.workflow import workflow_router
-# Sprint 1 + 2
+# Sprint 1 + 2 — novos routers
 from src.api.onboarding import router as onboarding_router
 from src.api.agent_profile_editor import router as agent_profile_router
-# Sprint 3
 from src.api.billing_stripe import router as stripe_router
 
 app.include_router(auth_router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])
@@ -158,14 +155,13 @@ app.include_router(products_router, tags=["products"])
 app.include_router(metrics_router, prefix=f"{settings.API_V1_STR}", tags=["observability"])
 app.include_router(system_config_router, prefix=f"{settings.API_V1_STR}/master", tags=["system-config"])
 app.include_router(api_router, prefix=settings.API_V1_STR)
-# Sprint 1+2
+# Sprint 1+2 routers
 app.include_router(onboarding_router)
 app.include_router(agent_profile_router)
-# Sprint 3
 app.include_router(stripe_router)
 
 
-# ── Legacy fallback ──────────────────────────────────────────────────────────
+# --- Legacy Fallback ---
 @app.post("/api/auth/token", tags=["auth"], include_in_schema=False)
 async def legacy_token_fallback(request: Request):
     logger.warning("Legacy auth endpoint called.")
@@ -176,9 +172,7 @@ async def legacy_token_fallback(request: Request):
     )
 
 
-# ── Frontend static ──────────────────────────────────────────────────────────
-import os
-
+# ── Frontend static files ─────────────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if os.path.basename(BASE_DIR) == "src":
     frontend_path = os.path.join(os.path.dirname(BASE_DIR), "frontend")
@@ -246,6 +240,13 @@ if os.path.exists(frontend_path):
             return FileResponse(client_path)
         raise HTTPException(status_code=404, detail="Client portal not found")
 
+    @app.get("/onboarding", include_in_schema=False)
+    async def onboarding_page():
+        onboarding_path = os.path.join(frontend_path, "onboarding.html")
+        if os.path.exists(onboarding_path):
+            return FileResponse(onboarding_path)
+        return FileResponse(os.path.join(frontend_path, "login.html"))
+
     @app.get("/", include_in_schema=False)
     async def landing_page():
         home_path = os.path.join(frontend_path, "home.html")
@@ -258,15 +259,16 @@ else:
     logger.warning(f"Frontend directory not found at {frontend_path}")
 
 
-# ── Startup ──────────────────────────────────────────────────────────────────
 @app.on_event("startup")
 async def startup_event():
     from sqlalchemy.ext.asyncio import create_async_engine
+
     import src.models.admin
     import src.models.agent_profile
     import src.models.api_key
     import src.models.audit
     import src.models.automation
+    import src.models.base_tenant  # Sprint 1 — BaseTenantModel
     import src.models.butler_log
     import src.models.config_model
     import src.models.conversation
@@ -280,6 +282,7 @@ async def startup_event():
     import src.models.recovery
     import src.models.role
     import src.models.sales_workflow
+    import src.models.subscription  # Sprint 3 — Stripe subscription
     import src.models.tenant
     import src.models.tenant_ai_config
     import src.models.tenant_quota
@@ -289,7 +292,6 @@ async def startup_event():
     import src.models.vault
     import src.models.webhook_config
     import src.models.whatsapp
-    import src.models.base_tenant  # Sprint 1: BaseTenantModel + RLS helpers
     from src.models.database import Base
 
     engine = create_async_engine(settings.DATABASE_URL)
@@ -330,10 +332,10 @@ async def startup_event():
         if settings.ENV == "production":
             logger.error(
                 "🚨 CRITICAL: ENCRYPTION_KEY is not set in production! "
-                'Generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
+                'Generate one with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
             )
         else:
-            logger.warning("⚠️  ENCRYPTION_KEY not set. AI Config key vault inactive.")
+            logger.warning("⚠️  ENCRYPTION_KEY env variable is not set.")
     else:
         logger.info("✅ ENCRYPTION_KEY is set. AI Config key vault active.")
 
@@ -348,18 +350,17 @@ async def startup_event():
         else:
             logger.error("Startup: Failed to set Telegram Webhook")
     else:
-        logger.warning("Startup: TELEGRAM_BOT_TOKEN or PUBLIC_URL not set.")
+        logger.warning("Startup: Telegram Webhook not configured.")
 
-    # Butler Agent APScheduler (8 jobs)
     from src.workers.butler_worker import create_butler_scheduler
     butler_scheduler = create_butler_scheduler()
     butler_scheduler.start()
-    logger.info("Startup: Butler Agent scheduler started with 8 background jobs.")
-    logger.info("Startup: SaaS multi-tenant architecture active.")
-    logger.info("✅ TenantContextMiddleware: ativo")
+    logger.info("✅ Butler Agent scheduler started with 8 background jobs.")
+    logger.info("✅ TenantContextMiddleware ativo — multi-tenant seguro.")
+    logger.info("✅ Onboarding: /api/onboarding/*")
+    logger.info("✅ Agent Profile Editor: /api/v1/agent/profile/*")
+    logger.info("✅ Stripe Billing: /api/v1/stripe/*")
     logger.info("✅ Landing: / | Admin: /admin | Client: /client | Master: /master.html")
-    logger.info("✅ Onboarding: /api/onboarding | Agent Editor: /api/v1/agent/profile")
-    logger.info("✅ Billing Stripe: /api/v1/stripe")
 
 
 if __name__ == "__main__":
