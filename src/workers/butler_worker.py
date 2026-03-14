@@ -2,11 +2,12 @@
 Butler Worker — APScheduler background jobs for the Mordomo Digital.
 
 Jobs:
-  - infra_health_check   every 30 min
-  - quota_patrol         every 60 min
-  - churn_scan           daily at 08:00
-  - daily_report         daily at 07:00
-  - log_rotation         daily at 03:00
+  - infra_health_check      every 30 min
+  - quota_patrol            every 60 min
+  - stuck_ticket_scan       every 15 min  ← NEW
+  - churn_scan              daily at 08:00
+  - daily_report            daily at 07:00
+  - log_rotation            daily at 03:00
 """
 
 import asyncio
@@ -22,21 +23,17 @@ from src.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 
-# Lazy import to avoid circular at module load
 def _get_butler():
     from src.agents.butler_agent import butler_agent
-
     return butler_agent
 
 
 def _get_settings():
     from src.config import settings
-
     return settings
 
 
-# ── Job functions ─────────────────────────────────────────────────────────────
-
+# ── Existing jobs ──────────────────────────────────────────────────────
 
 async def job_infra_health_check():
     """Every 30 min: check infrastructure health, alert if degraded."""
@@ -118,7 +115,34 @@ async def job_log_rotation():
         logger.error(f"[ButlerWorker] log_rotation failed: {e}")
 
 
-# ── Scheduler setup ───────────────────────────────────────────────────────────
+# ── NEW: Stuck Ticket Scanner ─────────────────────────────────────────
+
+async def job_stuck_ticket_scan():
+    """
+    Every 15 min: detect tickets stuck without operator response.
+    Notifies tenant operators via Telegram before customers get frustrated.
+    """
+    logger.debug("[ButlerWorker] Running stuck ticket scan")
+    try:
+        from src.agents.butler.stuck_ticket_scanner import (
+            get_stuck_tickets,
+            format_stuck_telegram,
+        )
+        from src.services.telegram_service import telegram_service
+
+        async with async_session() as db:
+            stuck = await get_stuck_tickets(db)
+            if stuck:
+                msg = format_stuck_telegram(stuck)
+                await telegram_service.send_message(msg)
+                logger.info(f"[ButlerWorker] Stuck scan: {len(stuck)} tickets alerted")
+            else:
+                logger.debug("[ButlerWorker] Stuck scan: all tickets healthy")
+    except Exception as e:
+        logger.error(f"[ButlerWorker] stuck_ticket_scan failed: {e}")
+
+
+# ── Scheduler setup ──────────────────────────────────────────────────────
 
 _scheduler: AsyncIOScheduler = None
 
@@ -147,6 +171,15 @@ def create_butler_scheduler() -> AsyncIOScheduler:
         replace_existing=True,
         misfire_grace_time=120,
     )
+    # NEW: stuck ticket scan every 15 minutes
+    scheduler.add_job(
+        job_stuck_ticket_scan,
+        trigger=IntervalTrigger(minutes=15),
+        id="stuck_ticket_scan",
+        name="Stuck Ticket Scanner",
+        replace_existing=True,
+        misfire_grace_time=60,
+    )
     scheduler.add_job(
         job_churn_scan,
         trigger=CronTrigger(hour=8, minute=0),
@@ -174,7 +207,7 @@ def create_butler_scheduler() -> AsyncIOScheduler:
 
 
 def get_scheduler() -> AsyncIOScheduler:
-    """Get the shared scheduler instance (creates if needed)."""
+    """Get the shared scheduler instance."""
     return create_butler_scheduler()
 
 
