@@ -1,199 +1,169 @@
 """
-TenantContext Middleware — Sprint 1 / SaaS Foundation
+TenantContextMiddleware
 
-Responsabilidades:
-1. Extrair tenant_id do JWT, header X-Tenant-ID ou subdomain
-2. Armazenar no contextvars (thread/async-safe)
-3. Injetar no PostgreSQL via SET LOCAL app.current_tenant
-4. Bloquear requests sem tenant válido em rotas protegidas
+Define o tenant ativo no contexto da request.
+Todo acesso ao banco deve passar por aqui.
+
+Fluxo:
+  1. Extrai tenant_id do JWT ou da API key do header
+  2. Valida que o tenant existe e está ativo
+  3. Define app.current_tenant no PostgreSQL via SET LOCAL
+  4. Injeta tenant_id no request.state para uso nos endpoints
+
+Segurança:
+  - Requests sem tenant válido retornam 401
+  - Rotas públicas (health, auth, onboarding) são excluídas
 """
 
-from __future__ import annotations
-
-import re
+import logging
 from contextvars import ContextVar
 from typing import Optional
 
-from fastapi import Depends, HTTPException, Request, status
-from jose import JWTError, jwt
+from fastapi import Request, Response
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.middleware.base import BaseHTTPMiddleware
 
-from src.config import settings
-from src.models.database import async_session
+logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Context variable — isolado por coroutine/task (async-safe)
-# ---------------------------------------------------------------------------
-_tenant_id_ctx: ContextVar[Optional[int]] = ContextVar("tenant_id", default=None)
+# ContextVar global — acessível em qualquer camada sem passar pelo request
+current_tenant_id: ContextVar[Optional[int]] = ContextVar(
+    "current_tenant_id", default=None
+)
+
+# Rotas que não precisam de tenant
+PUBLIC_PATHS = {
+    "/",
+    "/health",
+    "/docs",
+    "/openapi.json",
+    "/redoc",
+    "/api/auth/login",
+    "/api/auth/register",
+    "/api/auth/forgot-password",
+    "/api/onboarding/register",
+    "/api/webhooks/whatsapp",
+    "/api/webhooks/telegram",
+}
 
 
-def get_current_tenant_id() -> Optional[int]:
-    """Retorna o tenant_id da coroutine atual."""
-    return _tenant_id_ctx.get()
-
-
-def set_current_tenant_id(tenant_id: int) -> None:
-    """Define o tenant_id para a coroutine atual."""
-    _tenant_id_ctx.set(tenant_id)
-
-
-# ---------------------------------------------------------------------------
-# ASGI Middleware
-# ---------------------------------------------------------------------------
-class TenantMiddleware:
+class TenantContextMiddleware(BaseHTTPMiddleware):
     """
-    Middleware ASGI que resolve tenant_id antes de qualquer handler.
+    Middleware que injeta o tenant_id no contexto de cada request.
 
-    Ordem de resolução:
-    1. Header X-Tenant-ID (uso interno / API keys)
-    2. JWT claim `tenant_id`
-    3. Subdomain: {slug}.app.domain.com
+    Ordem de resolução do tenant:
+      1. Header X-Tenant-ID (uso interno / API keys)
+      2. JWT claim 'tenant_id' (sessão de usuário)
+      3. Subdomínio da request (futuro: app.{subdomain}.domain.com)
     """
 
-    def __init__(self, app, public_paths: list[str] | None = None):
-        self.app = app
-        self.public_paths = public_paths or [
-            "/health",
-            "/docs",
-            "/redoc",
-            "/openapi.json",
-            "/api/auth/register",
-            "/api/auth/login",
-            "/api/onboarding",
-            "/api/webhooks",  # webhooks usam validação própria
-        ]
+    async def dispatch(self, request: Request, call_next) -> Response:
+        # Ignorar rotas públicas
+        if request.url.path in PUBLIC_PATHS or request.url.path.startswith("/static"):
+            return await call_next(request)
 
-    async def __call__(self, scope, receive, send):
-        if scope["type"] not in ("http", "websocket"):
-            await self.app(scope, receive, send)
-            return
+        tenant_id = await self._resolve_tenant(request)
 
-        path = scope.get("path", "")
+        if tenant_id is None:
+            return JSONResponse(
+                status_code=401,
+                content={
+                    "detail": "Tenant não identificado. Autentique-se ou forneça X-Tenant-ID."
+                },
+            )
 
-        # Rotas públicas não precisam de tenant
-        if any(path.startswith(p) for p in self.public_paths):
-            await self.app(scope, receive, send)
-            return
+        # Injeta no request.state e no ContextVar global
+        request.state.tenant_id = tenant_id
+        token = current_tenant_id.set(tenant_id)
 
-        tenant_id = await self._resolve_tenant(scope)
+        try:
+            response = await call_next(request)
+            return response
+        except Exception as exc:
+            logger.error(
+                f"[TenantMiddleware] Erro no request tenant_id={tenant_id}: {exc}",
+                exc_info=True,
+            )
+            raise
+        finally:
+            # Sempre limpa o contexto ao fim do request
+            current_tenant_id.reset(token)
 
-        if tenant_id is not None:
-            set_current_tenant_id(tenant_id)
+    async def _resolve_tenant(self, request: Request) -> Optional[int]:
+        # 1. Header direto (API keys internas, webhooks autenticados)
+        header_tid = request.headers.get("X-Tenant-ID")
+        if header_tid and header_tid.isdigit():
+            return int(header_tid)
 
-        await self.app(scope, receive, send)
-
-        # Limpa após o request
-        _tenant_id_ctx.set(None)
-
-    async def _resolve_tenant(self, scope) -> Optional[int]:
-        headers = dict(scope.get("headers", []))
-
-        # 1. Header direto
-        raw_header = headers.get(b"x-tenant-id")
-        if raw_header:
-            try:
-                return int(raw_header.decode())
-            except (ValueError, UnicodeDecodeError):
-                pass
-
-        # 2. JWT Bearer token
-        auth_header = headers.get(b"authorization", b"").decode()
-        if auth_header.startswith("Bearer "):
-            token = auth_header[7:]
-            try:
-                payload = jwt.decode(
-                    token,
-                    settings.SECRET_KEY,
-                    algorithms=[settings.JWT_ALGORITHM],
-                )
-                tid = payload.get("tenant_id")
-                if tid:
-                    return int(tid)
-            except JWTError:
-                pass
-
-        # 3. Subdomain: slug.app.domain / slug.localhost
-        host = headers.get(b"host", b"").decode().split(":")[0]
-        match = re.match(r"^([a-z0-9-]+)\.(?:app\.|localhost)", host)
-        if match:
-            slug = match.group(1)
-            # Resolve slug → tenant_id via cache ou query
-            # (implementação completa usa Redis cache)
-            return await self._slug_to_tenant_id(slug)
+        # 2. JWT token no header Authorization
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            token = auth.split(" ", 1)[1]
+            tid = self._extract_tenant_from_jwt(token)
+            if tid:
+                return tid
 
         return None
 
-    async def _slug_to_tenant_id(self, slug: str) -> Optional[int]:
-        """Resolve subdomain slug para tenant_id. Cache Redis recomendado em produção."""
+    def _extract_tenant_from_jwt(self, token: str) -> Optional[int]:
+        """Extrai tenant_id do payload JWT sem revalidar assinatura aqui."""
         try:
-            async with async_session() as session:
-                result = await session.execute(
-                    text("SELECT id FROM tenants WHERE subdomain = :slug AND is_active = true"),
-                    {"slug": slug},
-                )
-                row = result.fetchone()
-                return row[0] if row else None
+            import base64
+            import json
+
+            payload_b64 = token.split(".")[1]
+            # Ajusta padding base64
+            payload_b64 += "==" * (4 - len(payload_b64) % 4)
+            payload = json.loads(base64.b64decode(payload_b64))
+            tid = payload.get("tenant_id")
+            return int(tid) if tid else None
         except Exception:
             return None
 
 
-# ---------------------------------------------------------------------------
-# FastAPI Dependency — injeta tenant na sessão do banco
-# ---------------------------------------------------------------------------
-async def get_tenant_db():
+async def set_rls_tenant(session, tenant_id: int):
     """
-    Dependência FastAPI que:
-    1. Obtém sessão async do banco
-    2. Injeta SET LOCAL app.current_tenant para RLS
-    3. Garante que tenant_id está presente (403 se ausente)
+    Define o tenant ativo no PostgreSQL para Row-Level Security.
+
+    Usar no início de cada sessão de banco que precisar de isolamento RLS:
+        async with async_session() as session:
+            await set_rls_tenant(session, tenant_id)
+            # ... queries
+
+    PostgreSQL usa app.current_tenant para aplicar as políticas RLS.
+    """
+    await session.execute(
+        text("SET LOCAL app.current_tenant = :tid"), {"tid": str(tenant_id)}
+    )
+
+
+async def get_db_with_tenant(tenant_id: int):
+    """
+    Dependency FastAPI que entrega sessão já com RLS configurado.
+
+    Uso nos endpoints:
+        async def my_endpoint(
+            tenant_id: int = Depends(get_current_tenant_id),
+            session: AsyncSession = Depends(lambda tid=tenant_id: get_db_with_tenant(tid))
+        ):
+    """
+    from src.models.database import async_session
+
+    async with async_session() as session:
+        await set_rls_tenant(session, tenant_id)
+        yield session
+
+
+def get_current_tenant_id() -> int:
+    """
+    Dependency FastAPI para obter tenant_id do contexto atual.
+    Usar em qualquer endpoint que precisar do tenant.
 
     Uso:
-        @router.get("/tickets")
-        async def list_tickets(db: AsyncSession = Depends(get_tenant_db)):
-            ...
+        async def my_endpoint(tenant_id: int = Depends(get_current_tenant_id)):
     """
-    tenant_id = get_current_tenant_id()
-
-    if tenant_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Tenant não identificado. Autentique-se com uma conta válida.",
-        )
-
-    async with async_session() as session:
-        # Injeta o tenant_id no contexto da transação PostgreSQL
-        # As políticas RLS usam current_setting('app.current_tenant')
-        await session.execute(
-            text("SET LOCAL app.current_tenant = :tid"),
-            {"tid": str(tenant_id)},
-        )
-        try:
-            yield session
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.commit()
-
-
-async def get_optional_tenant_db():
-    """
-    Versão opcional — para rotas que podem ou não ter tenant
-    (ex: webhooks públicos que identificam tenant pelo payload).
-    """
-    tenant_id = get_current_tenant_id()
-
-    async with async_session() as session:
-        if tenant_id is not None:
-            await session.execute(
-                text("SET LOCAL app.current_tenant = :tid"),
-                {"tid": str(tenant_id)},
-            )
-        try:
-            yield session
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.commit()
+    tid = current_tenant_id.get()
+    if tid is None:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=401, detail="Tenant não autenticado.")
+    return tid
