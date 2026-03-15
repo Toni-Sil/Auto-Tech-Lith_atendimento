@@ -1,0 +1,12 @@
+# Dependências a adicionar ao requirements.txt principal
+# Sprint 1+2+3
+
+# Scheduler (butler worker)
+apscheduler>=3.10.0
+
+# Auth segura
+bcrypt>=4.0.0
+PyJWT>=2.8.0
+
+# Stripe billing
+stripe>=7.0.0

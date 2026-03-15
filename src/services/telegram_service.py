@@ -17,7 +17,6 @@ class TelegramService:
         )
 
     async def delete_webhook(self) -> bool:
-        """Remove any active webhook to allow long polling (getUpdates)."""
         if not self.base_url:
             return False
         try:
@@ -31,7 +30,6 @@ class TelegramService:
             return False
 
     async def set_webhook(self, url: str) -> bool:
-        """Set a webhook URL to receive updates directly."""
         if not self.base_url:
             return False
         try:
@@ -53,14 +51,13 @@ class TelegramService:
             return False
 
     async def send_message(self, message: str, chat_id: str = None):
+        """Envia mensagem. Usa TELEGRAM_CHAT_ID padrão se chat_id não fornecido."""
         target_chat_id = chat_id or self.chat_id
-
         if not self.base_url or not target_chat_id:
             logger.warning(
                 "Telegram credentials or chat_id not configured. Notification skipped."
             )
             return
-
         try:
             async with httpx.AsyncClient() as client:
                 payload = {
@@ -72,20 +69,23 @@ class TelegramService:
                     f"{self.base_url}/sendMessage", json=payload
                 )
                 response.raise_for_status()
-                logger.debug(
-                    f"Telegram notification sent successfully to {target_chat_id}."
-                )
+                logger.debug(f"Telegram notification sent to {target_chat_id}.")
         except Exception as e:
             logger.error(f"Failed to send Telegram notification: {e}")
+
+    async def send_message_to_chat(self, chat_id: str, message: str):
+        """
+        Sprint 2: Alias explícito para enviar para um chat_id específico.
+        Usado pelo HandoffService para notificar operadores de cada tenant.
+        """
+        await self.send_message(message=message, chat_id=chat_id)
 
     async def get_updates(self, offset: int = None, timeout: int = 30):
         if not self.base_url:
             return []
-
         params = {"timeout": timeout}
         if offset:
             params["offset"] = offset
-
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
@@ -99,10 +99,6 @@ class TelegramService:
             return []
 
     async def get_file(self, file_id: str) -> Optional[dict]:
-        """
-        Obtém informações de um arquivo pelo file_id (path para download).
-        https://api.telegram.org/bot{token}/getFile?file_id={file_id}
-        """
         if not self.base_url:
             return None
         try:
@@ -120,10 +116,6 @@ class TelegramService:
             return None
 
     async def download_file(self, file_path: str) -> Optional[bytes]:
-        """
-        Faz download do conteúdo de um arquivo usando o file_path retornado por get_file.
-        https://api.telegram.org/file/bot{token}/{file_path}
-        """
         if not self.bot_token:
             return None
         url = f"https://api.telegram.org/file/bot{self.bot_token}/{file_path}"

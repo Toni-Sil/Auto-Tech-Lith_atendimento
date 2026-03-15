@@ -1,379 +1,327 @@
 """
-Butler Agent — Core Orchestrator
+Butler Agent v1 — Operations Copilot
 
-The Mordomo Digital acts as the operational leader of the platform.
-It extends BaseAgent with autonomous capabilities, tool-calling,
-structured logging, and omnichannel alerting.
+O Butler é o agente interno da plataforma.
+Ele não atende clientes finais — ele monitora a operação de cada tenant
+e age proativamente para manter tudo em ordem.
+
+Responsabilidades:
+- Detectar tickets parados e escalonar
+- Monitorar quota e alertar antes de esgotar
+- Verificar saúde de webhooks/integrações
+- Identificar leads quentes esquecidos
+- Gerar resumo operacional diário
+- Registrar todas as ações em ButlerLog (append-only)
 """
 
-import json
-from datetime import datetime
-from typing import Any, Dict, Optional
+from __future__ import annotations
 
+import logging
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from typing import Any, Optional
+
+from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.agents.base_agent import BaseAgent
-from src.agents.butler.billing_monitor import (format_billing_telegram,
-                                               generate_consolidated_report,
-                                               get_billing_alerts)
-from src.agents.butler.butler_tools import (TOOL_REGISTRY, ApprovalLevel,
-                                            execute_tool)
-from src.agents.butler.churn_detector import (format_churn_telegram,
-                                              get_churn_risks)
-from src.agents.butler.infra_monitor import InfraStatus, run_infra_check
-from src.agents.butler.onboarding import (advance_onboarding,
-                                          get_or_create_state,
-                                          reset_onboarding)
-from src.agents.butler.support_triage import TriageResult, triage_ticket
 from src.models.butler_log import ButlerActionType, ButlerLog, ButlerSeverity
-from src.services.telegram_service import telegram_service
-from src.utils.logger import setup_logger
+from src.models.database import async_session
 
-logger = setup_logger(__name__)
+logger = logging.getLogger("butler_agent")
 
 
-class ButlerAgent(BaseAgent):
+# ---------------------------------------------------------------------------
+# Data structures
+# ---------------------------------------------------------------------------
+
+@dataclass
+class ButlerAction:
+    action_type: ButlerActionType
+    severity: ButlerSeverity
+    description: str
+    tenant_id: Optional[int] = None
+    result: str = "ok"
+    detail: Optional[str] = None
+    meta: dict = field(default_factory=dict)
+    requires_approval: int = 0
+
+
+@dataclass
+class OperationalSummary:
+    tenant_id: int
+    tenant_name: str
+    stuck_tickets: int
+    open_tickets: int
+    hot_leads_forgotten: int
+    quota_percent: float
+    webhook_healthy: bool
+    alerts: list[str]
+    generated_at: datetime = field(default_factory=datetime.utcnow)
+
+
+# ---------------------------------------------------------------------------
+# Butler Agent
+# ---------------------------------------------------------------------------
+
+class ButlerAgent:
     """
-    Mordomo Digital — Autonomous operational agent.
-
-    Responsibilities:
-    - Continuous infrastructure monitoring
-    - Cross-tenant support triage
-    - Billing / quota enforcement
-    - Churn detection
-    - Tenant onboarding guidance
-    - Omnichannel alerting (Telegram)
+    Agente interno de operações.
+    Cada método é uma "tool" que pode ser chamada pelo scheduler
+    ou manualmente pelo admin da plataforma.
     """
 
-    # ── BaseAgent contract ────────────────────────────────────────────
-    async def process_message(self, message: str, context: Dict[str, Any]) -> str:
-        """Entry point for conversational interactions with the Butler."""
-        tenant_id: Optional[int] = context.get("tenant_id")
-        channel: str = context.get("channel", "webchat")
+    STUCK_TICKET_HOURS = 2       # tickets sem atualização
+    FORGOTTEN_LEAD_HOURS = 24    # leads qualificados sem follow-up
+    QUOTA_WARN_PERCENT = 80.0    # alertar quando quota > 80%
+    QUOTA_CRITICAL_PERCENT = 95.0
 
-        lower = message.lower()
+    def __init__(self):
+        self._session_factory = async_session
 
-        # Quick routing by intent keyword
-        if any(
-            w in lower
-            for w in ["onboarding", "configurar", "conectar canal", "qr code"]
-        ):
-            state = get_or_create_state(tenant_id or 0)
-            return state.next_instruction
+    # ------------------------------------------------------------------
+    # TOOL: Tickets parados
+    # ------------------------------------------------------------------
+    async def check_stuck_tickets(self, tenant_id: int) -> ButlerAction:
+        """Detecta tickets sem atualização há mais de STUCK_TICKET_HOURS."""
+        cutoff = datetime.utcnow() - timedelta(hours=self.STUCK_TICKET_HOURS)
 
-        if any(w in lower for w in ["status", "infraestrutura", "servidores"]):
-            return "🔍 Verificando infraestrutura... Use o painel Master Admin para ver o status em tempo real."
-
-        if any(w in lower for w in ["churn", "cancelamento", "risco"]):
-            return "📊 Análise de churn disponível no painel Master Admin → Mordomo → Risco de Churn."
-
-        # Default: route to LLM with butler persona
-        prompt = await self.get_system_prompt(context)
-        return f"[Butler Agent — {channel}] Mensagem recebida. Posso ajudar com: onboarding, status do sistema, alertas de billing ou suporte técnico."
-
-    async def get_system_prompt(self, context: Dict[str, Any]) -> str:
-        return (
-            "Você é o Mordomo Digital da Auto Tech Lith — um agente autônomo de operações. "
-            "Você gerencia infraestrutura, monitora lojistas, detecta problemas e age proativamente. "
-            "Seja direto, técnico quando necessário, e sempre registre suas ações."
-        )
-
-    # ── Infrastructure ────────────────────────────────────────────────
-    async def monitor_infrastructure(
-        self, db: AsyncSession, database_url: str
-    ) -> InfraStatus:
-        """Run full infra check and log results. Alert if critical."""
-        from src.config import settings
-
-        status = await run_infra_check(database_url, api_base="http://localhost:8000")
-
-        severity = (
-            ButlerSeverity.critical
-            if status.has_critical
-            else ButlerSeverity.high if status.has_degraded else ButlerSeverity.low
-        )
-
-        await self._log(
-            db,
-            action_type=ButlerActionType.infra_health_check,
-            severity=severity,
-            description=f"Infrastructure check: overall={status.overall}",
-            result=status.overall,
-            meta=status.to_dict(),
-        )
-
-        if status.has_critical or status.has_degraded:
-            await self.send_master_alert(
-                db,
-                message=self._format_infra_alert(status),
-                severity=severity,
-                action_type=ButlerActionType.telegram_alert,
+        async with self._session_factory() as db:
+            result = await db.execute(
+                text("""
+                    SELECT COUNT(*) FROM tickets
+                    WHERE tenant_id = :tid
+                      AND status NOT IN ('closed', 'resolved')
+                      AND updated_at < :cutoff
+                """),
+                {"tid": tenant_id, "cutoff": cutoff},
             )
+            count = result.scalar() or 0
 
-        return status
+        severity = ButlerSeverity.low
+        if count >= 10:
+            severity = ButlerSeverity.critical
+        elif count >= 5:
+            severity = ButlerSeverity.high
+        elif count >= 1:
+            severity = ButlerSeverity.medium
 
-    def _format_infra_alert(self, status: InfraStatus) -> str:
-        lines = [
-            f"{'🔴' if status.overall == 'critical' else '⚠️'} *Alerta de Infraestrutura*",
-            "",
-        ]
-        for svc in status.services:
-            if svc.status != "ok":
-                icon = "🔴" if svc.status == "down" else "🟡"
-                lines.append(f"{icon} `{svc.name}` — {svc.status.upper()}")
-                if svc.detail:
-                    lines.append(f"   ↳ {svc.detail[:80]}")
-        return "\n".join(lines)
-
-    # ── Support Triage ────────────────────────────────────────────────
-    async def triage_support_ticket(
-        self,
-        db: AsyncSession,
-        ticket_text: str,
-        ticket_id: Optional[int] = None,
-        tenant_id: Optional[int] = None,
-    ) -> TriageResult:
-        """Classify and optionally escalate a support ticket."""
-        result = triage_ticket(ticket_text, ticket_id=ticket_id, tenant_id=tenant_id)
-
-        severity = {
-            "critical": ButlerSeverity.critical,
-            "high": ButlerSeverity.high,
-            "medium": ButlerSeverity.medium,
-            "low": ButlerSeverity.low,
-        }.get(result.urgency, ButlerSeverity.low)
-
-        await self._log(
-            db,
+        return ButlerAction(
             action_type=ButlerActionType.ticket_triage,
             severity=severity,
+            description=f"{count} ticket(s) parado(s) há mais de {self.STUCK_TICKET_HOURS}h sem atualização.",
             tenant_id=tenant_id,
-            description=f"Ticket #{ticket_id} triaged: urgency={result.urgency}",
-            result=(
-                "auto_resolved"
-                if result.auto_resolved
-                else ("escalated" if result.escalate else "queued")
-            ),
-            meta={
-                "ticket_id": ticket_id,
-                "labels": result.labels,
-                "score": result.urgency_score,
-            },
+            meta={"stuck_count": count, "cutoff_hours": self.STUCK_TICKET_HOURS},
         )
 
-        if result.escalate:
-            await self.run_tool(
-                db,
-                "escalate_ticket",
-                {
-                    "ticket_id": ticket_id,
-                    "reason": result.recommendation,
-                    "urgency": result.urgency,
-                },
+    # ------------------------------------------------------------------
+    # TOOL: Quota do tenant
+    # ------------------------------------------------------------------
+    async def check_quota_health(self, tenant_id: int) -> ButlerAction:
+        """Verifica uso de quota e alerta quando próximo do limite."""
+        async with self._session_factory() as db:
+            result = await db.execute(
+                text("""
+                    SELECT messages_used, messages_limit,
+                           ai_calls_used, ai_calls_limit
+                    FROM tenant_quotas
+                    WHERE tenant_id = :tid
+                """),
+                {"tid": tenant_id},
+            )
+            row = result.fetchone()
+
+        if not row:
+            return ButlerAction(
+                action_type=ButlerActionType.quota_alert,
+                severity=ButlerSeverity.low,
+                description="Quota não configurada para este tenant.",
                 tenant_id=tenant_id,
+                result="skipped",
             )
 
-        return result
+        msg_pct = (row[0] / row[1] * 100) if row[1] else 0
+        ai_pct = (row[2] / row[3] * 100) if row[3] else 0
+        max_pct = max(msg_pct, ai_pct)
 
-    # ── Billing & Churn ───────────────────────────────────────────────
-    async def check_quota_alerts(self, db: AsyncSession) -> list:
-        """Detect tenants at 80%/90% quota and send Telegram alerts."""
-        alerts = await get_billing_alerts(db)
+        if max_pct >= self.QUOTA_CRITICAL_PERCENT:
+            severity = ButlerSeverity.critical
+            desc = f"QUOTA CRÍTICA: {max_pct:.1f}% utilizado. Risco de bloqueio iminente."
+        elif max_pct >= self.QUOTA_WARN_PERCENT:
+            severity = ButlerSeverity.high
+            desc = f"Quota em {max_pct:.1f}%. Considere fazer upgrade do plano."
+        else:
+            severity = ButlerSeverity.low
+            desc = f"Quota saudável: {max_pct:.1f}% utilizado."
 
-        for alert in alerts:
-            if alert.alert_level == "critical":
-                await self.send_master_alert(
-                    db,
-                    message=(
-                        f"🔴 *Quota CRÍTICA — {alert.tenant_name}*\n"
-                        f"Dia: {alert.pct_daily}% · Mês: {alert.pct_monthly}%\n"
-                        f"{alert.action}"
-                    ),
-                    severity=ButlerSeverity.critical,
-                    action_type=ButlerActionType.quota_alert,
-                    tenant_id=alert.tenant_id,
-                )
-            elif alert.alert_level == "warning":
-                await self.send_master_alert(
-                    db,
-                    message=(
-                        f"⚠️ *Quota Warning — {alert.tenant_name}*\n"
-                        f"Dia: {alert.pct_daily}% · Mês: {alert.pct_monthly}%\n"
-                        f"{alert.action}"
-                    ),
-                    severity=ButlerSeverity.medium,
-                    action_type=ButlerActionType.quota_alert,
-                    tenant_id=alert.tenant_id,
-                )
+        return ButlerAction(
+            action_type=ButlerActionType.quota_alert,
+            severity=severity,
+            description=desc,
+            tenant_id=tenant_id,
+            meta={"msg_pct": msg_pct, "ai_pct": ai_pct, "max_pct": max_pct},
+        )
 
-        return alerts
+    # ------------------------------------------------------------------
+    # TOOL: Leads quentes esquecidos
+    # ------------------------------------------------------------------
+    async def check_forgotten_leads(self, tenant_id: int) -> ButlerAction:
+        """Identifica leads qualificados sem interação há mais de FORGOTTEN_LEAD_HOURS."""
+        cutoff = datetime.utcnow() - timedelta(hours=self.FORGOTTEN_LEAD_HOURS)
 
-    async def detect_churn_risk(self, db: AsyncSession) -> list:
-        """Detect and report churn risks via Telegram."""
-        risks = await get_churn_risks(db, drop_threshold=0.4)
-        if risks:
-            msg = format_churn_telegram(risks)
-            await self.send_master_alert(
-                db,
-                msg,
-                severity=ButlerSeverity.medium,
-                action_type=ButlerActionType.churn_alert,
+        async with self._session_factory() as db:
+            result = await db.execute(
+                text("""
+                    SELECT COUNT(*) FROM leads
+                    WHERE tenant_id = :tid
+                      AND status = 'qualified'
+                      AND last_interaction_at < :cutoff
+                """),
+                {"tid": tenant_id, "cutoff": cutoff},
             )
-        await self._log(
-            db,
+            count = result.scalar() or 0
+
+        severity = ButlerSeverity.low
+        if count >= 5:
+            severity = ButlerSeverity.high
+        elif count >= 1:
+            severity = ButlerSeverity.medium
+
+        return ButlerAction(
             action_type=ButlerActionType.churn_alert,
-            severity=ButlerSeverity.medium if risks else ButlerSeverity.low,
-            description=f"Churn scan: {len(risks)} tenants at risk",
-            result="alert_sent" if risks else "clear",
-            meta={"risk_count": len(risks)},
-        )
-        return risks
-
-    async def generate_billing_report(self, db: AsyncSession) -> dict:
-        """Generate and send daily billing report to Telegram."""
-        report = await generate_consolidated_report(db)
-        msg = format_billing_telegram(report)
-        await self.send_master_alert(
-            db,
-            msg,
-            severity=ButlerSeverity.low,
-            action_type=ButlerActionType.billing_report,
-        )
-        return report
-
-    # ── Tenant Onboarding ─────────────────────────────────────────────
-    async def onboard_tenant(self, db: AsyncSession, tenant_id: int) -> dict:
-        """Get current onboarding state and instructions for a tenant."""
-        state = get_or_create_state(tenant_id)
-        await self._log(
-            db,
-            action_type=ButlerActionType.tenant_onboarding,
-            severity=ButlerSeverity.low,
+            severity=severity,
+            description=f"{count} lead(s) qualificado(s) sem follow-up há mais de {self.FORGOTTEN_LEAD_HOURS}h.",
             tenant_id=tenant_id,
-            description=f"Onboarding step: {state.current_step.value} ({state.progress_pct}%)",
-            result="in_progress" if not state.is_complete else "completed",
-        )
-        return state.to_dict()
-
-    async def advance_tenant_onboarding(self, db: AsyncSession, tenant_id: int) -> dict:
-        """Advance a tenant to the next onboarding step."""
-        state = advance_onboarding(tenant_id)
-        await self._log(
-            db,
-            action_type=ButlerActionType.tenant_onboarding,
-            severity=ButlerSeverity.low,
-            tenant_id=tenant_id,
-            description=f"Onboarding advanced to: {state.current_step.value}",
-            result="completed" if state.is_complete else "advanced",
-        )
-        return state.to_dict()
-
-    # ── Tool Execution ────────────────────────────────────────────────
-    async def run_tool(
-        self,
-        db: AsyncSession,
-        action_name: str,
-        params: dict,
-        tenant_id: Optional[int] = None,
-        operator: str = "butler_agent",
-    ) -> dict:
-        """
-        Execute a registered tool with full audit logging.
-        HIGH severity tools: log as pending, require approval flow.
-        """
-        tool = TOOL_REGISTRY.get(action_name)
-        if not tool:
-            return {"status": "failed", "error": f"Unknown action: {action_name}"}
-
-        requires_approval = 1 if tool.approval == ApprovalLevel.CONFIRM else 0
-
-        log_entry = await self._log(
-            db,
-            action_type=ButlerActionType.maintenance_script,
-            severity=getattr(ButlerSeverity, tool.severity, ButlerSeverity.medium),
-            tenant_id=tenant_id,
-            description=f"Tool call: {action_name} params={json.dumps(params)[:200]}",
-            result="pending" if requires_approval else "running",
-            meta={"action": action_name, "params": params},
-            operator=operator,
-            requires_approval=requires_approval,
+            meta={"forgotten_count": count},
         )
 
-        if requires_approval:
-            # Send Telegram prompt and return — approval handled externally
-            await telegram_service.send_message(
-                f"🔐 *Aprovação Necessária*\n"
-                f"Ação: `{action_name}`\n"
-                f"Params: `{json.dumps(params)[:150]}`\n"
-                f"Log ID: #{log_entry.id}\n\n"
-                f"Responda com `/approve {log_entry.id}` para confirmar."
+    # ------------------------------------------------------------------
+    # TOOL: Saúde do webhook
+    # ------------------------------------------------------------------
+    async def check_webhook_health(self, tenant_id: int) -> ButlerAction:
+        """Verifica se o webhook do tenant teve falhas recentes."""
+        window = datetime.utcnow() - timedelta(hours=1)
+
+        async with self._session_factory() as db:
+            result = await db.execute(
+                text("""
+                    SELECT COUNT(*) FROM usage_logs
+                    WHERE tenant_id = :tid
+                      AND event_type = 'webhook_failed'
+                      AND created_at > :window
+                """),
+                {"tid": tenant_id, "window": window},
             )
-            return {"status": "pending_approval", "log_id": log_entry.id}
+            failures = result.scalar() or 0
 
-        result = await execute_tool(action_name, params, operator=operator)
+        if failures >= 5:
+            severity = ButlerSeverity.critical
+            desc = f"WEBHOOK CRÍTICO: {failures} falhas na última hora. Verifique a integração."
+        elif failures >= 1:
+            severity = ButlerSeverity.high
+            desc = f"{failures} falha(s) de webhook na última hora."
+        else:
+            severity = ButlerSeverity.low
+            desc = "Webhook funcionando normalmente."
 
-        # Update log result
-        log_entry.result = result.get("status", "ok")
-        log_entry.detail = json.dumps(result)[:500]
-        await db.commit()
-
-        return result
-
-    # ── Alerting ──────────────────────────────────────────────────────
-    async def send_master_alert(
-        self,
-        db: AsyncSession,
-        message: str,
-        severity: ButlerSeverity = ButlerSeverity.medium,
-        action_type: ButlerActionType = ButlerActionType.telegram_alert,
-        tenant_id: Optional[int] = None,
-    ) -> None:
-        """Send a formatted Telegram alert and log it."""
-        await telegram_service.send_message(message)
-        await self._log(
-            db,
-            action_type=action_type,
+        return ButlerAction(
+            action_type=ButlerActionType.infra_health_check,
             severity=severity,
+            description=desc,
             tenant_id=tenant_id,
-            description=f"Telegram alert sent: {message[:100]}...",
-            result="sent",
+            meta={"webhook_failures_1h": failures},
         )
 
-    # ── Internal logging ──────────────────────────────────────────────
-    async def _log(
-        self,
-        db: AsyncSession,
-        action_type: ButlerActionType,
-        severity: ButlerSeverity,
-        description: str,
-        result: str = "ok",
-        tenant_id: Optional[int] = None,
-        detail: Optional[str] = None,
-        meta: Optional[dict] = None,
-        operator: str = "butler_agent",
-        requires_approval: int = 0,
-    ) -> ButlerLog:
-        """Create an immutable ButlerLog entry."""
-        log = ButlerLog(
-            timestamp=datetime.utcnow(),
-            action_type=action_type,
-            severity=severity,
+    # ------------------------------------------------------------------
+    # TOOL: Resumo operacional completo
+    # ------------------------------------------------------------------
+    async def generate_operational_summary(self, tenant_id: int) -> OperationalSummary:
+        """Gera resumo completo da operação do tenant. Usado no digest diário."""
+        async with self._session_factory() as db:
+            # Nome do tenant
+            t = await db.execute(
+                text("SELECT name FROM tenants WHERE id = :tid"),
+                {"tid": tenant_id},
+            )
+            tenant_row = t.fetchone()
+            tenant_name = tenant_row[0] if tenant_row else f"Tenant #{tenant_id}"
+
+            # Tickets abertos
+            open_r = await db.execute(
+                text("SELECT COUNT(*) FROM tickets WHERE tenant_id = :tid AND status NOT IN ('closed','resolved')"),
+                {"tid": tenant_id},
+            )
+            open_tickets = open_r.scalar() or 0
+
+        # Checks individuais
+        stuck = await self.check_stuck_tickets(tenant_id)
+        quota = await self.check_quota_health(tenant_id)
+        leads = await self.check_forgotten_leads(tenant_id)
+        webhook = await self.check_webhook_health(tenant_id)
+
+        alerts = []
+        for action in [stuck, quota, leads, webhook]:
+            if action.severity in (ButlerSeverity.high, ButlerSeverity.critical):
+                alerts.append(action.description)
+
+        quota_pct = quota.meta.get("max_pct", 0.0)
+        webhook_ok = webhook.meta.get("webhook_failures_1h", 0) == 0
+
+        return OperationalSummary(
             tenant_id=tenant_id,
-            description=description,
-            result=result,
-            detail=detail,
-            meta=meta,
-            operator=operator,
-            requires_approval=requires_approval,
+            tenant_name=tenant_name,
+            stuck_tickets=stuck.meta.get("stuck_count", 0),
+            open_tickets=open_tickets,
+            hot_leads_forgotten=leads.meta.get("forgotten_count", 0),
+            quota_percent=quota_pct,
+            webhook_healthy=webhook_ok,
+            alerts=alerts,
         )
-        db.add(log)
-        await db.commit()
-        await db.refresh(log)
-        logger.info(
-            f"[Butler] LOG #{log.id} {action_type.value} [{severity.value}] → {result}"
+
+    # ------------------------------------------------------------------
+    # Persistência — append-only log
+    # ------------------------------------------------------------------
+    async def log_action(self, action: ButlerAction) -> None:
+        """Registra ação no ButlerLog. Nunca atualiza, apenas insere."""
+        async with self._session_factory() as db:
+            entry = ButlerLog(
+                action_type=action.action_type,
+                severity=action.severity,
+                tenant_id=action.tenant_id,
+                description=action.description,
+                result=action.result,
+                detail=action.detail,
+                meta=action.meta,
+                requires_approval=action.requires_approval,
+                operator="butler_agent",
+            )
+            db.add(entry)
+            await db.commit()
+            logger.info(
+                "[Butler] %s | tenant=%s | %s",
+                action.action_type.value,
+                action.tenant_id,
+                action.description[:80],
+            )
+
+    async def run_tenant_cycle(self, tenant_id: int) -> list[ButlerAction]:
+        """
+        Executa todos os checks para um tenant e persiste os resultados.
+        Chamado pelo scheduler a cada 15 minutos.
+        """
+        actions = await asyncio.gather(
+            self.check_stuck_tickets(tenant_id),
+            self.check_quota_health(tenant_id),
+            self.check_forgotten_leads(tenant_id),
+            self.check_webhook_health(tenant_id),
         )
-        return log
+
+        for action in actions:
+            # Só loga se relevante (evita spam de low severity)
+            if action.severity != ButlerSeverity.low or action.result != "ok":
+                await self.log_action(action)
+
+        return list(actions)
 
 
-# Singleton
-butler_agent = ButlerAgent()
+# import asyncio aqui para evitar circular no topo
+import asyncio  # noqa: E402
