@@ -37,6 +37,9 @@ qrcode==7.4.2
 # Scheduling (Butler Agent)
 APScheduler==3.11.2
 
+# Payment Processing
+stripe>=7.0.0
+
 # Rate Limiting & Caching (Redis-backed)
 redis==5.2.1
 
