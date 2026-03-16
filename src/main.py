@@ -362,6 +362,20 @@ async def startup_event():
     logger.info("✅ Stripe Billing: /api/v1/stripe/*")
     logger.info("✅ Landing: / | Admin: /admin | Client: /client | Master: /master.html")
 
+    # ── Auto-seed: garante que o master admin sempre exista ──
+    try:
+        from src.scripts.create_master_admin import ensure_master_admin
+        from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+        from sqlalchemy.orm import sessionmaker
+        _seed_engine = create_async_engine(settings.DATABASE_URL, echo=False)
+        _SeedSession = sessionmaker(_seed_engine, class_=AsyncSession, expire_on_commit=False)
+        async with _SeedSession() as _seed_session:
+            await ensure_master_admin(_seed_session, reset_password=False)
+        await _seed_engine.dispose()
+        logger.info("✅ Master admin verificado/criado com sucesso.")
+    except Exception as _e:
+        logger.warning(f"⚠️ Auto-seed master admin falhou: {_e}")
+
 
 if __name__ == "__main__":
     import uvicorn
