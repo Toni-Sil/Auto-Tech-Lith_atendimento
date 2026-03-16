@@ -12,7 +12,7 @@ Fluxo:
 
 Segurança:
   - Requests sem tenant válido retornam 401
-  - Rotas públicas (health, auth, onboarding) são excluídas
+  - Rotas públicas (health, auth, onboarding, master) são excluídas
 """
 
 import logging
@@ -46,6 +46,12 @@ PUBLIC_PATHS = {
     "/api/webhooks/telegram",
 }
 
+# Prefixos de rota que não precisam de tenant
+PUBLIC_PREFIXES = (
+    "/static",
+    "/api/v1/master",
+)
+
 
 class TenantContextMiddleware(BaseHTTPMiddleware):
     """
@@ -58,8 +64,10 @@ class TenantContextMiddleware(BaseHTTPMiddleware):
     """
 
     async def dispatch(self, request: Request, call_next) -> Response:
-        # Ignorar rotas públicas
-        if request.url.path in PUBLIC_PATHS or request.url.path.startswith("/static"):
+        path = request.url.path
+
+        # Ignorar rotas públicas (exact match ou prefixo)
+        if path in PUBLIC_PATHS or any(path.startswith(p) for p in PUBLIC_PREFIXES):
             return await call_next(request)
 
         tenant_id = await self._resolve_tenant(request)
