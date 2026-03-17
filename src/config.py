@@ -3,8 +3,6 @@ from typing import List, Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Config Reload Trigger
-
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Auto Tech Lith Agent"
@@ -12,21 +10,20 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
 
     # Environment
-    ENV: str = "development"  # development | production
-    # SEGURANÇA: APP_DEBUG padrão False — só ativar via .env em dev local
+    ENV: str = "development"  # development | production | test
     APP_DEBUG: bool = False
 
     # Database
-    # Default to SQLite for local development
     DATABASE_URL: str = "sqlite+aiosqlite:///./auto_tech_lith.db"
 
     # OpenAI
-    OPENAI_API_KEY: str
+    OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o-mini"
 
     # Evolution API (WhatsApp)
-    EVOLUTION_API_URL: str
-    EVOLUTION_API_KEY: str
+    EVOLUTION_API_URL: str = "http://evolution-api:8080"
+    EVOLUTION_SERVER_URL: Optional[str] = None
+    EVOLUTION_API_KEY: str = ""
     EVOLUTION_INSTANCE_NAME: str = "default"
 
     # Telegram
@@ -34,31 +31,45 @@ class Settings(BaseSettings):
     TELEGRAM_CHAT_ID: Optional[str] = None
 
     # Security
-    SECRET_KEY: str
+    SECRET_KEY: str = "dev-secret-key-change-in-production"
     ALGORITHM: str = "HS256"
-
-    # Encryption key for AI Config vault (generate with Fernet.generate_key())
     ENCRYPTION_KEY: Optional[str] = None
 
-    # Public URL for webhooks (required in production)
+    # Public URL for webhooks
     PUBLIC_URL: Optional[str] = None
 
-    # Webhook Verification
-    # SEGURANÇA: sem valor default — OBRIGATÓRIO definir no .env
-    # Gerar com: python -c "import secrets; print(secrets.token_hex(32))"
-    VERIFY_TOKEN: str
+    # Domain (Traefik / Dokploy)
+    DOMAIN: str = "autotechlith.com"
 
-    # SMTP Settings
+    # Webhook verification token
+    VERIFY_TOKEN: str = "dev-verify-token"
+
+    # SMTP
     SMTP_SERVER: Optional[str] = None
     SMTP_PORT: int = 587
     SMTP_USER: Optional[str] = None
     SMTP_PASSWORD: Optional[str] = None
 
+    # JWT
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 1440  # 1 day
 
-    # CORS — set via env as JSON list: '["https://yourapp.com"]'
-    # URLs de teste/temporárias foram removidas. Defina via BACKEND_CORS_ORIGINS no .env.
+    # Metrics
+    METRICS_TOKEN: Optional[str] = None
+
+    # Redis
+    REDIS_HOST: str = "redis"
+    REDIS_PORT: int = 6379
+    REDIS_PASSWORD: Optional[str] = None
+
+    # Rate limiting
+    RATE_LIMIT_WHITELIST: str = "127.0.0.1"
+
+    # Stripe
+    STRIPE_SECRET_KEY: Optional[str] = None
+    STRIPE_WEBHOOK_SECRET: Optional[str] = None
+
+    # CORS
     BACKEND_CORS_ORIGINS: List[str] = [
         "http://localhost",
         "http://localhost:8000",
@@ -68,7 +79,9 @@ class Settings(BaseSettings):
     ]
 
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
     )
 
 

@@ -4,9 +4,9 @@ import secrets
 import sys
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from src.config import settings
@@ -16,9 +16,7 @@ from src.middleware.rate_limit_middleware import RateLimitMiddleware
 from src.middleware.request_id import RequestIDMiddleware
 from src.middleware.tenant_context import TenantContextMiddleware
 
-# -------------------------------------------------------------------------
-# CRITICAL FIX: Force UTF-8 encoding for Windows Console
-# -------------------------------------------------------------------------
+# ── UTF-8 for Windows console ─────────────────────────────────────────────
 if sys.platform == "win32":
     if hasattr(sys.stdout, "reconfigure"):
         try:
@@ -31,10 +29,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-# ── Lifespan (replaces deprecated @app.on_event) ─────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # ── STARTUP ──────────────────────────────────────────────────────────
+    # ── STARTUP ───────────────────────────────────────────────────────────
     from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
     from sqlalchemy.orm import sessionmaker
 
@@ -69,7 +66,7 @@ async def lifespan(app: FastAPI):
     import src.models.whatsapp
     from src.models.database import Base
 
-    # ── Alembic / create_all ───────────────────────────────────────────────
+    # ── Alembic / create_all fallback ─────────────────────────────────────
     alembic_cfg_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "alembic.ini"
     )
@@ -105,17 +102,20 @@ async def lifespan(app: FastAPI):
 
             def _run_migrations(connection):
                 inspector = inspect(connection)
-                existing = [
-                    col["name"] for col in inspector.get_columns("evolution_instances")
-                ]
+                try:
+                    existing = [
+                        col["name"] for col in inspector.get_columns("evolution_instances")
+                    ]
+                except Exception:
+                    existing = []
                 migrations_to_run = []
                 if "evolution_ip" not in existing:
                     migrations_to_run.append(
-                        "ALTER TABLE evolution_instances ADD COLUMN evolution_ip VARCHAR"
+                        "ALTER TABLE evolution_instances ADD COLUMN IF NOT EXISTS evolution_ip VARCHAR"
                     )
                 if "owner_email" not in existing:
                     migrations_to_run.append(
-                        "ALTER TABLE evolution_instances ADD COLUMN owner_email VARCHAR"
+                        "ALTER TABLE evolution_instances ADD COLUMN IF NOT EXISTS owner_email VARCHAR"
                     )
                 for sql in migrations_to_run:
                     connection.execute(sa_text(sql))
@@ -132,19 +132,17 @@ async def lifespan(app: FastAPI):
         if settings.ENV == "production":
             logger.error(
                 "🚨 CRITICAL: ENCRYPTION_KEY is not set in production! "
-                'Generate one with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
+                'Generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
             )
         else:
             logger.warning("⚠️  ENCRYPTION_KEY env variable is not set.")
     else:
-        logger.info("✅ ENCRYPTION_KEY is set. AI Config key vault active.")
+        logger.info("✅ ENCRYPTION_KEY is set.")
 
     if settings.TELEGRAM_BOT_TOKEN and settings.PUBLIC_URL:
         from src.services.telegram_service import telegram_service
 
-        webhook_url = (
-            f"{settings.PUBLIC_URL.rstrip('/')}{settings.API_V1_STR}/webhooks/telegram"
-        )
+        webhook_url = f"{settings.PUBLIC_URL.rstrip('/')}{settings.API_V1_STR}/webhooks/telegram"
         success = await telegram_service.set_webhook(webhook_url)
         if success:
             logger.info(f"Startup: Telegram Webhook set to {webhook_url}")
@@ -157,32 +155,22 @@ async def lifespan(app: FastAPI):
 
     butler_scheduler = create_butler_scheduler()
     butler_scheduler.start()
-    logger.info("✅ Butler Agent scheduler started with 8 background jobs.")
-    logger.info("✅ TenantContextMiddleware ativo — multi-tenant seguro.")
-    logger.info("✅ PerformanceMiddleware ativo — Server-Timing headers.")
-    logger.info("✅ RequestIDMiddleware ativo — X-Request-ID tracing.")
-    logger.info("✅ Onboarding: /api/onboarding/*")
-    logger.info("✅ Agent Profile Editor: /api/v1/agent/profile/*")
-    logger.info("✅ Stripe Billing: /api/v1/stripe/*")
-    logger.info(
-        "✅ Landing: / → home.html | Admin: /admin | Client: /client | Master: /master"
-    )
+    logger.info("✅ Butler Agent scheduler started.")
+    logger.info("✅ Middlewares: RequestID → Performance → Tenant → Prometheus → RateLimit")
 
     try:
         from src.scripts.create_master_admin import ensure_master_admin
 
         _seed_engine = create_async_engine(settings.DATABASE_URL, echo=False)
-        _SeedSession = sessionmaker(
-            _seed_engine, class_=AsyncSession, expire_on_commit=False
-        )
+        _SeedSession = sessionmaker(_seed_engine, class_=AsyncSession, expire_on_commit=False)
         async with _SeedSession() as _seed_session:
             await ensure_master_admin(_seed_session, reset_password=False)
         await _seed_engine.dispose()
-        logger.info("✅ Master admin verificado/criado com sucesso.")
+        logger.info("✅ Master admin verificado/criado.")
     except Exception as _e:
         logger.warning(f"⚠️ Auto-seed master admin falhou: {_e}")
 
-    yield  # ── app is running ──
+    yield  # ── app running ──────────────────────────────────────────────
 
     # ── SHUTDOWN ──────────────────────────────────────────────────────────
     try:
@@ -202,36 +190,29 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# ── Middleware order (applied bottom-up by Starlette) ────────────────────
-# Outermost (runs first on request, last on response):
-app.add_middleware(RequestIDMiddleware)       # 1. inject X-Request-ID
-app.add_middleware(PerformanceMiddleware)     # 2. Server-Timing + slow log
-app.add_middleware(TenantContextMiddleware)   # 3. multi-tenant guard
-app.add_middleware(PrometheusMetricsMiddleware) # 4. prometheus
-app.add_middleware(RateLimitMiddleware)       # 5. rate limiting (innermost)
+# ── Middleware stack (Starlette: applied bottom-up = last-added runs first) ──
+# Execution order on REQUEST:  RequestID → Performance → Tenant → Prometheus → RateLimit → handler
+# Execution order on RESPONSE: handler → RateLimit → Prometheus → Tenant → Performance → RequestID
+app.add_middleware(RateLimitMiddleware)          # innermost
+app.add_middleware(PrometheusMetricsMiddleware)
+app.add_middleware(TenantContextMiddleware)
+app.add_middleware(PerformanceMiddleware)
+app.add_middleware(RequestIDMiddleware)          # outermost
 
 if getattr(settings, "APP_DEBUG", False):
     @app.middleware("http")
     async def add_no_cache_header(request: Request, call_next):
         response = await call_next(request)
-        if (
-            request.url.path.endswith(".html")
-            or request.url.path.endswith(".js")
-            or request.url.path.endswith(".css")
-        ):
-            response.headers["Cache-Control"] = (
-                "no-store, no-cache, must-revalidate, max-age=0"
-            )
+        if request.url.path.endswith((".html", ".js", ".css")):
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
         return response
 
 if settings.BACKEND_CORS_ORIGINS:
     origins = list(settings.BACKEND_CORS_ORIGINS)
-    if settings.PUBLIC_URL:
-        p_url = settings.PUBLIC_URL.rstrip("/")
-        if p_url not in origins:
-            origins.append(p_url)
+    if settings.PUBLIC_URL and settings.PUBLIC_URL.rstrip("/") not in origins:
+        origins.append(settings.PUBLIC_URL.rstrip("/"))
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
@@ -241,10 +222,9 @@ if settings.BACKEND_CORS_ORIGINS:
     )
 
 
+# ── CSP nonce injection ────────────────────────────────────────────────────
 def _inject_csp_nonce(html_content: str, nonce: str) -> str:
-    """Inject nonce attribute into all <script> and <style> tags in HTML content."""
     import re
-
     html_content = re.sub(
         r"<script(?![^>]*nonce)([^>]*)>",
         lambda m: f'<script nonce="{nonce}"{m.group(1)}>',
@@ -273,11 +253,9 @@ async def add_security_headers(request: Request, call_next):
     connect_origins = ["'self'", "http://localhost:8000", "http://127.0.0.1:8000"]
     if settings.PUBLIC_URL:
         public_domain = settings.PUBLIC_URL.split("://")[-1].split("/")[0]
-        connect_origins.append(f"https://{public_domain}")
-        connect_origins.append(f"wss://{public_domain}")
+        connect_origins += [f"https://{public_domain}", f"wss://{public_domain}"]
 
-    # NOTE: cdn.tailwindcss.com removed — Tailwind is now compiled locally.
-    # If still using CDN in any HTML during migration, add it back temporarily.
+    # Tailwind é compilado localmente — CDN não é necessário
     csp = (
         f"default-src 'self'; "
         f"script-src 'self' 'nonce-{nonce}' https://cdn.jsdelivr.net; "
@@ -304,86 +282,87 @@ async def add_security_headers(request: Request, call_next):
     return response
 
 
-# ── Health check ──────────────────────────────────────────────────────────────
+# ── Health check (com dependências) ───────────────────────────────────────
 @app.get("/health", tags=["observability"])
 async def health_check():
-    """Dependency health check — DB, Redis, Evolution API."""
+    """Returns status of app + DB + Redis + Evolution API."""
     import time
-    import asyncio
 
-    result = {
+    result: dict = {
         "status": "ok",
         "project": settings.PROJECT_NAME,
         "version": settings.VERSION,
+        "env": settings.ENV,
         "dependencies": {},
     }
     overall_ok = True
 
-    # ── PostgreSQL ──────────────────────────────────────────────────────────
-    try:
-        t0 = time.perf_counter()
-        from sqlalchemy.ext.asyncio import create_async_engine
-        from sqlalchemy import text
-        _engine = create_async_engine(settings.DATABASE_URL, pool_size=1)
-        async with _engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
-        await _engine.dispose()
-        result["dependencies"]["postgres"] = {
-            "status": "ok",
-            "latency_ms": round((time.perf_counter() - t0) * 1000, 1),
-        }
-    except Exception as e:
-        result["dependencies"]["postgres"] = {"status": "error", "detail": str(e)}
-        overall_ok = False
+    # PostgreSQL
+    if "sqlite" not in settings.DATABASE_URL:
+        try:
+            t0 = time.perf_counter()
+            from sqlalchemy.ext.asyncio import create_async_engine
+            from sqlalchemy import text
+            _e = create_async_engine(settings.DATABASE_URL, pool_size=1, max_overflow=0)
+            async with _e.connect() as conn:
+                await conn.execute(text("SELECT 1"))
+            await _e.dispose()
+            result["dependencies"]["postgres"] = {
+                "status": "ok",
+                "latency_ms": round((time.perf_counter() - t0) * 1000, 1),
+            }
+        except Exception as exc:
+            result["dependencies"]["postgres"] = {"status": "error", "detail": str(exc)}
+            overall_ok = False
+    else:
+        result["dependencies"]["postgres"] = {"status": "sqlite_dev"}
 
-    # ── Redis ───────────────────────────────────────────────────────────────
-    try:
-        t0 = time.perf_counter()
-        import redis.asyncio as aioredis
-        r = aioredis.Redis(
-            host=getattr(settings, "REDIS_HOST", "redis"),
-            port=int(getattr(settings, "REDIS_PORT", 6379)),
-            password=getattr(settings, "REDIS_PASSWORD", None),
-            socket_connect_timeout=2,
-        )
-        await r.ping()
-        await r.aclose()
-        result["dependencies"]["redis"] = {
-            "status": "ok",
-            "latency_ms": round((time.perf_counter() - t0) * 1000, 1),
-        }
-    except Exception as e:
-        result["dependencies"]["redis"] = {"status": "error", "detail": str(e)}
-        overall_ok = False
+    # Redis
+    if settings.REDIS_PASSWORD or settings.REDIS_HOST != "redis" or True:
+        try:
+            t0 = time.perf_counter()
+            import redis.asyncio as aioredis
+            r = aioredis.Redis(
+                host=settings.REDIS_HOST,
+                port=settings.REDIS_PORT,
+                password=settings.REDIS_PASSWORD,
+                socket_connect_timeout=2,
+                socket_timeout=2,
+            )
+            await r.ping()
+            await r.aclose()
+            result["dependencies"]["redis"] = {
+                "status": "ok",
+                "latency_ms": round((time.perf_counter() - t0) * 1000, 1),
+            }
+        except Exception as exc:
+            result["dependencies"]["redis"] = {"status": "error", "detail": str(exc)}
+            overall_ok = False
 
-    # ── Evolution API ───────────────────────────────────────────────────
-    evolution_url = getattr(settings, "EVOLUTION_SERVER_URL", None)
-    if evolution_url:
+    # Evolution API (não-crítico — não derruba o status geral)
+    if settings.EVOLUTION_SERVER_URL:
         try:
             t0 = time.perf_counter()
             import httpx
             async with httpx.AsyncClient(timeout=3.0) as client:
-                res = await client.get(f"{evolution_url.rstrip('/')}/")
+                res = await client.get(f"{settings.EVOLUTION_SERVER_URL.rstrip('/')}/")
             result["dependencies"]["evolution_api"] = {
                 "status": "ok" if res.status_code < 500 else "degraded",
                 "latency_ms": round((time.perf_counter() - t0) * 1000, 1),
                 "http_status": res.status_code,
             }
-        except Exception as e:
-            result["dependencies"]["evolution_api"] = {"status": "error", "detail": str(e)}
-            # Evolution being down is non-critical for the app itself
+        except Exception as exc:
+            result["dependencies"]["evolution_api"] = {"status": "unreachable", "detail": str(exc)}
     else:
         result["dependencies"]["evolution_api"] = {"status": "not_configured"}
 
     if not overall_ok:
         result["status"] = "degraded"
 
-    status_code = 200 if overall_ok else 503
-    from fastapi.responses import JSONResponse
-    return JSONResponse(content=result, status_code=status_code)
+    return JSONResponse(content=result, status_code=200 if overall_ok else 503)
 
 
-# ── Routers ──────────────────────────────────────────────────────────────────
+# ── Routers ────────────────────────────────────────────────────────────────
 from src.api.ai_config import ai_config_router
 from src.api.apikeys import apikey_router
 from src.api.auth import auth_router
@@ -410,35 +389,35 @@ from src.api.onboarding import router as onboarding_router
 from src.api.agent_profile_editor import router as agent_profile_router
 from src.api.billing_stripe import router as stripe_router
 
-app.include_router(auth_router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])
-app.include_router(mfa_router, prefix=f"{settings.API_V1_STR}/auth/mfa", tags=["mfa"])
-app.include_router(tenant_router, prefix=f"{settings.API_V1_STR}/tenant", tags=["tenant"])
-app.include_router(role_router, prefix=f"{settings.API_V1_STR}/roles", tags=["roles"])
-app.include_router(pref_router, prefix=f"{settings.API_V1_STR}/preferences", tags=["preferences"])
-app.include_router(locale_router, prefix=f"{settings.API_V1_STR}/locales", tags=["locales"])
-app.include_router(automation_router, prefix=f"{settings.API_V1_STR}/automations", tags=["automations"])
-app.include_router(notification_router, prefix=f"{settings.API_V1_STR}/notifications", tags=["notifications"])
-app.include_router(apikey_router, prefix=f"{settings.API_V1_STR}/apikeys", tags=["apikeys"])
-app.include_router(report_router, prefix=f"{settings.API_V1_STR}/reports", tags=["reports"])
-app.include_router(ai_config_router, prefix=f"{settings.API_V1_STR}/ai-config", tags=["ai-config"])
-app.include_router(usage_router, prefix=f"{settings.API_V1_STR}/usage", tags=["usage"])
-app.include_router(billing_router, prefix=f"{settings.API_V1_STR}/billing", tags=["billing"])
-app.include_router(workflow_router, prefix=f"{settings.API_V1_STR}/workflow", tags=["workflow"])
-app.include_router(master_router, prefix=f"{settings.API_V1_STR}/master", tags=["master-admin"])
-app.include_router(leads_router, prefix=f"{settings.API_V1_STR}/master", tags=["master-leads"])
-app.include_router(quota_router, prefix=f"{settings.API_V1_STR}/master", tags=["master-quotas"])
-app.include_router(butler_router, prefix=f"{settings.API_V1_STR}/master", tags=["butler-agent"])
-app.include_router(webhooks_router, prefix=f"{settings.API_V1_STR}/webhooks", tags=["webhooks"])
-app.include_router(products_router, tags=["products"])
-app.include_router(metrics_router, prefix=f"{settings.API_V1_STR}", tags=["observability"])
-app.include_router(system_config_router, prefix=f"{settings.API_V1_STR}/master", tags=["system-config"])
-app.include_router(api_router, prefix=settings.API_V1_STR)
+app.include_router(auth_router,           prefix=f"{settings.API_V1_STR}/auth",          tags=["auth"])
+app.include_router(mfa_router,            prefix=f"{settings.API_V1_STR}/auth/mfa",      tags=["mfa"])
+app.include_router(tenant_router,         prefix=f"{settings.API_V1_STR}/tenant",        tags=["tenant"])
+app.include_router(role_router,           prefix=f"{settings.API_V1_STR}/roles",         tags=["roles"])
+app.include_router(pref_router,           prefix=f"{settings.API_V1_STR}/preferences",   tags=["preferences"])
+app.include_router(locale_router,         prefix=f"{settings.API_V1_STR}/locales",       tags=["locales"])
+app.include_router(automation_router,     prefix=f"{settings.API_V1_STR}/automations",   tags=["automations"])
+app.include_router(notification_router,   prefix=f"{settings.API_V1_STR}/notifications", tags=["notifications"])
+app.include_router(apikey_router,         prefix=f"{settings.API_V1_STR}/apikeys",       tags=["apikeys"])
+app.include_router(report_router,         prefix=f"{settings.API_V1_STR}/reports",       tags=["reports"])
+app.include_router(ai_config_router,      prefix=f"{settings.API_V1_STR}/ai-config",     tags=["ai-config"])
+app.include_router(usage_router,          prefix=f"{settings.API_V1_STR}/usage",         tags=["usage"])
+app.include_router(billing_router,        prefix=f"{settings.API_V1_STR}/billing",       tags=["billing"])
+app.include_router(workflow_router,       prefix=f"{settings.API_V1_STR}/workflow",      tags=["workflow"])
+app.include_router(master_router,         prefix=f"{settings.API_V1_STR}/master",        tags=["master-admin"])
+app.include_router(leads_router,          prefix=f"{settings.API_V1_STR}/master",        tags=["master-leads"])
+app.include_router(quota_router,          prefix=f"{settings.API_V1_STR}/master",        tags=["master-quotas"])
+app.include_router(butler_router,         prefix=f"{settings.API_V1_STR}/master",        tags=["butler-agent"])
+app.include_router(webhooks_router,       prefix=f"{settings.API_V1_STR}/webhooks",      tags=["webhooks"])
+app.include_router(products_router,                                                       tags=["products"])
+app.include_router(metrics_router,        prefix=f"{settings.API_V1_STR}",               tags=["observability"])
+app.include_router(system_config_router,  prefix=f"{settings.API_V1_STR}/master",        tags=["system-config"])
+app.include_router(api_router,            prefix=settings.API_V1_STR)
 app.include_router(onboarding_router)
 app.include_router(agent_profile_router)
 app.include_router(stripe_router)
 
 
-# --- Legacy Fallback ---
+# ── Legacy fallback ────────────────────────────────────────────────────────
 @app.post("/api/auth/token", tags=["auth"], include_in_schema=False)
 async def legacy_token_fallback(request: Request):
     logger.warning("Legacy auth endpoint called.")
@@ -449,139 +428,92 @@ async def legacy_token_fallback(request: Request):
     )
 
 
-# ── Frontend static files ───────────────────────────────────────────────────────────
+# ── Static files + page routes ─────────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-if os.path.basename(BASE_DIR) == "src":
-    frontend_path = os.path.join(os.path.dirname(BASE_DIR), "frontend")
-else:
-    frontend_path = os.path.join(BASE_DIR, "frontend")
+frontend_path = (
+    os.path.join(os.path.dirname(BASE_DIR), "frontend")
+    if os.path.basename(BASE_DIR) == "src"
+    else os.path.join(BASE_DIR, "frontend")
+)
 
 if os.path.exists(frontend_path):
-    logger.info(f"Frontend directory identified at {frontend_path}")
+    logger.info(f"Frontend: {frontend_path}")
 
     for folder in ["css", "js", "assets", "img"]:
-        folder_path = os.path.join(frontend_path, folder)
-        if os.path.exists(folder_path):
-            app.mount(f"/{folder}", StaticFiles(directory=folder_path), name=folder)
-            logger.info(f"✅ Mounted /{folder} from {folder_path}")
+        fp = os.path.join(frontend_path, folder)
+        if os.path.exists(fp):
+            app.mount(f"/{folder}", StaticFiles(directory=fp), name=folder)
 
     app.mount("/static", StaticFiles(directory=frontend_path), name="static_old")
 
+    def _page(filename: str):
+        """Return a FileResponse for a frontend HTML page, or 404."""
+        path = os.path.join(frontend_path, filename)
+        if os.path.exists(path):
+            return FileResponse(path)
+        raise HTTPException(status_code=404, detail=f"{filename} not found")
+
     @app.get("/favicon.ico", include_in_schema=False)
     async def favicon():
-        favicon_path = os.path.join(frontend_path, "favicon.ico")
-        if os.path.exists(favicon_path):
-            return FileResponse(favicon_path, media_type="image/x-icon")
-        # Return 204 instead of broken HTML as favicon
-        from fastapi.responses import Response
-        return Response(status_code=204)
+        p = os.path.join(frontend_path, "favicon.ico")
+        return FileResponse(p, media_type="image/x-icon") if os.path.exists(p) else Response(status_code=204)
 
     @app.get("/robots.txt", include_in_schema=False)
     async def robots_txt():
-        robots_path = os.path.join(frontend_path, "robots.txt")
-        if os.path.exists(robots_path):
-            return FileResponse(robots_path, media_type="text/plain")
-        from fastapi.responses import PlainTextResponse
-        public_url = getattr(settings, "PUBLIC_URL", "").rstrip("/")
+        p = os.path.join(frontend_path, "robots.txt")
+        if os.path.exists(p):
+            return FileResponse(p, media_type="text/plain")
+        public_url = (settings.PUBLIC_URL or "").rstrip("/")
         return PlainTextResponse(
             f"User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin\nDisallow: /master\n\nSitemap: {public_url}/sitemap.xml\n"
         )
 
     @app.get("/sitemap.xml", include_in_schema=False)
     async def sitemap_xml():
-        public_url = getattr(settings, "PUBLIC_URL", "").rstrip("/")
-        from fastapi.responses import Response
-        content = f"""<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>{public_url}/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
-  <url><loc>{public_url}/login</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>{public_url}/termos</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
-  <url><loc>{public_url}/privacidade</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
-  <url><loc>{public_url}/lgpd</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
-</urlset>"""
+        public_url = (settings.PUBLIC_URL or "").rstrip("/")
+        content = (
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+            f'  <url><loc>{public_url}/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>\n'
+            f'  <url><loc>{public_url}/login</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>\n'
+            f'  <url><loc>{public_url}/termos</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>\n'
+            f'  <url><loc>{public_url}/privacidade</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>\n'
+            f'  <url><loc>{public_url}/lgpd</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>\n'
+            '</urlset>'
+        )
         return Response(content=content, media_type="application/xml")
 
+    @app.get("/",           include_in_schema=False)
+    async def landing_page():    return _page("home.html") if os.path.exists(os.path.join(frontend_path, "home.html")) else _page("login.html")
+
+    @app.get("/login",      include_in_schema=False)
     @app.get("/login.html", include_in_schema=False)
-    async def login_html_page():
-        login_path = os.path.join(frontend_path, "login.html")
-        if os.path.exists(login_path):
-            return FileResponse(login_path)
-        raise HTTPException(status_code=404, detail="Login page not found")
+    async def login_page():      return _page("login.html")
 
-    @app.get("/login", include_in_schema=False)
-    async def login_page():
-        login_path = os.path.join(frontend_path, "login.html")
-        if os.path.exists(login_path):
-            return FileResponse(login_path)
-        raise HTTPException(status_code=404, detail="Login page not found")
+    @app.get("/admin",      include_in_schema=False)
+    @app.get("/dashboard",  include_in_schema=False)
+    async def admin_dashboard(): return _page("index.html")
 
-    @app.get("/admin", include_in_schema=False)
-    async def admin_dashboard():
-        return FileResponse(os.path.join(frontend_path, "index.html"))
+    @app.get("/master",     include_in_schema=False)
+    @app.get("/master.html",include_in_schema=False)
+    async def master_portal():   return _page("master.html")
 
-    @app.get("/dashboard", include_in_schema=False)
-    async def dashboard_alias():
-        return FileResponse(os.path.join(frontend_path, "index.html"))
+    @app.get("/client",     include_in_schema=False)
+    @app.get("/client.html",include_in_schema=False)
+    async def client_portal():   return _page("client.html")
 
-    @app.get("/master.html", include_in_schema=False)
-    async def master_portal():
-        master_path = os.path.join(frontend_path, "master.html")
-        if os.path.exists(master_path):
-            return FileResponse(master_path)
-        raise HTTPException(status_code=404, detail="Master portal not found")
-
-    @app.get("/master", include_in_schema=False)
-    async def master_portal_alias():
-        master_path = os.path.join(frontend_path, "master.html")
-        if os.path.exists(master_path):
-            return FileResponse(master_path)
-        raise HTTPException(status_code=404, detail="Master portal not found")
-
-    @app.get("/client.html", include_in_schema=False)
-    async def client_portal():
-        client_path = os.path.join(frontend_path, "client.html")
-        if os.path.exists(client_path):
-            return FileResponse(client_path)
-        raise HTTPException(status_code=404, detail="Client portal not found")
-
-    @app.get("/client", include_in_schema=False)
-    async def client_portal_alias():
-        client_path = os.path.join(frontend_path, "client.html")
-        if os.path.exists(client_path):
-            return FileResponse(client_path)
-        raise HTTPException(status_code=404, detail="Client portal not found")
-
-    @app.get("/home.html", include_in_schema=False)
-    async def home_html_page():
-        home_path = os.path.join(frontend_path, "home.html")
-        if os.path.exists(home_path):
-            return FileResponse(home_path)
-        raise HTTPException(status_code=404, detail="Home page not found")
+    @app.get("/home.html",  include_in_schema=False)
+    async def home_html():       return _page("home.html")
 
     @app.get("/onboarding", include_in_schema=False)
     async def onboarding_page():
-        onboarding_path = os.path.join(frontend_path, "onboarding.html")
-        if os.path.exists(onboarding_path):
-            return FileResponse(onboarding_path)
-        return FileResponse(os.path.join(frontend_path, "login.html"))
+        p = os.path.join(frontend_path, "onboarding.html")
+        return FileResponse(p) if os.path.exists(p) else _page("login.html")
 
-    @app.get("/status", include_in_schema=False)
+    @app.get("/status",     include_in_schema=False)
     async def status_page():
-        status_path = os.path.join(frontend_path, "status.html")
-        if os.path.exists(status_path):
-            return FileResponse(status_path)
-        # Redirect to /health JSON if no status page yet
-        return RedirectResponse(url="/health")
-
-    @app.get("/", include_in_schema=False)
-    async def landing_page():
-        home_path = os.path.join(frontend_path, "home.html")
-        if os.path.exists(home_path):
-            return FileResponse(home_path)
-        login_path = os.path.join(frontend_path, "login.html")
-        if os.path.exists(login_path):
-            return FileResponse(login_path)
-        raise HTTPException(status_code=404, detail="Home page not found")
+        p = os.path.join(frontend_path, "status.html")
+        return FileResponse(p) if os.path.exists(p) else RedirectResponse(url="/health")
 
 else:
     logger.warning(f"Frontend directory not found at {frontend_path}")
@@ -589,6 +521,4 @@ else:
 
 if __name__ == "__main__":
     import uvicorn
-
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
