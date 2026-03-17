@@ -1,0 +1,44 @@
+name: Deploy to Production (Dokploy / Hostinger VPS)
+
+# Dokploy monitora o branch main diretamente via Git webhook.
+# Este workflow é um deploy de EMERGÊNCIA/MANUAL via SSH,
+# usado quando o Dokploy não está disponível ou para forcçar redeploy.
+
+on:
+  workflow_dispatch:          # Só dispara manualmente
+    inputs:
+      reason:
+        description: 'Motivo do deploy manual'
+        required: false
+        default: 'Redeploy manual'
+
+jobs:
+  deploy:
+    name: Deploy VPS (Emergency SSH)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_SSH_PORT || 22 }}
+          script: |
+            # Navega até o diretório gerenciado pelo Dokploy
+            # Ajuste o caminho conforme o projeto no Dokploy
+            cd /etc/dokploy/compose/auto-tech-lith || exit 1
+
+            echo "🔄 Atualizando código..."
+            git pull origin main
+
+            echo "🐳 Rebuild e up..."
+            docker compose pull
+            docker compose up -d --build --remove-orphans
+
+            echo "🗄️ Rodando migrations..."
+            docker compose exec -T backend alembic upgrade head
+
+            echo "✅ Deploy concluído em $(date)"
+            echo "Motivo: ${{ github.event.inputs.reason }}"
