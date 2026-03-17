@@ -13,8 +13,8 @@ from src.config import settings
 from src.middleware.metrics import PrometheusMetricsMiddleware
 from src.middleware.performance import PerformanceMiddleware
 from src.middleware.rate_limit_middleware import RateLimitMiddleware
+from src.middleware.tenant_context import TenantContextMiddleware  # Sprint 1
 from src.middleware.request_id import RequestIDMiddleware
-from src.middleware.tenant_context import TenantContextMiddleware
 
 # ── UTF-8 for Windows console ─────────────────────────────────────────────
 if sys.platform == "win32":
