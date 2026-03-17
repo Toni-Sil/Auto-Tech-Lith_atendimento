@@ -2,6 +2,7 @@ import logging
 import os
 import secrets
 import sys
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from src.config import settings
 from src.middleware.metrics import PrometheusMetricsMiddleware
 from src.middleware.rate_limit_middleware import RateLimitMiddleware
-from src.middleware.tenant_context import TenantContextMiddleware  # Sprint 1
+from src.middleware.tenant_context import TenantContextMiddleware
 
 # -------------------------------------------------------------------------
 # CRITICAL FIX: Force UTF-8 encoding for Windows Console
@@ -27,13 +28,177 @@ if sys.platform == "win32":
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+# ── Lifespan (replaces deprecated @app.on_event) ─────────────────────────
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # ── STARTUP ──────────────────────────────────────────────────────────
+    from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+    from sqlalchemy.orm import sessionmaker
+
+    import src.models.admin
+    import src.models.agent_profile
+    import src.models.api_key
+    import src.models.audit
+    import src.models.automation
+    import src.models.base_tenant
+    import src.models.butler_log
+    import src.models.config_model
+    import src.models.conversation
+    import src.models.customer
+    import src.models.lead
+    import src.models.lead_interaction
+    import src.models.meeting
+    import src.models.notification
+    import src.models.preferences
+    import src.models.product
+    import src.models.recovery
+    import src.models.role
+    import src.models.sales_workflow
+    import src.models.subscription
+    import src.models.tenant
+    import src.models.tenant_ai_config
+    import src.models.tenant_quota
+    import src.models.ticket
+    import src.models.usage_log
+    import src.models.user_session
+    import src.models.vault
+    import src.models.webhook_config
+    import src.models.whatsapp
+    from src.models.database import Base
+
+    # ── Alembic / create_all ──────────────────────────────────────────────
+    alembic_cfg_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "alembic.ini"
+    )
+    if os.path.exists(alembic_cfg_path):
+        try:
+            import asyncio
+            from alembic import command as alembic_command
+            from alembic.config import Config as AlembicConfig
+            from functools import partial
+
+            alembic_cfg = AlembicConfig(alembic_cfg_path)
+            alembic_cfg.set_main_option(
+                "sqlalchemy.url",
+                settings.DATABASE_URL.replace("+asyncpg", "+psycopg2"),
+            )
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(
+                None, partial(alembic_command.upgrade, alembic_cfg, "head")
+            )
+            logger.info("✅ Alembic: migrations applied up to head.")
+        except Exception as e:
+            logger.error(f"❌ Alembic migration failed: {e}")
+            raise
+    else:
+        logger.warning("⚠️ alembic.ini not found — falling back to create_all (dev only).")
+        engine = create_async_engine(settings.DATABASE_URL)
+        async with engine.begin() as conn:
+            logger.info("Database: Checking/creating tables...")
+            await conn.run_sync(Base.metadata.create_all)
+
+            from sqlalchemy import inspect
+            from sqlalchemy import text as sa_text
+
+            def _run_migrations(connection):
+                inspector = inspect(connection)
+                existing = [
+                    col["name"] for col in inspector.get_columns("evolution_instances")
+                ]
+                migrations_to_run = []
+                if "evolution_ip" not in existing:
+                    migrations_to_run.append(
+                        "ALTER TABLE evolution_instances ADD COLUMN evolution_ip VARCHAR"
+                    )
+                if "owner_email" not in existing:
+                    migrations_to_run.append(
+                        "ALTER TABLE evolution_instances ADD COLUMN owner_email VARCHAR"
+                    )
+                for sql in migrations_to_run:
+                    connection.execute(sa_text(sql))
+                    logger.info(f"Migration applied: {sql}")
+
+            try:
+                await conn.run_sync(_run_migrations)
+            except Exception as e:
+                logger.warning(f"Auto-migration warning: {e}")
+        await engine.dispose()
+        logger.info("Database: Initialization complete.")
+
+    if not settings.ENCRYPTION_KEY:
+        if settings.ENV == "production":
+            logger.error(
+                "🚨 CRITICAL: ENCRYPTION_KEY is not set in production! "
+                'Generate one with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
+            )
+        else:
+            logger.warning("⚠️  ENCRYPTION_KEY env variable is not set.")
+    else:
+        logger.info("✅ ENCRYPTION_KEY is set. AI Config key vault active.")
+
+    if settings.TELEGRAM_BOT_TOKEN and settings.PUBLIC_URL:
+        from src.services.telegram_service import telegram_service
+
+        webhook_url = (
+            f"{settings.PUBLIC_URL.rstrip('/')}{settings.API_V1_STR}/webhooks/telegram"
+        )
+        success = await telegram_service.set_webhook(webhook_url)
+        if success:
+            logger.info(f"Startup: Telegram Webhook set to {webhook_url}")
+        else:
+            logger.error("Startup: Failed to set Telegram Webhook")
+    else:
+        logger.warning("Startup: Telegram Webhook not configured.")
+
+    from src.workers.butler_worker import create_butler_scheduler
+
+    butler_scheduler = create_butler_scheduler()
+    butler_scheduler.start()
+    logger.info("✅ Butler Agent scheduler started with 8 background jobs.")
+    logger.info("✅ TenantContextMiddleware ativo — multi-tenant seguro.")
+    logger.info("✅ Onboarding: /api/onboarding/*")
+    logger.info("✅ Agent Profile Editor: /api/v1/agent/profile/*")
+    logger.info("✅ Stripe Billing: /api/v1/stripe/*")
+    logger.info(
+        "✅ Landing: / → home.html | Admin: /admin | Client: /client | Master: /master"
+    )
+
+    try:
+        from src.scripts.create_master_admin import ensure_master_admin
+
+        _seed_engine = create_async_engine(settings.DATABASE_URL, echo=False)
+        _SeedSession = sessionmaker(
+            _seed_engine, class_=AsyncSession, expire_on_commit=False
+        )
+        async with _SeedSession() as _seed_session:
+            await ensure_master_admin(_seed_session, reset_password=False)
+        await _seed_engine.dispose()
+        logger.info("✅ Master admin verificado/criado com sucesso.")
+    except Exception as _e:
+        logger.warning(f"⚠️ Auto-seed master admin falhou: {_e}")
+
+    yield  # ── app is running ──
+
+    # ── SHUTDOWN ─────────────────────────────────────────────────────────
+    try:
+        from src.agents.customer_service_agent import _redis_pool
+
+        if _redis_pool is not None:
+            await _redis_pool.aclose()
+            logger.info("✅ Redis async pool fechado.")
+    except Exception as e:
+        logger.warning(f"⚠️ Erro ao fechar Redis pool: {e}")
+
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
+    lifespan=lifespan,
 )
 
-# ── Middleware order (applied bottom-up by Starlette) ───────────────────────
+# ── Middleware order (applied bottom-up by Starlette) ─────────────────────
 app.add_middleware(TenantContextMiddleware)
 app.add_middleware(PrometheusMetricsMiddleware)
 app.add_middleware(RateLimitMiddleware)
@@ -72,17 +237,16 @@ if settings.BACKEND_CORS_ORIGINS:
 def _inject_csp_nonce(html_content: str, nonce: str) -> str:
     """Inject nonce attribute into all <script> and <style> tags in HTML content."""
     import re
-    # Add nonce to <script ...> tags (but not <script type="application/json"> etc.)
+
     html_content = re.sub(
-        r'<script(?![^>]*nonce)([^>]*)>',
+        r"<script(?![^>]*nonce)([^>]*)>",
         lambda m: f'<script nonce="{nonce}"{m.group(1)}>',
-        html_content
+        html_content,
     )
-    # Add nonce to <style ...> tags
     html_content = re.sub(
-        r'<style(?![^>]*nonce)([^>]*)>',
+        r"<style(?![^>]*nonce)([^>]*)>",
         lambda m: f'<style nonce="{nonce}"{m.group(1)}>',
-        html_content
+        html_content,
     )
     return html_content
 
@@ -115,7 +279,6 @@ async def add_security_headers(request: Request, call_next):
     )
     response.headers["Content-Security-Policy"] = csp
 
-    # Inject nonce into HTML responses so inline scripts remain functional
     content_type = response.headers.get("content-type", "")
     if "text/html" in content_type and hasattr(response, "body"):
         try:
@@ -141,7 +304,7 @@ async def health_check():
     }
 
 
-# ── Routers ────────────────────────────────────────────────────────────
+# ── Routers ───────────────────────────────────────────────────────────────
 from src.api.ai_config import ai_config_router
 from src.api.apikeys import apikey_router
 from src.api.auth import auth_router
@@ -207,7 +370,7 @@ async def legacy_token_fallback(request: Request):
     )
 
 
-# ── Frontend static files ────────────────────────────────────────────────────
+# ── Frontend static files ─────────────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if os.path.basename(BASE_DIR) == "src":
     frontend_path = os.path.join(os.path.dirname(BASE_DIR), "frontend")
@@ -310,148 +473,8 @@ else:
     logger.warning(f"Frontend directory not found at {frontend_path}")
 
 
-@app.on_event("startup")
-async def startup_event():
-    from sqlalchemy.ext.asyncio import create_async_engine
-
-    import src.models.admin
-    import src.models.agent_profile
-    import src.models.api_key
-    import src.models.audit
-    import src.models.automation
-    import src.models.base_tenant
-    import src.models.butler_log
-    import src.models.config_model
-    import src.models.conversation
-    import src.models.customer
-    import src.models.lead
-    import src.models.lead_interaction
-    import src.models.meeting
-    import src.models.notification
-    import src.models.preferences
-    import src.models.product
-    import src.models.recovery
-    import src.models.role
-    import src.models.sales_workflow
-    import src.models.subscription
-    import src.models.tenant
-    import src.models.tenant_ai_config
-    import src.models.tenant_quota
-    import src.models.ticket
-    import src.models.usage_log
-    import src.models.user_session
-    import src.models.vault
-    import src.models.webhook_config
-    import src.models.whatsapp
-    from src.models.database import Base
-
-    # ── Alembic: run pending migrations on startup ────────────────────────────
-    # Alembic handles schema versioning and column-level changes correctly.
-    # Falls back to create_all only if alembic.ini is not present (local dev).
-    alembic_cfg_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "alembic.ini")
-    if os.path.exists(alembic_cfg_path):
-        try:
-            import asyncio
-            from alembic.config import Config as AlembicConfig
-            from alembic import command as alembic_command
-            from functools import partial
-
-            alembic_cfg = AlembicConfig(alembic_cfg_path)
-            alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL.replace("+asyncpg", "+psycopg2"))
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(
-                None, partial(alembic_command.upgrade, alembic_cfg, "head")
-            )
-            logger.info("✅ Alembic: migrations applied up to head.")
-        except Exception as e:
-            logger.error(f"❌ Alembic migration failed: {e}")
-            raise
-    else:
-        # Fallback for local dev without alembic.ini
-        logger.warning("⚠️ alembic.ini not found — falling back to create_all (dev only).")
-        engine = create_async_engine(settings.DATABASE_URL)
-        async with engine.begin() as conn:
-            logger.info("Database: Checking/creating tables...")
-            await conn.run_sync(Base.metadata.create_all)
-
-            from sqlalchemy import inspect
-            from sqlalchemy import text as sa_text
-
-            def _run_migrations(connection):
-                inspector = inspect(connection)
-                existing = [
-                    col["name"] for col in inspector.get_columns("evolution_instances")
-                ]
-                migrations_to_run = []
-                if "evolution_ip" not in existing:
-                    migrations_to_run.append(
-                        "ALTER TABLE evolution_instances ADD COLUMN evolution_ip VARCHAR"
-                    )
-                if "owner_email" not in existing:
-                    migrations_to_run.append(
-                        "ALTER TABLE evolution_instances ADD COLUMN owner_email VARCHAR"
-                    )
-                for sql in migrations_to_run:
-                    connection.execute(sa_text(sql))
-                    logger.info(f"Migration applied: {sql}")
-
-            try:
-                await conn.run_sync(_run_migrations)
-            except Exception as e:
-                logger.warning(f"Auto-migration warning: {e}")
-
-        await engine.dispose()
-        logger.info("Database: Initialization complete.")
-
-    if not settings.ENCRYPTION_KEY:
-        if settings.ENV == "production":
-            logger.error(
-                "🚨 CRITICAL: ENCRYPTION_KEY is not set in production! "
-                'Generate one with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
-            )
-        else:
-            logger.warning("⚠️  ENCRYPTION_KEY env variable is not set.")
-    else:
-        logger.info("✅ ENCRYPTION_KEY is set. AI Config key vault active.")
-
-    if settings.TELEGRAM_BOT_TOKEN and settings.PUBLIC_URL:
-        from src.services.telegram_service import telegram_service
-        webhook_url = (
-            f"{settings.PUBLIC_URL.rstrip('/')}{settings.API_V1_STR}/webhooks/telegram"
-        )
-        success = await telegram_service.set_webhook(webhook_url)
-        if success:
-            logger.info(f"Startup: Telegram Webhook set to {webhook_url}")
-        else:
-            logger.error("Startup: Failed to set Telegram Webhook")
-    else:
-        logger.warning("Startup: Telegram Webhook not configured.")
-
-    from src.workers.butler_worker import create_butler_scheduler
-    butler_scheduler = create_butler_scheduler()
-    butler_scheduler.start()
-    logger.info("✅ Butler Agent scheduler started with 8 background jobs.")
-    logger.info("✅ TenantContextMiddleware ativo — multi-tenant seguro.")
-    logger.info("✅ Onboarding: /api/onboarding/*")
-    logger.info("✅ Agent Profile Editor: /api/v1/agent/profile/*")
-    logger.info("✅ Stripe Billing: /api/v1/stripe/*")
-    logger.info("✅ Landing: / → home.html | Admin: /admin | Client: /client | Master: /master.html | Master alias: /master")
-
-    try:
-        from src.scripts.create_master_admin import ensure_master_admin
-        from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-        from sqlalchemy.orm import sessionmaker
-        _seed_engine = create_async_engine(settings.DATABASE_URL, echo=False)
-        _SeedSession = sessionmaker(_seed_engine, class_=AsyncSession, expire_on_commit=False)
-        async with _SeedSession() as _seed_session:
-            await ensure_master_admin(_seed_session, reset_password=False)
-        await _seed_engine.dispose()
-        logger.info("✅ Master admin verificado/criado com sucesso.")
-    except Exception as _e:
-        logger.warning(f"⚠️ Auto-seed master admin falhou: {_e}")
-
-
 if __name__ == "__main__":
     import uvicorn
+
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
