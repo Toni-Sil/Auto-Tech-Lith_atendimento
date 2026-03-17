@@ -27,15 +27,15 @@ python-telegram-bot==22.6
 
 # Security
 passlib[bcrypt]==1.7.4
-bcrypt>=3.2.0,<4.0.0
+bcrypt>=4.0.0
 python-jose[cryptography]==3.5.0
-PyJWT==2.8.0
-cryptography==41.0.7
+PyJWT>=2.8.0
+cryptography>=43.0.0
 pyotp==2.9.0
 qrcode==7.4.2
 
-# Scheduling (Butler Agent)
-APScheduler==3.11.2
+# Scheduling
+APScheduler>=3.10.0
 
 # Payment Processing
 stripe>=7.0.0
