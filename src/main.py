@@ -1,10 +1,11 @@
 import logging
 import os
+import secrets
 import sys
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from src.config import settings
@@ -32,12 +33,9 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
 )
 
-# ── Middleware order (applied bottom-up by Starlette) ─────────────────────
-# 1. Tenant context: resolve tenant_id para cada request (Sprint 1)
+# ── Middleware order (applied bottom-up by Starlette) ───────────────────────
 app.add_middleware(TenantContextMiddleware)
-# 2. Métricas: captura latência e status de TODAS as requisições
 app.add_middleware(PrometheusMetricsMiddleware)
-# 3. Rate Limit global
 app.add_middleware(RateLimitMiddleware)
 
 if getattr(settings, "APP_DEBUG", False):
@@ -71,27 +69,66 @@ if settings.BACKEND_CORS_ORIGINS:
     )
 
 
+def _inject_csp_nonce(html_content: str, nonce: str) -> str:
+    """Inject nonce attribute into all <script> and <style> tags in HTML content."""
+    import re
+    # Add nonce to <script ...> tags (but not <script type="application/json"> etc.)
+    html_content = re.sub(
+        r'<script(?![^>]*nonce)([^>]*)>',
+        lambda m: f'<script nonce="{nonce}"{m.group(1)}>',
+        html_content
+    )
+    # Add nonce to <style ...> tags
+    html_content = re.sub(
+        r'<style(?![^>]*nonce)([^>]*)>',
+        lambda m: f'<style nonce="{nonce}"{m.group(1)}>',
+        html_content
+    )
+    return html_content
+
+
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
+    nonce = secrets.token_urlsafe(16)
+    request.state.csp_nonce = nonce
+
     response = await call_next(request)
+
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
+
     connect_origins = ["'self'", "http://localhost:8000", "http://127.0.0.1:8000"]
     if settings.PUBLIC_URL:
         public_domain = settings.PUBLIC_URL.split("://")[-1].split("/")[0]
         connect_origins.append(f"https://{public_domain}")
         connect_origins.append(f"wss://{public_domain}")
+
     csp = (
-        "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.tailwindcss.com; "
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-        "font-src 'self' https://fonts.gstatic.com; "
-        "img-src 'self' data: blob:; "
+        f"default-src 'self'; "
+        f"script-src 'self' 'nonce-{nonce}' https://cdn.jsdelivr.net https://cdn.tailwindcss.com; "
+        f"style-src 'self' 'nonce-{nonce}' 'unsafe-inline' https://fonts.googleapis.com; "
+        f"font-src 'self' https://fonts.gstatic.com; "
+        f"img-src 'self' data: blob:; "
         f"connect-src {' '.join(connect_origins)};"
     )
     response.headers["Content-Security-Policy"] = csp
+
+    # Inject nonce into HTML responses so inline scripts remain functional
+    content_type = response.headers.get("content-type", "")
+    if "text/html" in content_type and hasattr(response, "body"):
+        try:
+            body = response.body.decode("utf-8")
+            body = _inject_csp_nonce(body, nonce)
+            return HTMLResponse(
+                content=body,
+                status_code=response.status_code,
+                headers=dict(response.headers),
+            )
+        except Exception:
+            pass
+
     return response
 
 
@@ -104,7 +141,7 @@ async def health_check():
     }
 
 
-# ── Routers ──────────────────────────────────────────────────────────────
+# ── Routers ────────────────────────────────────────────────────────────
 from src.api.ai_config import ai_config_router
 from src.api.apikeys import apikey_router
 from src.api.auth import auth_router
@@ -127,7 +164,6 @@ from src.api.tenant_quota import quota_router
 from src.api.usage import billing_router, usage_router
 from src.api.webhooks import webhooks_router
 from src.api.workflow import workflow_router
-# Sprint 1 + 2 — novos routers
 from src.api.onboarding import router as onboarding_router
 from src.api.agent_profile_editor import router as agent_profile_router
 from src.api.billing_stripe import router as stripe_router
@@ -155,7 +191,6 @@ app.include_router(products_router, tags=["products"])
 app.include_router(metrics_router, prefix=f"{settings.API_V1_STR}", tags=["observability"])
 app.include_router(system_config_router, prefix=f"{settings.API_V1_STR}/master", tags=["system-config"])
 app.include_router(api_router, prefix=settings.API_V1_STR)
-# Sprint 1+2 routers
 app.include_router(onboarding_router)
 app.include_router(agent_profile_router)
 app.include_router(stripe_router)
@@ -172,7 +207,7 @@ async def legacy_token_fallback(request: Request):
     )
 
 
-# ── Frontend static files ─────────────────────────────────────────────────
+# ── Frontend static files ────────────────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if os.path.basename(BASE_DIR) == "src":
     frontend_path = os.path.join(os.path.dirname(BASE_DIR), "frontend")
@@ -182,7 +217,6 @@ else:
 if os.path.exists(frontend_path):
     logger.info(f"Frontend directory identified at {frontend_path}")
 
-    # Monta subpastas de assets estáticos (CSS, JS, imagens)
     for folder in ["css", "js", "assets", "img"]:
         folder_path = os.path.join(frontend_path, folder)
         if os.path.exists(folder_path):
@@ -190,10 +224,6 @@ if os.path.exists(frontend_path):
             logger.info(f"✅ Mounted /{folder} from {folder_path}")
 
     app.mount("/static", StaticFiles(directory=frontend_path), name="static_old")
-
-    # ── Rotas explícitas de páginas HTML ──────────────────────────────────
-    # IMPORTANTE: todas as rotas de página devem ser declaradas ANTES de
-    # qualquer app.mount("/") para evitar que o StaticFiles intercepte.
 
     @app.get("/favicon.ico", include_in_schema=False)
     async def favicon():
@@ -268,7 +298,6 @@ if os.path.exists(frontend_path):
 
     @app.get("/", include_in_schema=False)
     async def landing_page():
-        """Rota raiz — serve home.html diretamente (sem mount conflitante)."""
         home_path = os.path.join(frontend_path, "home.html")
         if os.path.exists(home_path):
             return FileResponse(home_path)
@@ -276,12 +305,6 @@ if os.path.exists(frontend_path):
         if os.path.exists(login_path):
             return FileResponse(login_path)
         raise HTTPException(status_code=404, detail="Home page not found")
-
-    # NOTA: app.mount("/", StaticFiles(...)) foi REMOVIDO intencionalmente.
-    # Esse mount interceptava a rota GET "/" antes das rotas explícitas,
-    # causando 404 porque o StaticFiles procurava index.html (inexistente).
-    # Os arquivos .html individuais são servidos pelas rotas acima.
-    # CSS/JS/assets continuam funcionando via mounts de subpastas (/css, /js, /assets).
 
 else:
     logger.warning(f"Frontend directory not found at {frontend_path}")
@@ -296,7 +319,7 @@ async def startup_event():
     import src.models.api_key
     import src.models.audit
     import src.models.automation
-    import src.models.base_tenant  # Sprint 1 — BaseTenantModel
+    import src.models.base_tenant
     import src.models.butler_log
     import src.models.config_model
     import src.models.conversation
@@ -310,7 +333,7 @@ async def startup_event():
     import src.models.recovery
     import src.models.role
     import src.models.sales_workflow
-    import src.models.subscription  # Sprint 3 — Stripe subscription
+    import src.models.subscription
     import src.models.tenant
     import src.models.tenant_ai_config
     import src.models.tenant_quota
@@ -322,39 +345,63 @@ async def startup_event():
     import src.models.whatsapp
     from src.models.database import Base
 
-    engine = create_async_engine(settings.DATABASE_URL)
-    async with engine.begin() as conn:
-        logger.info("Database: Checking/creating tables...")
-        await conn.run_sync(Base.metadata.create_all)
-
-        from sqlalchemy import inspect
-        from sqlalchemy import text as sa_text
-
-        def _run_migrations(connection):
-            inspector = inspect(connection)
-            existing = [
-                col["name"] for col in inspector.get_columns("evolution_instances")
-            ]
-            migrations_to_run = []
-            if "evolution_ip" not in existing:
-                migrations_to_run.append(
-                    "ALTER TABLE evolution_instances ADD COLUMN evolution_ip VARCHAR"
-                )
-            if "owner_email" not in existing:
-                migrations_to_run.append(
-                    "ALTER TABLE evolution_instances ADD COLUMN owner_email VARCHAR"
-                )
-            for sql in migrations_to_run:
-                connection.execute(sa_text(sql))
-                logger.info(f"Migration applied: {sql}")
-
+    # ── Alembic: run pending migrations on startup ────────────────────────────
+    # Alembic handles schema versioning and column-level changes correctly.
+    # Falls back to create_all only if alembic.ini is not present (local dev).
+    alembic_cfg_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "alembic.ini")
+    if os.path.exists(alembic_cfg_path):
         try:
-            await conn.run_sync(_run_migrations)
-        except Exception as e:
-            logger.warning(f"Auto-migration warning: {e}")
+            import asyncio
+            from alembic.config import Config as AlembicConfig
+            from alembic import command as alembic_command
+            from functools import partial
 
-    await engine.dispose()
-    logger.info("Database: Initialization complete.")
+            alembic_cfg = AlembicConfig(alembic_cfg_path)
+            alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL.replace("+asyncpg", "+psycopg2"))
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(
+                None, partial(alembic_command.upgrade, alembic_cfg, "head")
+            )
+            logger.info("✅ Alembic: migrations applied up to head.")
+        except Exception as e:
+            logger.error(f"❌ Alembic migration failed: {e}")
+            raise
+    else:
+        # Fallback for local dev without alembic.ini
+        logger.warning("⚠️ alembic.ini not found — falling back to create_all (dev only).")
+        engine = create_async_engine(settings.DATABASE_URL)
+        async with engine.begin() as conn:
+            logger.info("Database: Checking/creating tables...")
+            await conn.run_sync(Base.metadata.create_all)
+
+            from sqlalchemy import inspect
+            from sqlalchemy import text as sa_text
+
+            def _run_migrations(connection):
+                inspector = inspect(connection)
+                existing = [
+                    col["name"] for col in inspector.get_columns("evolution_instances")
+                ]
+                migrations_to_run = []
+                if "evolution_ip" not in existing:
+                    migrations_to_run.append(
+                        "ALTER TABLE evolution_instances ADD COLUMN evolution_ip VARCHAR"
+                    )
+                if "owner_email" not in existing:
+                    migrations_to_run.append(
+                        "ALTER TABLE evolution_instances ADD COLUMN owner_email VARCHAR"
+                    )
+                for sql in migrations_to_run:
+                    connection.execute(sa_text(sql))
+                    logger.info(f"Migration applied: {sql}")
+
+            try:
+                await conn.run_sync(_run_migrations)
+            except Exception as e:
+                logger.warning(f"Auto-migration warning: {e}")
+
+        await engine.dispose()
+        logger.info("Database: Initialization complete.")
 
     if not settings.ENCRYPTION_KEY:
         if settings.ENV == "production":
@@ -390,7 +437,6 @@ async def startup_event():
     logger.info("✅ Stripe Billing: /api/v1/stripe/*")
     logger.info("✅ Landing: / → home.html | Admin: /admin | Client: /client | Master: /master.html | Master alias: /master")
 
-    # ── Auto-seed: garante que o master admin sempre exista ──
     try:
         from src.scripts.create_master_admin import ensure_master_admin
         from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine

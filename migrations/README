@@ -1,0 +1,31 @@
+# Alembic Migrations
+
+## Comandos essenciais
+
+```bash
+# Criar nova migration (detecta diff automtico do schema)
+alembic revision --autogenerate -m "descricao da mudanca"
+
+# Aplicar todas as migrations pendentes
+alembic upgrade head
+
+# Ver status atual
+alembic current
+
+# Ver histrico
+alembic history
+
+# Reverter ltima migration
+alembic downgrade -1
+```
+
+## Primeira vez (banco existente em produo)
+
+Se o banco j existe e voc est adicionando Alembic pela primeira vez:
+
+```bash
+# Criar migration inicial sem gerar SQL (marcar como baseline)
+alembic stamp head
+```
+
+Depois disso, toda nova mudana de schema deve ser feita via `alembic revision --autogenerate`.
