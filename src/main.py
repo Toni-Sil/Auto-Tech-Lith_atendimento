@@ -4,7 +4,7 @@ import sys
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from src.config import settings
@@ -182,6 +182,7 @@ else:
 if os.path.exists(frontend_path):
     logger.info(f"Frontend directory identified at {frontend_path}")
 
+    # Monta subpastas de assets estáticos (CSS, JS, imagens)
     for folder in ["css", "js", "assets", "img"]:
         folder_path = os.path.join(frontend_path, folder)
         if os.path.exists(folder_path):
@@ -189,6 +190,10 @@ if os.path.exists(frontend_path):
             logger.info(f"✅ Mounted /{folder} from {folder_path}")
 
     app.mount("/static", StaticFiles(directory=frontend_path), name="static_old")
+
+    # ── Rotas explícitas de páginas HTML ──────────────────────────────────
+    # IMPORTANTE: todas as rotas de página devem ser declaradas ANTES de
+    # qualquer app.mount("/") para evitar que o StaticFiles intercepte.
 
     @app.get("/favicon.ico", include_in_schema=False)
     async def favicon():
@@ -226,6 +231,13 @@ if os.path.exists(frontend_path):
             return FileResponse(master_path)
         raise HTTPException(status_code=404, detail="Master portal not found")
 
+    @app.get("/master", include_in_schema=False)
+    async def master_portal_alias():
+        master_path = os.path.join(frontend_path, "master.html")
+        if os.path.exists(master_path):
+            return FileResponse(master_path)
+        raise HTTPException(status_code=404, detail="Master portal not found")
+
     @app.get("/client.html", include_in_schema=False)
     async def client_portal():
         client_path = os.path.join(frontend_path, "client.html")
@@ -240,6 +252,13 @@ if os.path.exists(frontend_path):
             return FileResponse(client_path)
         raise HTTPException(status_code=404, detail="Client portal not found")
 
+    @app.get("/home.html", include_in_schema=False)
+    async def home_html_page():
+        home_path = os.path.join(frontend_path, "home.html")
+        if os.path.exists(home_path):
+            return FileResponse(home_path)
+        raise HTTPException(status_code=404, detail="Home page not found")
+
     @app.get("/onboarding", include_in_schema=False)
     async def onboarding_page():
         onboarding_path = os.path.join(frontend_path, "onboarding.html")
@@ -249,12 +268,21 @@ if os.path.exists(frontend_path):
 
     @app.get("/", include_in_schema=False)
     async def landing_page():
+        """Rota raiz — serve home.html diretamente (sem mount conflitante)."""
         home_path = os.path.join(frontend_path, "home.html")
         if os.path.exists(home_path):
             return FileResponse(home_path)
-        return FileResponse(os.path.join(frontend_path, "index.html"))
+        login_path = os.path.join(frontend_path, "login.html")
+        if os.path.exists(login_path):
+            return FileResponse(login_path)
+        raise HTTPException(status_code=404, detail="Home page not found")
 
-    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
+    # NOTA: app.mount("/", StaticFiles(...)) foi REMOVIDO intencionalmente.
+    # Esse mount interceptava a rota GET "/" antes das rotas explícitas,
+    # causando 404 porque o StaticFiles procurava index.html (inexistente).
+    # Os arquivos .html individuais são servidos pelas rotas acima.
+    # CSS/JS/assets continuam funcionando via mounts de subpastas (/css, /js, /assets).
+
 else:
     logger.warning(f"Frontend directory not found at {frontend_path}")
 
@@ -360,7 +388,7 @@ async def startup_event():
     logger.info("✅ Onboarding: /api/onboarding/*")
     logger.info("✅ Agent Profile Editor: /api/v1/agent/profile/*")
     logger.info("✅ Stripe Billing: /api/v1/stripe/*")
-    logger.info("✅ Landing: / | Admin: /admin | Client: /client | Master: /master.html")
+    logger.info("✅ Landing: / → home.html | Admin: /admin | Client: /client | Master: /master.html | Master alias: /master")
 
     # ── Auto-seed: garante que o master admin sempre exista ──
     try:
