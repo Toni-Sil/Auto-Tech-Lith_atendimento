@@ -20,7 +20,11 @@ RUN mkdir -p /app/logs /app/frontend/assets/uploads
 COPY src /app/src
 COPY frontend /app/frontend
 
+# SECURITY: executar como usuário não-root
+RUN adduser --disabled-password --gecos "" appuser \
+    && chown -R appuser /app /app/logs /app/frontend/assets/uploads
+USER appuser
+
 # Comando para rodar a aplicação
 EXPOSE 8000
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--loop", "uvloop"]
-
