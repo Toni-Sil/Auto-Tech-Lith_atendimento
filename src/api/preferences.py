@@ -6,11 +6,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.auth import RequirePermissions, get_current_user
 from src.models.admin import AdminUser
 from src.models.database import get_db
-from src.schemas_preferences import (AggregatedPreferenceResponse,
-                                     TenantPreferenceResponse,
-                                     TenantPreferenceUpdate,
-                                     UserPreferenceResponse,
-                                     UserPreferenceUpdate)
+from src.schemas.preferences import (
+    AggregatedPreferenceResponse,
+    TenantPreferenceResponse,
+    TenantPreferenceUpdate,
+    UserPreferenceResponse,
+    UserPreferenceUpdate,
+)
 from src.services.preference_service import preference_service
 
 pref_router = APIRouter()

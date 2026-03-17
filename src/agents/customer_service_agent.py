@@ -1,3 +1,4 @@
+import hashlib
 import json
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -6,7 +7,7 @@ from sqlalchemy import select
 
 from src.agents.base_agent import BaseAgent
 from src.agents.tools import (AGENT_TOOLS, schedule_meeting,
-                              update_customer_info)
+                               update_customer_info)
 from src.models.config_model import SystemConfig
 from src.models.conversation import Conversation, MessageRole
 from src.models.customer import Customer
@@ -16,6 +17,33 @@ from src.services.llm_service import LLMService
 from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
+
+# ---------------------------------------------------------------------------
+# Redis async connection pool (singleton) — evita criar nova conexão por request
+# ---------------------------------------------------------------------------
+_redis_pool: Optional[Any] = None
+
+
+async def _get_redis():
+    """Return a shared async Redis client, creating the pool on first call."""
+    global _redis_pool
+    if _redis_pool is None:
+        try:
+            from redis.asyncio import Redis
+            from src.config import settings
+
+            _redis_pool = Redis(
+                host=settings.REDIS_HOST,
+                port=settings.REDIS_PORT,
+                password=settings.REDIS_PASSWORD,
+                db=0,
+                decode_responses=True,
+                socket_timeout=1,
+            )
+        except Exception as e:
+            logger.warning(f"⚠️ Redis pool init failed (ignorando): {e}")
+            return None
+    return _redis_pool
 
 
 class CustomerServiceAgent(BaseAgent):
@@ -132,7 +160,6 @@ class CustomerServiceAgent(BaseAgent):
             result = await session.execute(stmt)
             customer = result.scalar_one()
             customer.last_interaction = datetime.now()
-
             await session.commit()
 
     async def load_system_prompt(self, customer: Customer, step: str) -> str:
@@ -147,14 +174,15 @@ class CustomerServiceAgent(BaseAgent):
                 logger.info(
                     f"Loading prompt from active profile: '{active_profile.name}' (id={active_profile.id})"
                 )
-
                 prompt_content = active_profile.base_prompt
 
                 if customer.admin_instruction:
-                    logger.info(
-                        f"Injecting admin instruction for customer {customer.id}"
+                    logger.info(f"Injecting admin instruction for customer {customer.id}")
+                    prompt_content = (
+                        f"{prompt_content}\n\n🚩 **[INSTRUÇÃO PRIORITÁRIA DO ADMINISTRADOR]**: "
+                        f"{customer.admin_instruction}\n"
+                        "(Siga esta instrução acima de qualquer outra regra se houver conflito)"
                     )
-                    prompt_content = f"{prompt_content}\n\n🚩 **[INSTRUÇÃO PRIORITÁRIA DO ADMINISTRADOR]**: {customer.admin_instruction}\n(Siga esta instrução acima de qualquer outra regra se houver conflito)"
 
                 try:
                     return prompt_content.format(
@@ -217,10 +245,8 @@ class CustomerServiceAgent(BaseAgent):
                 .order_by(Conversation.created_at.desc())
                 .limit(limit)
             )
-
             history = await session.execute(stmt)
             history_msgs = history.scalars().all()
-
             for msg in reversed(history_msgs):
                 role = "user" if msg.role == MessageRole.USER else "assistant"
                 if msg.content:
@@ -242,7 +268,6 @@ class CustomerServiceAgent(BaseAgent):
             return await schedule_meeting(customer.id, **arguments)
         elif function_name == "check_availability":
             from src.agents.tools import check_availability
-
             return await check_availability(tenant_id=customer.tenant_id, **arguments)
         else:
             return f"Erro: Ferramenta {function_name} desconhecida."
@@ -296,16 +321,14 @@ class CustomerServiceAgent(BaseAgent):
 
         logger.info(f"Processing message from {phone}: {message}")
 
-        # 1. Marcar mensagem como lida (✔✔ azul) — fire-and-forget
+        # 1. Marcar mensagem como lida (✔✔ azul)
         if remote_jid and message_id:
             await self.evolution.mark_message_as_read(
                 remote_jid, message_id, instance_name=instance_name
             )
-            logger.info(
-                f"Marked message {message_id} as read for {remote_jid} on {instance_name}"
-            )
+            logger.info(f"Marked message {message_id} as read for {remote_jid} on {instance_name}")
 
-        # 2. Identificar Instância e Tenant — OBRIGATÓRIO para continuar
+        # 2. Identificar Instância e Tenant
         tenant_id = None
         async with async_session() as session:
             from src.models.whatsapp import EvolutionInstance
@@ -316,34 +339,27 @@ class CustomerServiceAgent(BaseAgent):
             inst_obj = (await session.execute(stmt)).scalar_one_or_none()
             if inst_obj:
                 tenant_id = inst_obj.tenant_id
-                logger.info(
-                    f"Instance {instance_name} associated with tenant_id={tenant_id}"
-                )
+                logger.info(f"Instance {instance_name} associated with tenant_id={tenant_id}")
             else:
                 logger.warning(
                     f"Instance '{instance_name}' not found in DB. Blocking response — tenant not registered."
                 )
                 return ""
 
-        # Bloquear se a instância existe mas não tem tenant associado
         if tenant_id is None:
             logger.warning(
                 f"Instance '{instance_name}' has no tenant_id. Blocking response — tenant not configured."
             )
             return ""
 
-        # 3. Identificar Cliente (escopado pelo tenant)
+        # 3. Identificar Cliente
         customer = await self.get_or_create_customer(phone, name, tenant_id=tenant_id)
 
         # 4. Salvar mensagem do usuário
-        await self.save_message(
-            customer.id, MessageRole.USER, message, tenant_id=tenant_id
-        )
+        await self.save_message(customer.id, MessageRole.USER, message, tenant_id=tenant_id)
 
-        # 5. Ativar ícone 'digitando' ANTES do LLM
-        await self.evolution.send_composing(
-            phone, duration_ms=12000, instance_name=instance_name
-        )
+        # 5. Ativar ícone 'digitando'
+        await self.evolution.send_composing(phone, duration_ms=12000, instance_name=instance_name)
 
         # 6. Construir Contexto
         step = (
@@ -355,43 +371,25 @@ class CustomerServiceAgent(BaseAgent):
         history = await self._get_conversation_history(customer.id)
 
         messages = [{"role": "system", "content": system_prompt}] + history
-
         if not messages or messages[-1].get("content") != message:
             messages.append({"role": "user", "content": message})
 
-        # 7. Cache Redis
+        # 7. Cache Redis (async, com pool singleton)
         response_text = None
-        redis_client = None
-        import hashlib
-
         tenant_str = str(tenant_id)
-        cache_hash = hashlib.md5(
-            (tenant_str + system_prompt + message).encode()
-        ).hexdigest()
+        cache_hash = hashlib.md5((tenant_str + system_prompt + message).encode()).hexdigest()
         cache_key = f"ai_response:{tenant_str}:{cache_hash}"
+        redis_client = await _get_redis()
 
-        try:
-            import redis
-
-            from src.config import settings
-
-            redis_client = redis.Redis(
-                host=settings.REDIS_HOST,
-                port=settings.REDIS_PORT,
-                password=settings.REDIS_PASSWORD,
-                db=0,
-                decode_responses=True,
-                socket_timeout=1,
-            )
-            cached = redis_client.get(cache_key)
-            if cached:
-                logger.info(f"🚀 Cache HIT para {cache_key}")
-                await self._send_response(
-                    customer, cached, phone, instance_name=instance_name
-                )
-                return cached
-        except Exception as e:
-            logger.warning(f"⚠️ Erro no cache Redis (ignorando): {e}")
+        if redis_client:
+            try:
+                cached = await redis_client.get(cache_key)
+                if cached:
+                    logger.info(f"🚀 Cache HIT para {cache_key}")
+                    await self._send_response(customer, cached, phone, instance_name=instance_name)
+                    return cached
+            except Exception as e:
+                logger.warning(f"⚠️ Erro no cache Redis (ignorando): {e}")
 
         # 8. Chamar LLM
         response_msg = await self.llm.get_chat_response(messages, tools=self.tools)
@@ -401,18 +399,14 @@ class CustomerServiceAgent(BaseAgent):
             logger.info(f"LLM requested tool calls: {len(response_msg.tool_calls)}")
             messages.append(response_msg)
 
-            tool_results = await self._process_tool_calls(
-                response_msg.tool_calls, customer
-            )
+            tool_results = await self._process_tool_calls(response_msg.tool_calls, customer)
             messages.extend(tool_results)
 
             final_response = await self.llm.get_chat_response(messages)
             response_text = final_response.content
 
             if not response_text:
-                logger.info(
-                    "Agent response empty after tool calls, forcing confirmation..."
-                )
+                logger.info("Agent response empty after tool calls, forcing confirmation...")
                 messages.append(
                     {
                         "role": "system",
@@ -430,15 +424,13 @@ class CustomerServiceAgent(BaseAgent):
         # 10. Salvar no Cache
         if response_text and redis_client:
             try:
-                redis_client.setex(cache_key, 3600, response_text)
+                await redis_client.setex(cache_key, 3600, response_text)
                 logger.info(f"💾 Resposta salva no cache: {cache_key}")
             except Exception as e:
                 logger.warning(f"⚠️ Erro ao salvar no Redis: {e}")
 
         # 11. Enviar Resposta
-        await self._send_response(
-            customer, response_text, phone, instance_name=instance_name
-        )
+        await self._send_response(customer, response_text, phone, instance_name=instance_name)
 
         return response_text
 
