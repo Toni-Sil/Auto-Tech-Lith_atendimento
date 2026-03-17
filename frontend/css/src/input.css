@@ -1,0 +1,294 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ──────────────────────────────────────────────────────────────────────────
+   DESIGN TOKENS — Light Mode (default)
+   Todos os valores de cor, sombra e raio são definidos aqui como variáveis
+   CSS. O Tailwind consome via tailwind.config.js para gerar utilities.
+   ────────────────────────────────────────────────────────────────────────── */
+:root {
+  /* Brand palette — pode ser sobrescrita via TenantPreference */
+  --color-brand-50:  #f0f4ff;
+  --color-brand-100: #dbe4ff;
+  --color-brand-500: #4f6ef7;
+  --color-brand-600: #3b57e8;
+  --color-brand-700: #2d44cc;
+  --color-brand-900: #1a2a7a;
+
+  /* Surfaces */
+  --color-surface:         #ffffff;
+  --color-surface-raised:  #f8fafc;
+  --color-surface-overlay: #f1f5f9;
+
+  /* Text */
+  --color-text-primary:   #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted:     #94a3b8;
+
+  /* Borders */
+  --color-border:       #e2e8f0;
+  --color-border-strong:#cbd5e1;
+
+  /* Status */
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-error:   #ef4444;
+  --color-info:    #3b82f6;
+
+  /* Radii */
+  --radius-card: 0.75rem;
+  --radius-btn:  0.5rem;
+
+  /* Shadows */
+  --shadow-card:    0 1px 3px 0 rgb(0 0 0 / .08), 0 1px 2px -1px rgb(0 0 0 / .06);
+  --shadow-popover: 0 10px 30px -5px rgb(0 0 0 / .12);
+
+  /* Layout */
+  --sidebar-width: 260px;
+  --sidebar-collapsed: 72px;
+  --topbar-height: 64px;
+}
+
+/* ── Dark Mode ─────────────────────────────────────────────────────────── */
+.dark {
+  --color-surface:         #0f172a;
+  --color-surface-raised:  #1e293b;
+  --color-surface-overlay: #334155;
+
+  --color-text-primary:   #f1f5f9;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted:     #64748b;
+
+  --color-border:       #1e293b;
+  --color-border-strong:#334155;
+
+  --shadow-card:    0 1px 3px 0 rgb(0 0 0 / .3);
+  --shadow-popover: 0 10px 30px -5px rgb(0 0 0 / .4);
+}
+
+/* ── Base resets ───────────────────────────────────────────────────────── */
+@layer base {
+  html {
+    @apply scroll-smooth;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  body {
+    background-color: var(--color-surface);
+    color: var(--color-text-primary);
+    @apply antialiased;
+  }
+  * {
+    @apply border-border;
+  }
+}
+
+/* ── Component layer ───────────────────────────────────────────────────── */
+@layer components {
+
+  /* Cards */
+  .card {
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+    @apply p-6;
+  }
+
+  /* Metric cards (KPIs) */
+  .metric-card {
+    @apply card flex flex-col gap-1;
+  }
+  .metric-card__value {
+    @apply text-3xl font-bold;
+    color: var(--color-text-primary);
+  }
+  .metric-card__label {
+    @apply text-sm;
+    color: var(--color-text-muted);
+  }
+  .metric-card__delta {
+    @apply text-xs font-medium;
+  }
+  .metric-card__delta--up   { color: var(--color-success); }
+  .metric-card__delta--down { color: var(--color-error); }
+
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 font-medium transition-all duration-150;
+    @apply px-4 py-2 text-sm;
+    border-radius: var(--radius-btn);
+    cursor: pointer;
+  }
+  .btn:disabled { @apply opacity-50 cursor-not-allowed; }
+
+  .btn-primary {
+    @apply btn;
+    background: var(--color-brand-500);
+    color: #fff;
+  }
+  .btn-primary:hover { background: var(--color-brand-600); }
+
+  .btn-secondary {
+    @apply btn;
+    background: var(--color-surface-overlay);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+  }
+  .btn-secondary:hover { background: var(--color-surface-raised); }
+
+  .btn-danger {
+    @apply btn;
+    background: var(--color-error);
+    color: #fff;
+  }
+
+  /* Badges / Status chips */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  .badge-success { background: #dcfce7; color: #15803d; }
+  .badge-warning { background: #fef9c3; color: #a16207; }
+  .badge-error   { background: #fee2e2; color: #b91c1c; }
+  .badge-info    { background: #dbeafe; color: #1d4ed8; }
+  .badge-neutral { background: var(--color-surface-overlay); color: var(--color-text-secondary); }
+
+  .dark .badge-success { background: #14532d; color: #86efac; }
+  .dark .badge-warning { background: #78350f; color: #fde68a; }
+  .dark .badge-error   { background: #7f1d1d; color: #fca5a5; }
+  .dark .badge-info    { background: #1e3a5f; color: #93c5fd; }
+
+  /* Form inputs */
+  .input {
+    @apply w-full rounded-lg px-3 py-2 text-sm transition-all duration-150;
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+  }
+  .input:focus {
+    outline: none;
+    border-color: var(--color-brand-500);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand-500) 20%, transparent);
+  }
+
+  /* Sidebar */
+  .sidebar {
+    position: fixed;
+    left: 0; top: 0; bottom: 0;
+    width: var(--sidebar-width);
+    background: var(--color-surface-raised);
+    border-right: 1px solid var(--color-border);
+    @apply flex flex-col transition-all duration-200 z-30;
+  }
+  .sidebar.collapsed {
+    width: var(--sidebar-collapsed);
+  }
+  .sidebar-item {
+    @apply flex items-center gap-3 px-4 py-2.5 rounded-lg mx-2 text-sm font-medium transition-colors duration-150;
+    color: var(--color-text-secondary);
+  }
+  .sidebar-item:hover {
+    background: var(--color-surface-overlay);
+    color: var(--color-text-primary);
+  }
+  .sidebar-item.active {
+    background: color-mix(in srgb, var(--color-brand-500) 12%, transparent);
+    color: var(--color-brand-600);
+  }
+
+  /* Topbar */
+  .topbar {
+    position: fixed;
+    top: 0; right: 0; left: var(--sidebar-width);
+    height: var(--topbar-height);
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    @apply flex items-center px-6 gap-4 z-20 transition-all duration-200;
+  }
+  .topbar.sidebar-collapsed {
+    left: var(--sidebar-collapsed);
+  }
+
+  /* Main content area */
+  .main-content {
+    margin-left: var(--sidebar-width);
+    margin-top: var(--topbar-height);
+    @apply p-6 transition-all duration-200;
+    min-height: calc(100vh - var(--topbar-height));
+  }
+  .main-content.sidebar-collapsed {
+    margin-left: var(--sidebar-collapsed);
+  }
+
+  /* Data table */
+  .data-table {
+    @apply w-full text-sm;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  .data-table thead th {
+    @apply px-4 py-3 text-left font-semibold text-xs uppercase tracking-wide;
+    background: var(--color-surface-overlay);
+    color: var(--color-text-muted);
+    border-bottom: 1px solid var(--color-border);
+  }
+  .data-table tbody tr {
+    border-bottom: 1px solid var(--color-border);
+    @apply transition-colors duration-100;
+  }
+  .data-table tbody tr:hover {
+    background: var(--color-surface-overlay);
+  }
+  .data-table td {
+    @apply px-4 py-3;
+    color: var(--color-text-primary);
+  }
+
+  /* Toast notifications */
+  .toast {
+    @apply fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg;
+    @apply text-sm font-medium animate-slide-in;
+    min-width: 280px;
+  }
+  .toast-success { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+  .toast-error   { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+  .toast-info    { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+  .dark .toast-success { background: #14532d; color: #86efac; }
+  .dark .toast-error   { background: #7f1d1d; color: #fca5a5; }
+  .dark .toast-info    { background: #1e3a5f; color: #93c5fd; }
+
+  /* Loading skeleton */
+  .skeleton {
+    @apply animate-pulse rounded;
+    background: var(--color-surface-overlay);
+  }
+
+  /* Empty state */
+  .empty-state {
+    @apply flex flex-col items-center justify-center py-16 text-center;
+    color: var(--color-text-muted);
+  }
+
+  /* Avatar */
+  .avatar {
+    @apply inline-flex items-center justify-center rounded-full font-semibold uppercase;
+    background: var(--color-brand-500);
+    color: #fff;
+  }
+
+  /* Modal */
+  .modal-overlay {
+    @apply fixed inset-0 z-50 flex items-center justify-center;
+    background: rgb(0 0 0 / .5);
+    backdrop-filter: blur(4px);
+  }
+  .modal {
+    @apply card w-full max-w-lg mx-4 animate-fade-in;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  /* Trend chip */
+  .trend-up   { @apply text-xs font-medium; color: var(--color-success); }
+  .trend-down { @apply text-xs font-medium; color: var(--color-error); }
+}
