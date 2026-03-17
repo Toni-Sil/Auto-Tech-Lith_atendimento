@@ -13,7 +13,8 @@ class Settings(BaseSettings):
 
     # Environment
     ENV: str = "development"  # development | production
-    APP_DEBUG: bool = True
+    # SEGURANÇA: APP_DEBUG padrão False — só ativar via .env em dev local
+    APP_DEBUG: bool = False
 
     # Database
     # Default to SQLite for local development
@@ -43,7 +44,9 @@ class Settings(BaseSettings):
     PUBLIC_URL: Optional[str] = None
 
     # Webhook Verification
-    VERIFY_TOKEN: str = "MEU_TOKEN_SECRETO"
+    # SEGURANÇA: sem valor default — OBRIGATÓRIO definir no .env
+    # Gerar com: python -c "import secrets; print(secrets.token_hex(32))"
+    VERIFY_TOKEN: str
 
     # SMTP Settings
     SMTP_SERVER: Optional[str] = None
@@ -55,13 +58,13 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 1440  # 1 day
 
     # CORS — set via env as JSON list: '["https://yourapp.com"]'
+    # URLs de teste/temporárias foram removidas. Defina via BACKEND_CORS_ORIGINS no .env.
     BACKEND_CORS_ORIGINS: List[str] = [
         "http://localhost",
         "http://localhost:8000",
         "http://127.0.0.1:8000",
         "http://localhost:8080",
         "http://127.0.0.1:8080",
-        "https://auto-tech-lich-server-1w3am1-6a00ef-187-77-227-171.traefik.me",
     ]
 
     model_config = SettingsConfigDict(
