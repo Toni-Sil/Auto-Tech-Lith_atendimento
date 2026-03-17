@@ -20,7 +20,7 @@ services:
     networks:
       - auto_tech_network
 
-  # ─── Redis Cache ─────────────────────────────────────────────────────────────
+  # ─── Redis Cache ────────────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     restart: always
@@ -36,7 +36,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # ─── Backend Application ──────────────────────────────────────────────────────
+  # ─── Backend Application ────────────────────────────────────────────────────────
   backend:
     build: .
     restart: always
@@ -82,16 +82,33 @@ services:
       - dokploy-network
     labels:
       - traefik.enable=true
+      # Router frontend: serve tudo exceto /api/v1/ (HTML, CSS, JS, favicon, etc)
+      - traefik.http.routers.frontend.rule=Host(`autotechlith.com`) && !PathPrefix(`/api/v1/`)
+      - traefik.http.routers.frontend.service=backend
+      - traefik.http.routers.frontend.entrypoints=websecure
+      - traefik.http.routers.frontend.tls=true
+      - traefik.http.routers.frontend.tls.certresolver=letsencrypt
+      # Router API: serve /api/v1/*
       - traefik.http.routers.backend.rule=Host(`autotechlith.com`) && PathPrefix(`/api/v1/`)
       - traefik.http.routers.backend.service=backend
+      - traefik.http.routers.backend.entrypoints=websecure
+      - traefik.http.routers.backend.tls=true
+      - traefik.http.routers.backend.tls.certresolver=letsencrypt
+      # Redirect HTTP → HTTPS
+      - traefik.http.routers.http-catchall.rule=Host(`autotechlith.com`)
+      - traefik.http.routers.http-catchall.entrypoints=web
+      - traefik.http.routers.http-catchall.middlewares=redirect-to-https
+      - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
+      - traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true
       - traefik.http.services.backend.loadbalancer.server.port=8000
 
-  # ─── pgAdmin (Gerenciador visual do banco) ────────────────────────────────────
+  # ─── pgAdmin (Gerenciador visual do banco) ────────────────────────────────────────────
   pgadmin:
     image: dpage/pgadmin4:latest
     restart: always
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@autotechlith.com}
+      # SEGURANÇA: sempre defina PGADMIN_PASSWORD no .env, nunca use o default em prod
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
       TZ: America/Sao_Paulo
     depends_on:
@@ -101,7 +118,7 @@ services:
     profiles:
       - dev
 
-  # ─── Evolution API PostgreSQL ──────────────────────────────────────────────────
+  # ─── Evolution API PostgreSQL ──────────────────────────────────────────────────────
   evolution-postgres:
     image: postgres:15-alpine
     restart: always
@@ -115,17 +132,18 @@ services:
     networks:
       - auto_tech_network
 
-  # ─── Evolution API Redis ───────────────────────────────────────────────────────
+  # ─── Evolution API Redis ─────────────────────────────────────────────────────────────────
   evolution-redis:
     image: redis:7-alpine
     restart: always
-    command: redis-server
+    # SEGURANÇA: senha adicionada para isolar do redis do backend na mesma rede
+    command: redis-server --requirepass ${EVOLUTION_REDIS_PASSWORD:-evo-redis-2026}
     volumes:
       - evolution_redis_data:/data
     networks:
       - auto_tech_network
 
-  # ─── Evolution API ─────────────────────────────────────────────────────────────
+  # ─── Evolution API ─────────────────────────────────────────────────────────────────────
   evolution-api:
     image: evoapicloud/evolution-api:v2.3.7
     restart: always
@@ -149,7 +167,8 @@ services:
       - DATABASE_SAVE_DATA_LABELS=true
       - DATABASE_SAVE_DATA_HISTORIC=true
       - CACHE_REDIS_ENABLED=true
-      - CACHE_REDIS_URI=redis://evolution-redis:6379
+      # URI atualizada com senha do evolution-redis
+      - CACHE_REDIS_URI=redis://:${EVOLUTION_REDIS_PASSWORD:-evo-redis-2026}@evolution-redis:6379
       - CACHE_REDIS_PREFIX_KEY=evolution
       - CACHE_REDIS_SAVE_INSTANCES=true
       - WEBHOOK_GLOBAL_URL=http://backend:8000/api/v1/webhooks/whatsapp?token=${VERIFY_TOKEN}
