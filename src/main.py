@@ -12,7 +12,9 @@ from fastapi.staticfiles import StaticFiles
 from src.config import settings
 from src.middleware.metrics import PrometheusMetricsMiddleware
 from src.middleware.rate_limit_middleware import RateLimitMiddleware
-from src.middleware.tenant_context import TenantContextMiddleware
+from src.middleware.tenant_context import TenantContextMiddleware  # Sprint 1
+from src.middleware.performance import PerformanceMiddleware
+from src.middleware.request_id import RequestIDMiddleware
 
 # -------------------------------------------------------------------------
 # CRITICAL FIX: Force UTF-8 encoding for Windows Console
@@ -202,6 +204,8 @@ app = FastAPI(
 app.add_middleware(TenantContextMiddleware)
 app.add_middleware(PrometheusMetricsMiddleware)
 app.add_middleware(RateLimitMiddleware)
+app.add_middleware(PerformanceMiddleware)
+app.add_middleware(RequestIDMiddleware)
 
 if getattr(settings, "APP_DEBUG", False):
     @app.middleware("http")
