@@ -1,0 +1,32 @@
+# Alembic Migrations
+
+Este diretorio contem as migrations versionadas do banco de dados.
+
+## Comandos principais
+
+```bash
+# Criar nova migration automaticamente (detecta diffs do schema)
+alembic revision --autogenerate -m "descricao da mudanca"
+
+# Aplicar todas as migrations pendentes
+alembic upgrade head
+
+# Voltar uma migration
+alembic downgrade -1
+
+# Ver historico de migrations
+alembic history --verbose
+
+# Ver estado atual
+alembic current
+```
+
+## Em producao (Docker)
+
+As migrations sao aplicadas automaticamente no startup via `alembic upgrade head`
+chamado em `src/main.py` antes do `create_all`.
+
+Para rodar manualmente dentro do container:
+```bash
+docker compose exec backend alembic upgrade head
+```
