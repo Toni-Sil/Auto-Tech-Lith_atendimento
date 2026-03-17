@@ -1,60 +1,114 @@
 # Deployment Guide
 
-## Pre-requisites
+## Stack de Hospedagem
 
-- Docker + Docker Compose on VPS
-- GitHub Secrets configured:
-  - `VPS_HOST` — IP or domain
-  - `VPS_USER` — SSH user (e.g. `root`)
-  - `VPS_SSH_KEY` — Private SSH key
+| Componente | Tecnologia |
+|---|---|
+| VPS | Hostinger KVM |
+| Orquestrador | Dokploy |
+| Reverse Proxy / SSL | Traefik (gerenciado pelo Dokploy) |
+| CI | GitHub Actions (testes + build) |
+| CD | Dokploy (Git webhook no branch `main`) |
 
-## First Deploy
+---
 
-```bash
-# 1. Clone on VPS
-git clone https://github.com/Toni-Sil/Auto-Tech-Lith_atendimento /opt/auto-tech-lith
-cd /opt/auto-tech-lith
+## Como o Deploy Funciona
 
-# 2. Copy and fill .env
-cp .env.example .env
-nano .env
+O Dokploy monitora o branch `main` via **Git webhook**.
+Qualquer push para `main` dispara automaticamente:
 
-# 3. Start services
-docker compose up -d --build
-
-# 4. CRITICAL: stamp existing DB as alembic baseline (run ONCE)
-docker compose exec app alembic stamp head
-
-# 5. Verify
-curl http://localhost:8000/health
+```
+git push main
+  └── GitHub Actions CI (testes + build check)
+  └── Dokploy recebe webhook
+        └── git pull
+        └── docker compose build (multi-stage: Node build + Python runtime)
+        └── docker compose up -d --remove-orphans
+        └── alembic upgrade head (via healthcheck + lifespan)
 ```
 
-## Subsequent Deploys
+> **O Tailwind CSS é compilado dentro do Docker build (multi-stage).**
+> Não é necessário rodar `npm install` no VPS.
 
-All handled automatically by GitHub Actions on push to `main`.
+---
+
+## Primeiro Deploy (setup inicial)
 
 ```bash
-# Manual deploy (if needed)
-docker compose pull
+# No painel do Dokploy:
+# 1. Criar novo projeto do tipo "Compose"
+# 2. Apontar para o repositório GitHub
+# 3. Branch: main
+# 4. Copiar e preencher variáveis de ambiente (ver .env.example)
+# 5. Clicar em Deploy
+
+# Após o primeiro deploy, selar o banco como baseline do Alembic:
+docker compose exec backend alembic stamp head
+```
+
+---
+
+## Variáveis de Ambiente no Dokploy
+
+No Dokploy, as variáveis são configuradas na aba **Environment** do projeto.
+Copie o conteúdo do `.env.example` e preencha os valores reais.
+
+> As variáveis de CI/CD (`VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`) são
+> GitHub Secrets — usadas apenas pelo workflow de deploy manual de emergência.
+
+---
+
+## Deploy Manual de Emergência
+
+Se o Dokploy não estiver respondendo, use o workflow manual:
+
+```
+GitHub → Actions → "Deploy to Production" → Run workflow
+```
+
+Ou via SSH direto:
+
+```bash
+ssh user@seu-vps
+cd /etc/dokploy/compose/auto-tech-lith
+git pull origin main
 docker compose up -d --build --remove-orphans
-docker compose exec app alembic upgrade head
+docker compose exec backend alembic upgrade head
 ```
 
-## Frontend Build (local dev)
+---
+
+## Health Checks
 
 ```bash
-cd frontend
-npm install
-npm run watch:css   # development
-npm run build:css   # production build
+# App + dependências
+curl https://autotechlith.com/health
+
+# Página de status pública
+https://autotechlith.com/status
+
+# Metrics Prometheus
+curl -H "Authorization: Bearer $METRICS_TOKEN" https://autotechlith.com/api/v1/metrics
 ```
 
-## Environment Variables
+---
 
-See `.env.example` for all required variables.
+## Rollback
 
-## Health Check
+```bash
+# Ver histórico de deploys no Dokploy (aba Deployments) e clicar em Rollback
+# Ou manualmente:
+git revert HEAD
+git push origin main   # Dokploy faz o redeploy automaticamente
+```
 
-- App: `GET /health`
-- Metrics: `GET /api/v1/metrics`
-- Database: verified on startup via Alembic
+---
+
+## Frontend Build
+
+O build do Tailwind CSS acontece **automaticamente** no `docker build` (Dockerfile multi-stage):
+
+1. Stage 1 (Node 20): `npm ci && npm run build:css` → gera `css/tailwind.min.css`
+2. Stage 2 (Python 3.11): copia apenas o `.min.css` gerado, sem `node_modules`
+
+**Não é necessário** rodar `npm install` ou `npm run build:css` no VPS.
