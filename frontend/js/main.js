@@ -86,13 +86,18 @@ async function authFetch(url, options = {}) {
 
     if (!options.cache) options.cache = 'no-store';
 
-    const makeRequest = (t) => fetch(url, {
-        ...options,
-        headers: {
-            ...options.headers,
-            'Authorization': `Bearer ${t}`
-        }
-    });
+    const makeRequest = (t) => {
+        const payload = getTokenPayload(t);
+        const tenantId = payload?.tenant_id;
+        return fetch(url, {
+            ...options,
+            headers: {
+                ...options.headers,
+                'Authorization': `Bearer ${t}`,
+                ...(tenantId ? { 'X-Tenant-ID': String(tenantId) } : {})
+            }
+        });
+    };
 
     let response = await makeRequest(token);
 
@@ -877,9 +882,14 @@ async function handleImageUpload(fileInputId, urlInputId) {
 
     try {
         const token = localStorage.getItem('token');
+        const payload = getTokenPayload(token);
+        const tenantId = payload?.tenant_id;
         const response = await fetch(`${API_BASE}/upload`, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                ...(tenantId ? { 'X-Tenant-ID': String(tenantId) } : {})
+            },
             body: formData
         });
         const result = await response.json();
