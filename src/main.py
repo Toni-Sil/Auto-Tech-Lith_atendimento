@@ -11,7 +11,9 @@ from fastapi.staticfiles import StaticFiles
 
 from src.config import settings
 from src.middleware.metrics import PrometheusMetricsMiddleware
+from src.middleware.performance import PerformanceMiddleware
 from src.middleware.rate_limit_middleware import RateLimitMiddleware
+from src.middleware.request_id import RequestIDMiddleware
 from src.middleware.tenant_context import TenantContextMiddleware
 
 # -------------------------------------------------------------------------
@@ -67,7 +69,7 @@ async def lifespan(app: FastAPI):
     import src.models.whatsapp
     from src.models.database import Base
 
-    # ── Alembic / create_all ──────────────────────────────────────────────
+    # ── Alembic / create_all ───────────────────────────────────────────────
     alembic_cfg_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "alembic.ini"
     )
@@ -157,6 +159,8 @@ async def lifespan(app: FastAPI):
     butler_scheduler.start()
     logger.info("✅ Butler Agent scheduler started with 8 background jobs.")
     logger.info("✅ TenantContextMiddleware ativo — multi-tenant seguro.")
+    logger.info("✅ PerformanceMiddleware ativo — Server-Timing headers.")
+    logger.info("✅ RequestIDMiddleware ativo — X-Request-ID tracing.")
     logger.info("✅ Onboarding: /api/onboarding/*")
     logger.info("✅ Agent Profile Editor: /api/v1/agent/profile/*")
     logger.info("✅ Stripe Billing: /api/v1/stripe/*")
@@ -180,7 +184,7 @@ async def lifespan(app: FastAPI):
 
     yield  # ── app is running ──
 
-    # ── SHUTDOWN ─────────────────────────────────────────────────────────
+    # ── SHUTDOWN ──────────────────────────────────────────────────────────
     try:
         from src.agents.customer_service_agent import _redis_pool
 
@@ -198,10 +202,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# ── Middleware order (applied bottom-up by Starlette) ─────────────────────
-app.add_middleware(TenantContextMiddleware)
-app.add_middleware(PrometheusMetricsMiddleware)
-app.add_middleware(RateLimitMiddleware)
+# ── Middleware order (applied bottom-up by Starlette) ────────────────────
+# Outermost (runs first on request, last on response):
+app.add_middleware(RequestIDMiddleware)       # 1. inject X-Request-ID
+app.add_middleware(PerformanceMiddleware)     # 2. Server-Timing + slow log
+app.add_middleware(TenantContextMiddleware)   # 3. multi-tenant guard
+app.add_middleware(PrometheusMetricsMiddleware) # 4. prometheus
+app.add_middleware(RateLimitMiddleware)       # 5. rate limiting (innermost)
 
 if getattr(settings, "APP_DEBUG", False):
     @app.middleware("http")
@@ -269,11 +276,13 @@ async def add_security_headers(request: Request, call_next):
         connect_origins.append(f"https://{public_domain}")
         connect_origins.append(f"wss://{public_domain}")
 
+    # NOTE: cdn.tailwindcss.com removed — Tailwind is now compiled locally.
+    # If still using CDN in any HTML during migration, add it back temporarily.
     csp = (
         f"default-src 'self'; "
-        f"script-src 'self' 'nonce-{nonce}' https://cdn.jsdelivr.net https://cdn.tailwindcss.com; "
+        f"script-src 'self' 'nonce-{nonce}' https://cdn.jsdelivr.net; "
         f"style-src 'self' 'nonce-{nonce}' 'unsafe-inline' https://fonts.googleapis.com; "
-        f"font-src 'self' https://fonts.gstatic.com; "
+        f"font-src 'self' https://fonts.gstatic.com data:; "
         f"img-src 'self' data: blob:; "
         f"connect-src {' '.join(connect_origins)};"
     )
@@ -295,16 +304,86 @@ async def add_security_headers(request: Request, call_next):
     return response
 
 
-@app.get("/health")
+# ── Health check ──────────────────────────────────────────────────────────────
+@app.get("/health", tags=["observability"])
 async def health_check():
-    return {
+    """Dependency health check — DB, Redis, Evolution API."""
+    import time
+    import asyncio
+
+    result = {
         "status": "ok",
         "project": settings.PROJECT_NAME,
         "version": settings.VERSION,
+        "dependencies": {},
     }
+    overall_ok = True
+
+    # ── PostgreSQL ──────────────────────────────────────────────────────────
+    try:
+        t0 = time.perf_counter()
+        from sqlalchemy.ext.asyncio import create_async_engine
+        from sqlalchemy import text
+        _engine = create_async_engine(settings.DATABASE_URL, pool_size=1)
+        async with _engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        await _engine.dispose()
+        result["dependencies"]["postgres"] = {
+            "status": "ok",
+            "latency_ms": round((time.perf_counter() - t0) * 1000, 1),
+        }
+    except Exception as e:
+        result["dependencies"]["postgres"] = {"status": "error", "detail": str(e)}
+        overall_ok = False
+
+    # ── Redis ───────────────────────────────────────────────────────────────
+    try:
+        t0 = time.perf_counter()
+        import redis.asyncio as aioredis
+        r = aioredis.Redis(
+            host=getattr(settings, "REDIS_HOST", "redis"),
+            port=int(getattr(settings, "REDIS_PORT", 6379)),
+            password=getattr(settings, "REDIS_PASSWORD", None),
+            socket_connect_timeout=2,
+        )
+        await r.ping()
+        await r.aclose()
+        result["dependencies"]["redis"] = {
+            "status": "ok",
+            "latency_ms": round((time.perf_counter() - t0) * 1000, 1),
+        }
+    except Exception as e:
+        result["dependencies"]["redis"] = {"status": "error", "detail": str(e)}
+        overall_ok = False
+
+    # ── Evolution API ───────────────────────────────────────────────────
+    evolution_url = getattr(settings, "EVOLUTION_SERVER_URL", None)
+    if evolution_url:
+        try:
+            t0 = time.perf_counter()
+            import httpx
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                res = await client.get(f"{evolution_url.rstrip('/')}/")
+            result["dependencies"]["evolution_api"] = {
+                "status": "ok" if res.status_code < 500 else "degraded",
+                "latency_ms": round((time.perf_counter() - t0) * 1000, 1),
+                "http_status": res.status_code,
+            }
+        except Exception as e:
+            result["dependencies"]["evolution_api"] = {"status": "error", "detail": str(e)}
+            # Evolution being down is non-critical for the app itself
+    else:
+        result["dependencies"]["evolution_api"] = {"status": "not_configured"}
+
+    if not overall_ok:
+        result["status"] = "degraded"
+
+    status_code = 200 if overall_ok else 503
+    from fastapi.responses import JSONResponse
+    return JSONResponse(content=result, status_code=status_code)
 
 
-# ── Routers ───────────────────────────────────────────────────────────────
+# ── Routers ──────────────────────────────────────────────────────────────────
 from src.api.ai_config import ai_config_router
 from src.api.apikeys import apikey_router
 from src.api.auth import auth_router
@@ -370,7 +449,7 @@ async def legacy_token_fallback(request: Request):
     )
 
 
-# ── Frontend static files ─────────────────────────────────────────────────
+# ── Frontend static files ───────────────────────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if os.path.basename(BASE_DIR) == "src":
     frontend_path = os.path.join(os.path.dirname(BASE_DIR), "frontend")
@@ -392,8 +471,35 @@ if os.path.exists(frontend_path):
     async def favicon():
         favicon_path = os.path.join(frontend_path, "favicon.ico")
         if os.path.exists(favicon_path):
-            return FileResponse(favicon_path)
-        return FileResponse(os.path.join(frontend_path, "home.html"))
+            return FileResponse(favicon_path, media_type="image/x-icon")
+        # Return 204 instead of broken HTML as favicon
+        from fastapi.responses import Response
+        return Response(status_code=204)
+
+    @app.get("/robots.txt", include_in_schema=False)
+    async def robots_txt():
+        robots_path = os.path.join(frontend_path, "robots.txt")
+        if os.path.exists(robots_path):
+            return FileResponse(robots_path, media_type="text/plain")
+        from fastapi.responses import PlainTextResponse
+        public_url = getattr(settings, "PUBLIC_URL", "").rstrip("/")
+        return PlainTextResponse(
+            f"User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin\nDisallow: /master\n\nSitemap: {public_url}/sitemap.xml\n"
+        )
+
+    @app.get("/sitemap.xml", include_in_schema=False)
+    async def sitemap_xml():
+        public_url = getattr(settings, "PUBLIC_URL", "").rstrip("/")
+        from fastapi.responses import Response
+        content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>{public_url}/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>{public_url}/login</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>{public_url}/termos</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>{public_url}/privacidade</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>{public_url}/lgpd</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+</urlset>"""
+        return Response(content=content, media_type="application/xml")
 
     @app.get("/login.html", include_in_schema=False)
     async def login_html_page():
@@ -458,6 +564,14 @@ if os.path.exists(frontend_path):
         if os.path.exists(onboarding_path):
             return FileResponse(onboarding_path)
         return FileResponse(os.path.join(frontend_path, "login.html"))
+
+    @app.get("/status", include_in_schema=False)
+    async def status_page():
+        status_path = os.path.join(frontend_path, "status.html")
+        if os.path.exists(status_path):
+            return FileResponse(status_path)
+        # Redirect to /health JSON if no status page yet
+        return RedirectResponse(url="/health")
 
     @app.get("/", include_in_schema=False)
     async def landing_page():

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Status — Auto Tech Lith</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
+  <link rel="stylesheet" href="/css/tailwind.min.css" />
+  <script src="/js/theme.js"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-950 min-h-screen flex flex-col items-center justify-center p-6">
+
+  <div class="w-full max-w-lg">
+    <!-- Header -->
+    <div class="text-center mb-8">
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Status do Sistema</h1>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Auto Tech Lith — Atualizado em tempo real</p>
+    </div>
+
+    <!-- Overall status badge -->
+    <div id="overall-badge" class="flex items-center justify-center gap-2 mb-6 py-3 px-6 rounded-xl text-sm font-semibold">
+      <span id="overall-dot" class="w-3 h-3 rounded-full animate-pulse"></span>
+      <span id="overall-text">Verificando...</span>
+    </div>
+
+    <!-- Dependencies -->
+    <div class="space-y-3" id="deps-list">
+      <!-- Injected by JS -->
+    </div>
+
+    <!-- Last checked -->
+    <p class="text-center text-xs text-gray-400 dark:text-gray-600 mt-6" id="last-checked"></p>
+
+    <!-- Dark mode toggle -->
+    <div class="flex justify-center mt-8">
+      <button onclick="ATL.toggleTheme()" class="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+        🌓 Alternar tema
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const LABELS = {
+      postgres:     { icon: '🗄️', name: 'Banco de Dados (PostgreSQL)' },
+      redis:        { icon: '⚡', name: 'Cache / Filas (Redis)' },
+      evolution_api:{ icon: '💬', name: 'Evolution API (WhatsApp)' },
+    };
+
+    async function checkStatus() {
+      const badge   = document.getElementById('overall-badge');
+      const dot     = document.getElementById('overall-dot');
+      const text    = document.getElementById('overall-text');
+      const depsList = document.getElementById('deps-list');
+      const lastChecked = document.getElementById('last-checked');
+
+      try {
+        const res  = await fetch('/health');
+        const data = await res.json();
+
+        const ok = data.status === 'ok';
+        badge.className = `flex items-center justify-center gap-2 mb-6 py-3 px-6 rounded-xl text-sm font-semibold ${
+          ok ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
+             : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'
+        }`;
+        dot.className   = `w-3 h-3 rounded-full animate-pulse ${
+          ok ? 'bg-green-500' : 'bg-red-500'
+        }`;
+        text.textContent = ok ? '✅ Todos os sistemas operacionais' : '⚠️ Degraded — verifique abaixo';
+
+        depsList.innerHTML = '';
+        const deps = data.dependencies || {};
+        for (const [key, val] of Object.entries(deps)) {
+          const meta = LABELS[key] || { icon: '🔧', name: key };
+          const isOk = val.status === 'ok';
+          const latency = val.latency_ms ? `<span class="text-xs text-gray-400">${val.latency_ms}ms</span>` : '';
+          depsList.innerHTML += `
+            <div class="flex items-center justify-between bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-5 py-4">
+              <div class="flex items-center gap-3">
+                <span class="text-xl">${meta.icon}</span>
+                <span class="text-sm font-medium text-gray-800 dark:text-gray-200">${meta.name}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                ${latency}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  isOk ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
+                       : val.status === 'not_configured' ? 'bg-gray-100 dark:bg-gray-800 text-gray-500'
+                       : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'
+                }">${isOk ? 'Operacional' : val.status === 'not_configured' ? 'N/A' : 'Erro'}</span>
+              </div>
+            </div>`;
+        }
+
+        lastChecked.textContent = `Última verificação: ${new Date().toLocaleTimeString('pt-BR')}`;
+      } catch (err) {
+        text.textContent = '❌ Serviço indisponível';
+      }
+    }
+
+    checkStatus();
+    setInterval(checkStatus, 30000);
+  </script>
+</body>
+</html>
