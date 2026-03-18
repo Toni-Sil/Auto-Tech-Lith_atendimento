@@ -24,6 +24,7 @@ class WebhookConfig(Base):
     last_tested_at = Column(DateTime(timezone=True), nullable=True)
     last_test_status = Column(String(20), nullable=True)  # "ok" | "error" | None
     last_test_response = Column(Text, nullable=True)
+      last_error_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
