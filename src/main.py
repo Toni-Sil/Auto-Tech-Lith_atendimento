@@ -12,13 +12,10 @@ from fastapi.staticfiles import StaticFiles
 from src.config import settings
 from src.middleware.metrics import PrometheusMetricsMiddleware
 from src.middleware.rate_limit_middleware import RateLimitMiddleware
-from src.middleware.tenant_context import TenantContextMiddleware  # Sprint 1
+from src.middleware.tenant_context import TenantContextMiddleware
 from src.middleware.performance import PerformanceMiddleware
 from src.middleware.request_id import RequestIDMiddleware
 
-# -------------------------------------------------------------------------
-# CRITICAL FIX: Force UTF-8 encoding for Windows Console
-# -------------------------------------------------------------------------
 if sys.platform == "win32":
     if hasattr(sys.stdout, "reconfigure"):
         try:
@@ -31,10 +28,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-# ── Lifespan (replaces deprecated @app.on_event) ─────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # ── STARTUP ──────────────────────────────────────────────────────────
     from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
     from sqlalchemy.orm import sessionmaker
 
@@ -69,7 +64,6 @@ async def lifespan(app: FastAPI):
     import src.models.whatsapp
     from src.models.database import Base
 
-    # ── Alembic / create_all ──────────────────────────────────────────────
     alembic_cfg_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "alembic.ini"
     )
@@ -105,17 +99,20 @@ async def lifespan(app: FastAPI):
 
             def _run_migrations(connection):
                 inspector = inspect(connection)
-                existing = [
-                    col["name"] for col in inspector.get_columns("evolution_instances")
-                ]
+                try:
+                    existing = [
+                        col["name"] for col in inspector.get_columns("evolution_instances")
+                    ]
+                except Exception:
+                    existing = []
                 migrations_to_run = []
                 if "evolution_ip" not in existing:
                     migrations_to_run.append(
-                        "ALTER TABLE evolution_instances ADD COLUMN evolution_ip VARCHAR"
+                        "ALTER TABLE evolution_instances ADD COLUMN IF NOT EXISTS evolution_ip VARCHAR"
                     )
                 if "owner_email" not in existing:
                     migrations_to_run.append(
-                        "ALTER TABLE evolution_instances ADD COLUMN owner_email VARCHAR"
+                        "ALTER TABLE evolution_instances ADD COLUMN IF NOT EXISTS owner_email VARCHAR"
                     )
                 for sql in migrations_to_run:
                     connection.execute(sa_text(sql))
@@ -132,19 +129,17 @@ async def lifespan(app: FastAPI):
         if settings.ENV == "production":
             logger.error(
                 "🚨 CRITICAL: ENCRYPTION_KEY is not set in production! "
-                'Generate one with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
+                'Generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
             )
         else:
             logger.warning("⚠️  ENCRYPTION_KEY env variable is not set.")
     else:
-        logger.info("✅ ENCRYPTION_KEY is set. AI Config key vault active.")
+        logger.info("✅ ENCRYPTION_KEY is set.")
 
     if settings.TELEGRAM_BOT_TOKEN and settings.PUBLIC_URL:
         from src.services.telegram_service import telegram_service
 
-        webhook_url = (
-            f"{settings.PUBLIC_URL.rstrip('/')}{settings.API_V1_STR}/webhooks/telegram"
-        )
+        webhook_url = f"{settings.PUBLIC_URL.rstrip('/')}{settings.API_V1_STR}/webhooks/telegram"
         success = await telegram_service.set_webhook(webhook_url)
         if success:
             logger.info(f"Startup: Telegram Webhook set to {webhook_url}")
@@ -157,32 +152,22 @@ async def lifespan(app: FastAPI):
 
     butler_scheduler = create_butler_scheduler()
     butler_scheduler.start()
-    logger.info("✅ Butler Agent scheduler started with 8 background jobs.")
-    logger.info("✅ TenantContextMiddleware ativo — multi-tenant seguro.")
-    logger.info("✅ Onboarding: /api/onboarding/*")
-    logger.info("✅ Agent Profile Editor: /api/v1/agent/profile/*")
-    logger.info("✅ Stripe Billing: /api/v1/stripe/*")
-    logger.info(
-        "✅ Landing: / → home.html | Admin: /admin | Client: /client | Master: /master"
-    )
+    logger.info("✅ Butler Agent scheduler started.")
 
     try:
         from src.scripts.create_master_admin import ensure_master_admin
 
         _seed_engine = create_async_engine(settings.DATABASE_URL, echo=False)
-        _SeedSession = sessionmaker(
-            _seed_engine, class_=AsyncSession, expire_on_commit=False
-        )
+        _SeedSession = sessionmaker(_seed_engine, class_=AsyncSession, expire_on_commit=False)
         async with _SeedSession() as _seed_session:
             await ensure_master_admin(_seed_session, reset_password=False)
         await _seed_engine.dispose()
-        logger.info("✅ Master admin verificado/criado com sucesso.")
+        logger.info("✅ Master admin verificado/criado.")
     except Exception as _e:
         logger.warning(f"⚠️ Auto-seed master admin falhou: {_e}")
 
-    yield  # ── app is running ──
+    yield
 
-    # ── SHUTDOWN ─────────────────────────────────────────────────────────
     try:
         from src.agents.customer_service_agent import _redis_pool
 
@@ -200,7 +185,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# ── Middleware order (applied bottom-up by Starlette) ─────────────────────
 app.add_middleware(TenantContextMiddleware)
 app.add_middleware(PrometheusMetricsMiddleware)
 app.add_middleware(RateLimitMiddleware)
@@ -211,14 +195,8 @@ if getattr(settings, "APP_DEBUG", False):
     @app.middleware("http")
     async def add_no_cache_header(request: Request, call_next):
         response = await call_next(request)
-        if (
-            request.url.path.endswith(".html")
-            or request.url.path.endswith(".js")
-            or request.url.path.endswith(".css")
-        ):
-            response.headers["Cache-Control"] = (
-                "no-store, no-cache, must-revalidate, max-age=0"
-            )
+        if request.url.path.endswith((".html", ".js", ".css")):
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
         return response
@@ -238,17 +216,32 @@ if settings.BACKEND_CORS_ORIGINS:
     )
 
 
+# CDNs externos que o frontend usa — precisam estar no script-src sem nonce
+_EXTERNAL_SCRIPT_SRCS = [
+    "https://cdn.tailwindcss.com",
+    "https://cdn.jsdelivr.net",
+]
+_EXTERNAL_STYLE_SRCS = [
+    "https://fonts.googleapis.com",
+]
+_EXTERNAL_FONT_SRCS = [
+    "https://fonts.gstatic.com",
+]
+
+
 def _inject_csp_nonce(html_content: str, nonce: str) -> str:
-    """Inject nonce attribute into all <script> and <style> tags in HTML content."""
+    """Inject nonce ONLY into inline <script> and <style> tags (not external src)."""
     import re
 
+    # Apenas tags <script> sem src= e sem nonce já definido
     html_content = re.sub(
-        r"<script(?![^>]*nonce)([^>]*)>",
+        r"<script(?![^>]*\bsrc\s*=)(?![^>]*\bnonce\s*=)([^>]*)>",
         lambda m: f'<script nonce="{nonce}"{m.group(1)}>',
         html_content,
     )
+    # Apenas tags <style> sem nonce já definido
     html_content = re.sub(
-        r"<style(?![^>]*nonce)([^>]*)>",
+        r"<style(?![^>]*\bnonce\s*=)([^>]*)>",
         lambda m: f'<style nonce="{nonce}"{m.group(1)}>',
         html_content,
     )
@@ -273,12 +266,16 @@ async def add_security_headers(request: Request, call_next):
         connect_origins.append(f"https://{public_domain}")
         connect_origins.append(f"wss://{public_domain}")
 
+    external_scripts = " ".join(_EXTERNAL_SCRIPT_SRCS)
+    external_styles = " ".join(_EXTERNAL_STYLE_SRCS)
+    external_fonts = " ".join(_EXTERNAL_FONT_SRCS)
+
     csp = (
         f"default-src 'self'; "
-        f"script-src 'self' 'nonce-{nonce}' https://cdn.jsdelivr.net https://cdn.tailwindcss.com; "
-        f"style-src 'self' 'nonce-{nonce}' 'unsafe-inline' https://fonts.googleapis.com; "
-        f"font-src 'self' https://fonts.gstatic.com; "
-        f"img-src 'self' data: blob:; "
+        f"script-src 'self' 'nonce-{nonce}' {external_scripts}; "
+        f"style-src 'self' 'nonce-{nonce}' 'unsafe-inline' {external_styles}; "
+        f"font-src 'self' {external_fonts} data:; "
+        f"img-src 'self' data: blob: https://www.transparenttextures.com; "
         f"connect-src {' '.join(connect_origins)};"
     )
     response.headers["Content-Security-Policy"] = csp
@@ -363,7 +360,6 @@ app.include_router(agent_profile_router)
 app.include_router(stripe_router)
 
 
-# --- Legacy Fallback ---
 @app.post("/api/auth/token", tags=["auth"], include_in_schema=False)
 async def legacy_token_fallback(request: Request):
     logger.warning("Legacy auth endpoint called.")
@@ -388,90 +384,47 @@ if os.path.exists(frontend_path):
         folder_path = os.path.join(frontend_path, folder)
         if os.path.exists(folder_path):
             app.mount(f"/{folder}", StaticFiles(directory=folder_path), name=folder)
-            logger.info(f"✅ Mounted /{folder} from {folder_path}")
 
     app.mount("/static", StaticFiles(directory=frontend_path), name="static_old")
 
+    def _page(filename: str):
+        path = os.path.join(frontend_path, filename)
+        if os.path.exists(path):
+            return FileResponse(path)
+        raise HTTPException(status_code=404, detail=f"{filename} not found")
+
     @app.get("/favicon.ico", include_in_schema=False)
     async def favicon():
-        favicon_path = os.path.join(frontend_path, "favicon.ico")
-        if os.path.exists(favicon_path):
-            return FileResponse(favicon_path)
-        return FileResponse(os.path.join(frontend_path, "home.html"))
-
-    @app.get("/login.html", include_in_schema=False)
-    async def login_html_page():
-        login_path = os.path.join(frontend_path, "login.html")
-        if os.path.exists(login_path):
-            return FileResponse(login_path)
-        raise HTTPException(status_code=404, detail="Login page not found")
-
-    @app.get("/login", include_in_schema=False)
-    async def login_page():
-        login_path = os.path.join(frontend_path, "login.html")
-        if os.path.exists(login_path):
-            return FileResponse(login_path)
-        raise HTTPException(status_code=404, detail="Login page not found")
-
-    @app.get("/admin", include_in_schema=False)
-    async def admin_dashboard():
-        return FileResponse(os.path.join(frontend_path, "index.html"))
-
-    @app.get("/dashboard", include_in_schema=False)
-    async def dashboard_alias():
-        return FileResponse(os.path.join(frontend_path, "index.html"))
-
-    @app.get("/master.html", include_in_schema=False)
-    async def master_portal():
-        master_path = os.path.join(frontend_path, "master.html")
-        if os.path.exists(master_path):
-            return FileResponse(master_path)
-        raise HTTPException(status_code=404, detail="Master portal not found")
-
-    @app.get("/master", include_in_schema=False)
-    async def master_portal_alias():
-        master_path = os.path.join(frontend_path, "master.html")
-        if os.path.exists(master_path):
-            return FileResponse(master_path)
-        raise HTTPException(status_code=404, detail="Master portal not found")
-
-    @app.get("/client.html", include_in_schema=False)
-    async def client_portal():
-        client_path = os.path.join(frontend_path, "client.html")
-        if os.path.exists(client_path):
-            return FileResponse(client_path)
-        raise HTTPException(status_code=404, detail="Client portal not found")
-
-    @app.get("/client", include_in_schema=False)
-    async def client_portal_alias():
-        client_path = os.path.join(frontend_path, "client.html")
-        if os.path.exists(client_path):
-            return FileResponse(client_path)
-        raise HTTPException(status_code=404, detail="Client portal not found")
-
-    @app.get("/home.html", include_in_schema=False)
-    async def home_html_page():
-        home_path = os.path.join(frontend_path, "home.html")
-        if os.path.exists(home_path):
-            return FileResponse(home_path)
-        raise HTTPException(status_code=404, detail="Home page not found")
-
-    @app.get("/onboarding", include_in_schema=False)
-    async def onboarding_page():
-        onboarding_path = os.path.join(frontend_path, "onboarding.html")
-        if os.path.exists(onboarding_path):
-            return FileResponse(onboarding_path)
-        return FileResponse(os.path.join(frontend_path, "login.html"))
+        p = os.path.join(frontend_path, "favicon.ico")
+        return FileResponse(p) if os.path.exists(p) else HTTPException(status_code=204)
 
     @app.get("/", include_in_schema=False)
     async def landing_page():
-        home_path = os.path.join(frontend_path, "home.html")
-        if os.path.exists(home_path):
-            return FileResponse(home_path)
-        login_path = os.path.join(frontend_path, "login.html")
-        if os.path.exists(login_path):
-            return FileResponse(login_path)
-        raise HTTPException(status_code=404, detail="Home page not found")
+        return _page("home.html") if os.path.exists(os.path.join(frontend_path, "home.html")) else _page("login.html")
+
+    @app.get("/login", include_in_schema=False)
+    @app.get("/login.html", include_in_schema=False)
+    async def login_page(): return _page("login.html")
+
+    @app.get("/admin", include_in_schema=False)
+    @app.get("/dashboard", include_in_schema=False)
+    async def admin_dashboard(): return _page("index.html")
+
+    @app.get("/master", include_in_schema=False)
+    @app.get("/master.html", include_in_schema=False)
+    async def master_portal(): return _page("master.html")
+
+    @app.get("/client", include_in_schema=False)
+    @app.get("/client.html", include_in_schema=False)
+    async def client_portal(): return _page("client.html")
+
+    @app.get("/home.html", include_in_schema=False)
+    async def home_html(): return _page("home.html")
+
+    @app.get("/onboarding", include_in_schema=False)
+    async def onboarding_page():
+        p = os.path.join(frontend_path, "onboarding.html")
+        return FileResponse(p) if os.path.exists(p) else _page("login.html")
 
 else:
     logger.warning(f"Frontend directory not found at {frontend_path}")
@@ -479,6 +432,4 @@ else:
 
 if __name__ == "__main__":
     import uvicorn
-
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
