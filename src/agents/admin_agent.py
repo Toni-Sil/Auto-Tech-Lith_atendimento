@@ -47,6 +47,11 @@ _conversation_history: Dict[int, List[Dict]] = defaultdict(list)
 MAX_HISTORY = 30
 
 
+def _normalize_tool_calls(response_msg: Any) -> list:
+    tool_calls = getattr(response_msg, "tool_calls", None)
+    return tool_calls if isinstance(tool_calls, list) else []
+
+
 def _trim_history(user_id: int):
     """Mantém apenas as últimas MAX_HISTORY mensagens."""
     hist = _conversation_history[user_id]
@@ -176,9 +181,16 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
         username = context.get("username", "Admin")
 
         # 1. Autenticação
-        auth_status, user_name, user_role_str = await self.identify_user(
-            user_id, username, message
-        )
+        identify_result = await self.identify_user(user_id, username, message)
+        if isinstance(identify_result, str):
+            parts = identify_result.split(":", 2)
+            if len(parts) == 3:
+                auth_status, user_name, user_role_str = parts
+                auth_status = auth_status.lower()
+            else:
+                auth_status, user_name, user_role_str = "unknown", "Visitante", "viewer"
+        else:
+            auth_status, user_name, user_role_str = identify_result
 
         if auth_status == "unknown":
             # Limpar histórico de usuário não autenticado
@@ -214,19 +226,85 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
         # 5. Loop de execução de ferramentas (suporta múltiplos rounds)
         MAX_TOOL_ROUNDS = 5
         for _round in range(MAX_TOOL_ROUNDS):
-            if not response_msg.tool_calls:
+            current_tool_calls = _normalize_tool_calls(response_msg)
+            if not current_tool_calls:
                 break
 
             # Adicionar resposta do assistente (com tool_calls) ao histórico
             messages.append(response_msg)
 
             tool_results = []
-            for tc in response_msg.tool_calls:
+            for tc in current_tool_calls:
                 func_name = tc.function.name
                 try:
                     args = json.loads(tc.function.arguments)
                 except json.JSONDecodeError:
                     args = {}
+
+                if func_name == "create_plan":
+                    plan_steps = args.get("steps", [])
+                    if not plan_steps:
+                        tool_results.append(
+                            {
+                                "role": "tool",
+                                "tool_call_id": tc.id,
+                                "content": "⚠️ Plano vazio: nenhuma ação foi proposta.",
+                            }
+                        )
+                        continue
+
+                    aggregated_results = []
+                    for step in plan_steps:
+                        step_tool = step.get("tool")
+                        step_action = step.get("action", step_tool or "unknown")
+                        step_args = dict(step.get("args", {}))
+                        if step_action and "action" not in step_args:
+                            step_args["action"] = step_action
+
+                        perm = PermissionService.check_permission(
+                            role_enum, step_tool or "", step_action
+                        )
+                        if perm == PermissionResult.DENIED:
+                            result_text = (
+                                f"❌ Ação negada: `{step_tool}.{step_action}` "
+                                f"(Role: {user_role_str.upper()})"
+                            )
+                        elif perm == PermissionResult.NEEDS_CONFIRMATION:
+                            if not any(
+                                token in message.lower()
+                                for token in ("confirmar", "sim", "yes")
+                            ):
+                                result_text = (
+                                    f"⚠️ Ação requer confirmação: `{step_tool}.{step_action}`\n"
+                                    "Responda **CONFIRMAR** para prosseguir com esta operação."
+                                )
+                            else:
+                                result_text = await self._execute_tool(
+                                    step_tool,
+                                    step_args,
+                                    user_id,
+                                    user_name,
+                                    context.get("is_voice", False),
+                                )
+                        else:
+                            result_text = await self._execute_tool(
+                                step_tool,
+                                step_args,
+                                user_id,
+                                user_name,
+                                context.get("is_voice", False),
+                            )
+
+                        aggregated_results.append(result_text)
+
+                    tool_results.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tc.id,
+                            "content": "\n".join(aggregated_results),
+                        }
+                    )
+                    continue
 
                 # Verificar permissão
                 action = args.get("action", func_name)
@@ -241,7 +319,7 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                         and "yes" not in message.lower()
                     ):
                         result_text = (
-                            f"⚠️ Ação sensível: `{func_name}.{action}`\n"
+                            f"⚠️ Ação requer confirmação: `{func_name}.{action}`\n"
                             "Responda **CONFIRMAR** para prosseguir com esta operação."
                         )
                     else:
@@ -278,7 +356,7 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
         final_text = response_msg.content
 
         # Se a resposta estiver vazia mas houve ferramenta, forçar uma confirmação elegante
-        if not final_text and response_msg.tool_calls:
+        if not final_text and _normalize_tool_calls(response_msg):
             logger.info(
                 "Assistant response empty after tool calls, generating confirmation..."
             )
@@ -637,7 +715,7 @@ Utilize uma formatação impecável em Markdown. Adicione emojis refinados como 
                     return f"Cliente ID {customer_id} não encontrado."
                 await session.delete(c)
                 await session.commit()
-                return f"🗑️ Cliente *{c.name}* (ID {customer_id}) removido do sistema."
+                return f"🗑️ Cliente *{c.name}* (ID {customer_id}) deletado do sistema."
 
         return "❌ Ação desconhecida. Use: list, search, get, create, update, delete."
 

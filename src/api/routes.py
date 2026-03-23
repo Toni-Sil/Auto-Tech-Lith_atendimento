@@ -113,7 +113,6 @@ async def upload_file(
 
 # --- Dashboard Stats ---
 @api_router.get("/stats", response_model=DashboardStats)
-@api_router.get("/stats", response_model=DashboardStats)
 async def get_stats(
     current_user: Annotated[AdminUser, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db),
@@ -207,21 +206,10 @@ async def create_customer(
         )
     )
     if existing:
-        return existing  # Retorna o existente sem alterar, ou atualiza?
-        # A lógica anterior atualizava. Vamos manter o POST como creation apenas ou upsert.
-        # Melhor: POST cria. Se já existe, erro 400 ou retorna o existente.
-        # Vamos manter comportamento "upsert" suave mas sem alterar dados para evitar overwrite acidental?
-        # A regra de negócio anterior era: Se existe, ATUALIZA. OK.
-        existing.name = customer.name
-        existing.email = customer.email
-        existing.company = customer.company
-        existing.initial_demand = customer.initial_demand
-        if customer.status:
-            existing.status = customer.status
-        existing.updated_at = datetime.now()
-        await db.commit()
-        await db.refresh(existing)
-        return existing
+        raise HTTPException(
+            status_code=409,
+            detail="Customer with this phone already exists for the current tenant",
+        )
 
     new_customer = Customer(**customer.model_dump(), tenant_id=current_user.tenant_id)
     db.add(new_customer)

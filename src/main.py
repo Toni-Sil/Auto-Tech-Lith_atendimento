@@ -390,8 +390,8 @@ if os.path.exists(frontend_path):
     def _page(filename: str):
         path = os.path.join(frontend_path, filename)
         if os.path.exists(path):
-                        with open(path, "r", encoding="utf-8") as fh:
-                    html_content = fh.read()
+            with open(path, "r", encoding="utf-8") as fh:
+                html_content = fh.read()
             return HTMLResponse(content=html_content)
         raise HTTPException(status_code=404, detail=f"{filename} not found")
 

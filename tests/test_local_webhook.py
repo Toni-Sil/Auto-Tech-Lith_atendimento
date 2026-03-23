@@ -7,7 +7,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-async def test_webhook():
+async def _test_webhook():
     import os
 
     token = os.getenv("VERIFY_TOKEN", "MEU_TOKEN_SECRETO")
@@ -46,5 +46,9 @@ async def test_webhook():
         logger.error(f"❌ Falha ao conectar no webhook: {e}")
 
 
+def test_webhook():
+    asyncio.run(_test_webhook())
+
+
 if __name__ == "__main__":
-    asyncio.run(test_webhook())
+    asyncio.run(_test_webhook())

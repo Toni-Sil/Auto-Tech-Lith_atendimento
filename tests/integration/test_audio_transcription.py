@@ -1,5 +1,6 @@
 import base64
 import os
+import shutil
 
 import pytest
 
@@ -28,23 +29,30 @@ TEST_AUDIO_B64 = "SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//
 
 
 def test_audio_transcription_execution():
+    ffmpeg_executable = shutil.which("ffmpeg")
+
     # Adicionar o caminho do FFmpeg ao PATH temporariamente para este teste
     ffmpeg_bin_path = r"C:\Users\Particular\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.0.1-essentials_build\bin"
     if os.path.exists(ffmpeg_bin_path):
         os.environ["PATH"] += os.pathsep + ffmpeg_bin_path
         print(f"Adicionado ao PATH: {ffmpeg_bin_path}")
+        ffmpeg_executable = shutil.which("ffmpeg") or os.path.join(
+            ffmpeg_bin_path, "ffmpeg.exe"
+        )
     else:
         print(f"AVISO: Caminho do FFmpeg não encontrado: {ffmpeg_bin_path}")
+
+    if not ffmpeg_executable:
+        pytest.skip("FFmpeg não está disponível no ambiente de teste.")
 
     audio_path = "test_tone.wav"
     # Gerar audio de 2 segundos de tom senoidal
     # Usar o caminho completo se necessário, mas com o PATH atualizado deve funcionar
-    cmd = f'ffmpeg -y -f lavfi -i "sine=frequency=1000:duration=2" {audio_path}'
+    cmd = (
+        f'"{ffmpeg_executable}" -y -f lavfi -i '
+        f'"sine=frequency=1000:duration=2" {audio_path}'
+    )
     ret = os.system(cmd)
-    if ret != 0:
-        # Tentar com caminho absoluto se falhar
-        cmd = f"\"{os.path.join(ffmpeg_bin_path, 'ffmpeg.exe')}\" -y -f lavfi -i \"sine=frequency=1000:duration=2\" {audio_path}"
-        ret = os.system(cmd)
 
     assert ret == 0, "Falha ao executar comando ffmpeg"
     assert os.path.exists(
