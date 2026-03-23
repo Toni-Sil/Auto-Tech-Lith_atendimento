@@ -25,3 +25,9 @@ os.environ.setdefault("REDIS_PASSWORD", "")
 os.environ.setdefault("PUBLIC_URL", "http://localhost:8000")
 os.environ.setdefault("METRICS_TOKEN", "test-metrics")
 os.environ.setdefault("BACKEND_CORS_ORIGINS", '["http://localhost:3000"]')
+
+
+def pytest_collection_modifyitems(items):
+    for item in items:
+        if getattr(item.obj, "__code__", None) and item.obj.__code__.co_flags & 0x80:
+            item.add_marker(pytest.mark.anyio)
