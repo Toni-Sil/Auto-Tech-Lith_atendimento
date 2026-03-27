@@ -220,12 +220,13 @@ if settings.BACKEND_CORS_ORIGINS:
 _EXTERNAL_SCRIPT_SRCS = [
     "https://cdn.tailwindcss.com",
     "https://cdn.jsdelivr.net",
-]
+    "https://static.cloudflareinsights.com",]
 _EXTERNAL_STYLE_SRCS = [
     "https://fonts.googleapis.com",
 ]
 _EXTERNAL_FONT_SRCS = [
     "https://fonts.gstatic.com",
+        "https://r2cdn.perplexity.ai",
 ]
 
 
@@ -266,13 +267,9 @@ async def add_security_headers(request: Request, call_next):
         connect_origins.append(f"https://{public_domain}")
         connect_origins.append(f"wss://{public_domain}")
 
-    external_scripts = " ".join(_EXTERNAL_SCRIPT_SRCS,
-    "https://static.cloudflareinsights.com",
-]
+    external_scripts = " ".join(_EXTERNAL_SCRIPT_SRCS)
     external_styles = " ".join(_EXTERNAL_STYLE_SRCS)
-    external_fonts = " ".join(_EXTERNAL_FONT_SRCS,
-    "https://r2cdn.perplexity.ai",
-]
+        external_fonts = " ".join(_EXTERNAL_FONT_SRCS)
 
     csp = (
         f"default-src 'self'; "
