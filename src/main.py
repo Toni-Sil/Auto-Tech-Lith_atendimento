@@ -269,12 +269,12 @@ async def add_security_headers(request: Request, call_next):
 
     external_scripts = " ".join(_EXTERNAL_SCRIPT_SRCS)
     external_styles = " ".join(_EXTERNAL_STYLE_SRCS)
-        external_fonts = " ".join(_EXTERNAL_FONT_SRCS)
+        rnal_fonts = " ".join(_EXTERNAL_FONT_SRCS)
 
     csp = (
         f"default-src 'self'; "
-        f"script-src 'self' 'unsafe-inline 'unsafe-hashes'' {external_scripts}; "
-        f"style-src 'self ''unsafe-inline' 'unsafe-hashes' {external_styles}; "
+        f"script-src 'self' 'unsafe-inline' 'unsafe-hashes' {external_scripts}; "        f"style-src 'self ''unsafe-inline' 'unsafe-hashes' {external_styles}; "
+                f"style-src 'self' 'unsafe-inline' 'unsafe-hashes' {external_styles}; "
         f"font-src 'self' {external_fonts} data:; "
         f"img-src 'self' data: blob: https://www.transparenttextures.com; "
         f"connect-src {' '.join(connect_origins)};"
