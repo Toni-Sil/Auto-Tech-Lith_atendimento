@@ -2,9 +2,9 @@
 Onboarding API — Sprint 1
 
 Fluxo de ativação do comerciante em 3 passos:
-  1. /register   — cria conta + tenant
-  2. /connect    — conecta canal WhatsApp (Evolution API)
-  3. /configure  — configura personalidade do agente
+  1. /register  — cria conta + tenant
+  2. /connect   — conecta canal WhatsApp (Evolution API)
+  3. /configure — configura personalidade do agente
 
 Cada passo é idempotente e retoma de onde parou.
 O tenant só muda de status 'pending' para 'active' no passo 3.
@@ -57,24 +57,21 @@ class ConnectWhatsAppResponse(BaseModel):
 
 class ConfigureAgentRequest(BaseModel):
     agent_name: str = Field(default="Max", description="Nome do agente de atendimento")
+    niche: str = Field(
+        default="generic",
+        description="Nicho: auto_eletrica, clinica, salao, contabilidade, generic",
+    )
     tone: str = Field(
-        default="professional",
-        description="Tom do agente: professional, friendly, technical, casual",
+        default="profissional",
+        description="Tom do agente: profissional, amigavel, tecnico, casual",
     )
-    business_description: str = Field(
-        ..., description="Descreva seu negócio em poucas palavras"
+    objective: str = Field(
+        default="",
+        description="Objetivo principal do agente de atendimento",
     )
-    service_hours: str = Field(
-        default="Segunda a Sexta, 8h às 18h",
-        description="Horário de atendimento",
-    )
-    escalation_keywords: list[str] = Field(
-        default=["urgente", "reclamação", "cancelar", "problema grave"],
-        description="Palavras que acionam escalada para humano",
-    )
-    forbidden_topics: list[str] = Field(
-        default=[],
-        description="Assuntos que o agente não deve discutir",
+    target_audience: str = Field(
+        default="",
+        description="Público-alvo do negócio",
     )
 
 
@@ -131,29 +128,29 @@ async def register_tenant(payload: RegisterRequest):
         admin = AdminUser(
             tenant_id=tenant.id,
             email=payload.email,
+            name=payload.business_name,
             password_hash=hashed_pw,
             phone=payload.phone,
-            niche=payload.niche,
+            role="admin",
         )
         session.add(admin)
         await session.commit()
 
-        # Gera JWT com tenant_id
-        secret = os.getenv("JWT_SECRET", "change-me")
-        token = jwt.encode(
-            {"tenant_id": tenant.id, "sub": payload.email, "step": 1},
-            secret,
-            algorithm="HS256",
-        )
+    # Gera JWT com tenant_id
+    secret = os.getenv("JWT_SECRET", "change-me")
+    token = jwt.encode(
+        {"tenant_id": tenant.id, "sub": payload.email, "step": 1},
+        secret,
+        algorithm="HS256",
+    )
 
-        logger.info(f"[Onboarding] Novo tenant criado: {tenant.id} — {payload.business_name}")
-
-        return RegisterResponse(
-            tenant_id=tenant.id,
-            token=token,
-            onboarding_step=1,
-            message=f"Conta criada! Próximo passo: conectar seu WhatsApp.",
-        )
+    logger.info(f"[Onboarding] Novo tenant criado: {tenant.id} — {payload.business_name}")
+    return RegisterResponse(
+        tenant_id=tenant.id,
+        token=token,
+        onboarding_step=1,
+        message=f"Conta criada! Próximo passo: conectar seu WhatsApp.",
+    )
 
 
 @router.post(
@@ -170,9 +167,8 @@ async def connect_whatsapp(
     O tenant permanece 'pending' até o passo 3.
     """
     # TODO: integrar com src/services/whatsapp_service.py
-    # Por ora retorna estrutura pronta para integrar
     return ConnectWhatsAppResponse(
-        qr_code_url="/api/onboarding/qr/{instance_name}",
+        qr_code_url=f"/api/onboarding/qr/{payload.instance_name}",
         status="pending_scan",
         message="Escaneie o QR code com seu WhatsApp para conectar.",
     )
@@ -201,30 +197,30 @@ async def configure_agent(
         profile = AgentProfile(
             tenant_id=tenant_id,
             name=payload.agent_name,
+            niche=payload.niche,
             tone=payload.tone,
-            business_description=payload.business_description,
-            service_hours=payload.service_hours,
-            escalation_keywords=payload.escalation_keywords,
-            forbidden_topics=payload.forbidden_topics,
+            objective=payload.objective,
+            target_audience=payload.target_audience,
+            is_active=True,
         )
         session.add(profile)
 
         # Ativa o tenant
-        tenant_result = await session.execute(
-            select(Tenant).where(Tenant.id == tenant_id)
-        )
-        tenant = tenant_result.scalar_one_or_none()
-        if tenant:
-            tenant.status = "active"
-            tenant.is_active = True
+        if tenant_id:
+            tenant_result = await session.execute(
+                select(Tenant).where(Tenant.id == tenant_id)
+            )
+            tenant = tenant_result.scalar_one_or_none()
+            if tenant:
+                tenant.status = "active"
+                tenant.is_active = True
 
         await session.commit()
         await session.refresh(profile)
 
-        logger.info(f"[Onboarding] Tenant {tenant_id} ativado com agente '{payload.agent_name}'")
-
-        return ConfigureAgentResponse(
-            agent_profile_id=profile.id,
-            tenant_status="active",
-            message=f"Pronto! Seu agente '{payload.agent_name}' já está ativo e atendendo.",
-        )
+    logger.info(f"[Onboarding] Tenant {tenant_id} ativado com agente '{payload.agent_name}'")
+    return ConfigureAgentResponse(
+        agent_profile_id=profile.id,
+        tenant_status="active",
+        message=f"Pronto! Seu agente '{payload.agent_name}' já está ativo e atendendo.",
+    )
