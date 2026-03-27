@@ -272,7 +272,7 @@ async def add_security_headers(request: Request, call_next):
 
     csp = (
         f"default-src 'self'; "
-        f"script-src 'self' 'nonce-{nonce}' {external_scripts}; "
+        f"script-src 'self' 'unsafe-inline' 'nonce-{nonce}' {external_scripts}; "
         f"style-src 'self' 'nonce-{nonce}' 'unsafe-inline' {external_styles}; "
         f"font-src 'self' {external_fonts} data:; "
         f"img-src 'self' data: blob: https://www.transparenttextures.com; "
