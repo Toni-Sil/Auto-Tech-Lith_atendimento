@@ -5,16 +5,15 @@ Define o tenant ativo no contexto da request.
 Todo acesso ao banco deve passar por aqui.
 
 Fluxo:
-  1. Extrai tenant_id do JWT ou da API key do header
-  2. Valida que o tenant existe e está ativo
-  3. Define app.current_tenant no PostgreSQL via SET LOCAL
-  4. Injeta tenant_id no request.state para uso nos endpoints
+ 1. Extrai tenant_id do JWT ou da API key do header
+ 2. Valida que o tenant existe e está ativo
+ 3. Define app.current_tenant no PostgreSQL via SET LOCAL
+ 4. Injeta tenant_id no request.state para uso nos endpoints
 
 Segurança:
-  - Requests sem tenant válido retornam 401
-  - Rotas públicas (health, auth, onboarding, master) são excluídas
+ - Requests sem tenant válido retornam 401
+ - Rotas públicas (health, auth, onboarding, master) são excluídas
 """
-
 import logging
 from contextvars import ContextVar
 from typing import Optional
@@ -41,10 +40,16 @@ PUBLIC_PATHS = {
     "/api/auth/login",
     "/api/auth/register",
     "/api/auth/forgot-password",
+    "/api/v1/auth/token",
+    "/api/v1/auth/login",
+    "/api/v1/auth/register",
+    "/api/v1/auth/recovery/request",
+    "/api/v1/auth/recovery/reset",
+    "/api/v1/auth/refresh",
     "/api/onboarding/register",
     "/api/webhooks/whatsapp",
     "/api/webhooks/telegram",
-      "/login",
+    "/login",
     "/login.html",
     "/home.html",
     "/master.html",
@@ -61,7 +66,8 @@ PUBLIC_PATHS = {
 PUBLIC_PREFIXES = (
     "/static",
     "/api/v1/master",
-      "/assets",
+    "/api/v1/auth",
+    "/assets",
     "/css",
     "/js",
     "/img",
@@ -74,9 +80,9 @@ class TenantContextMiddleware(BaseHTTPMiddleware):
     Middleware que injeta o tenant_id no contexto de cada request.
 
     Ordem de resolução do tenant:
-      1. Header X-Tenant-ID (uso interno / API keys)
-      2. JWT claim 'tenant_id' (sessão de usuário)
-      3. Subdomínio da request (futuro: app.{subdomain}.domain.com)
+    1. Header X-Tenant-ID (uso interno / API keys)
+    2. JWT claim 'tenant_id' (sessão de usuário)
+    3. Subdomínio da request (futuro: app.{subdomain}.domain.com)
     """
 
     async def dispatch(self, request: Request, call_next) -> Response:
@@ -148,8 +154,8 @@ class TenantContextMiddleware(BaseHTTPMiddleware):
 async def set_rls_tenant(session, tenant_id: int):
     """
     Define o tenant ativo no PostgreSQL para Row-Level Security.
-
     Usar no início de cada sessão de banco que precisar de isolamento RLS:
+
         async with async_session() as session:
             await set_rls_tenant(session, tenant_id)
             # ... queries
@@ -157,7 +163,8 @@ async def set_rls_tenant(session, tenant_id: int):
     PostgreSQL usa app.current_tenant para aplicar as políticas RLS.
     """
     await session.execute(
-        text("SET LOCAL app.current_tenant = :tid"), {"tid": str(tenant_id)}
+        text("SET LOCAL app.current_tenant = :tid"),
+        {"tid": str(tenant_id)}
     )
 
 
@@ -172,7 +179,6 @@ async def get_db_with_tenant(tenant_id: int):
         ):
     """
     from src.models.database import async_session
-
     async with async_session() as session:
         await set_rls_tenant(session, tenant_id)
         yield session
