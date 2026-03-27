@@ -266,14 +266,18 @@ async def add_security_headers(request: Request, call_next):
         connect_origins.append(f"https://{public_domain}")
         connect_origins.append(f"wss://{public_domain}")
 
-    external_scripts = " ".join(_EXTERNAL_SCRIPT_SRCS)
+    external_scripts = " ".join(_EXTERNAL_SCRIPT_SRCS,
+    "https://static.cloudflareinsights.com",
+]
     external_styles = " ".join(_EXTERNAL_STYLE_SRCS)
-    external_fonts = " ".join(_EXTERNAL_FONT_SRCS)
+    external_fonts = " ".join(_EXTERNAL_FONT_SRCS,
+    "https://r2cdn.perplexity.ai",
+]
 
     csp = (
         f"default-src 'self'; "
-        f"script-src 'self' 'unsafe-inline' {external_scripts}; "
-        f"style-src 'self ''unsafe-inline' {external_styles}; "
+        f"script-src 'self' 'unsafe-inline 'unsafe-hashes'' {external_scripts}; "
+        f"style-src 'self ''unsafe-inline' 'unsafe-hashes' {external_styles}; "
         f"font-src 'self' {external_fonts} data:; "
         f"img-src 'self' data: blob: https://www.transparenttextures.com; "
         f"connect-src {' '.join(connect_origins)};"
