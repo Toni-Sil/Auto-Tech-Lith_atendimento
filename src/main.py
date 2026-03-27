@@ -269,7 +269,7 @@ async def add_security_headers(request: Request, call_next):
 
     external_scripts = " ".join(_EXTERNAL_SCRIPT_SRCS)
     external_styles = " ".join(_EXTERNAL_STYLE_SRCS)
-        rnal_fonts = " ".join(_EXTERNAL_FONT_SRCS)
+    external_fonts = " ".join(_EXTERNAL_FONT_SRCS)
 
     csp = (
         f"default-src 'self'; "
