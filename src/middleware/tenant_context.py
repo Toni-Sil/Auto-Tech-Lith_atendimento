@@ -44,12 +44,28 @@ PUBLIC_PATHS = {
     "/api/onboarding/register",
     "/api/webhooks/whatsapp",
     "/api/webhooks/telegram",
+      "/login",
+    "/login.html",
+    "/home.html",
+    "/master.html",
+    "/client.html",
+    "/onboarding",
+    "/onboarding.html",
+    "/privacidade.html",
+    "/termos.html",
+    "/lgpd.html",
+    "/favicon.ico",
 }
 
 # Prefixos de rota que não precisam de tenant
 PUBLIC_PREFIXES = (
     "/static",
     "/api/v1/master",
+      "/assets",
+    "/css",
+    "/js",
+    "/img",
+    "/dist",
 )
 
 
