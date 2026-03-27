@@ -13,6 +13,7 @@ from .lead_interaction import LeadInteraction
 from .meeting import Meeting, MeetingStatus, MeetingType
 from .notification import Notification
 from .preferences import TenantPreference, UserPreference
+from .product import Product
 from .role import Role
 from .sales_workflow import SalesWorkflow
 from .tenant import Tenant
