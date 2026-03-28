@@ -16,6 +16,7 @@ Responsabilidades:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -70,13 +71,36 @@ class ButlerAgent:
     ou manualmente pelo admin da plataforma.
     """
 
-    STUCK_TICKET_HOURS = 2       # tickets sem atualização
-    FORGOTTEN_LEAD_HOURS = 24    # leads qualificados sem follow-up
-    QUOTA_WARN_PERCENT = 80.0    # alertar quando quota > 80%
+    STUCK_TICKET_HOURS = 2
+    FORGOTTEN_LEAD_HOURS = 24
+    QUOTA_WARN_PERCENT = 80.0
     QUOTA_CRITICAL_PERCENT = 95.0
 
     def __init__(self):
         self._session_factory = async_session
+
+    # ------------------------------------------------------------------
+    # TOOL: Infraestrutura — usado pelo job_infra_health_check
+    # ------------------------------------------------------------------
+    async def check_infra_health(self) -> ButlerAction:
+        """Verifica conectividade com banco e redis."""
+        try:
+            async with self._session_factory() as db:
+                await db.execute(text("SELECT 1"))
+            return ButlerAction(
+                action_type=ButlerActionType.infra_health_check,
+                severity=ButlerSeverity.low,
+                description="Infraestrutura saudável: banco OK.",
+                result="ok",
+            )
+        except Exception as e:
+            return ButlerAction(
+                action_type=ButlerActionType.infra_health_check,
+                severity=ButlerSeverity.critical,
+                description=f"Falha de infraestrutura: {e}",
+                result="error",
+                detail=str(e),
+            )
 
     # ------------------------------------------------------------------
     # TOOL: Tickets parados
@@ -237,7 +261,6 @@ class ButlerAgent:
     async def generate_operational_summary(self, tenant_id: int) -> OperationalSummary:
         """Gera resumo completo da operação do tenant. Usado no digest diário."""
         async with self._session_factory() as db:
-            # Nome do tenant
             t = await db.execute(
                 text("SELECT name FROM tenants WHERE id = :tid"),
                 {"tid": tenant_id},
@@ -245,14 +268,12 @@ class ButlerAgent:
             tenant_row = t.fetchone()
             tenant_name = tenant_row[0] if tenant_row else f"Tenant #{tenant_id}"
 
-            # Tickets abertos
             open_r = await db.execute(
                 text("SELECT COUNT(*) FROM tickets WHERE tenant_id = :tid AND status NOT IN ('closed','resolved')"),
                 {"tid": tenant_id},
             )
             open_tickets = open_r.scalar() or 0
 
-        # Checks individuais
         stuck = await self.check_stuck_tickets(tenant_id)
         quota = await self.check_quota_health(tenant_id)
         leads = await self.check_forgotten_leads(tenant_id)
@@ -316,12 +337,13 @@ class ButlerAgent:
         )
 
         for action in actions:
-            # Só loga se relevante (evita spam de low severity)
             if action.severity != ButlerSeverity.low or action.result != "ok":
                 await self.log_action(action)
 
         return list(actions)
 
 
-# import asyncio aqui para evitar circular no topo
-import asyncio  # noqa: E402
+# ---------------------------------------------------------------------------
+# Singleton — importado pelo butler_worker e pela API
+# ---------------------------------------------------------------------------
+butler_agent = ButlerAgent()

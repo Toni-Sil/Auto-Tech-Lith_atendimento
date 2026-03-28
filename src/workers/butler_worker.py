@@ -1,14 +1,12 @@
 """
 Butler Worker — APScheduler background jobs para o Mordomo Digital.
 
-Jobs existentes (mantidos):
+Jobs:
   - infra_health_check   a cada 30 min
   - quota_patrol         a cada 60 min
   - churn_scan           diário às 08:00
   - daily_report         diário às 07:00
   - log_rotation         diário às 03:00
-
-Novos jobs Sprint 2:
   - stuck_tickets_scan   a cada 15 min
   - hot_leads_scan       a cada 1 hora
   - webhook_health       a cada 10 min
@@ -37,43 +35,63 @@ def _get_settings():
     return settings
 
 
-# ─── Jobs existentes (mantidos integralmente) ─────────────────────────────────
+# ─── Jobs ─────────────────────────────────────────────────────────────────────
 
 async def job_infra_health_check():
-    """A cada 30 min: verifica saúde da infraestrutura."""
+    """A cada 30 min: verifica saúde da infraestrutura (banco + redis)."""
     logger.debug("[ButlerWorker] Running infra health check")
     try:
-        settings = _get_settings()
         butler = _get_butler()
-        async with async_session() as db:
-            status = await butler.monitor_infrastructure(
-                db, database_url=settings.DATABASE_URL
-            )
-            logger.info(f"[ButlerWorker] Infra: {status.overall}")
+        action = await butler.check_infra_health()
+        logger.info(f"[ButlerWorker] Infra: {action.description}")
     except Exception as e:
         logger.error(f"[ButlerWorker] infra_health_check failed: {e}")
 
 
 async def job_quota_patrol():
-    """A cada 60 min: verifica quotas, alerta tenants em 80%+."""
+    """A cada 60 min: verifica quotas de todos os tenants."""
     logger.debug("[ButlerWorker] Running quota patrol")
     try:
+        from sqlalchemy import select
+        from src.models.tenant_quota import TenantQuota
+
         butler = _get_butler()
         async with async_session() as db:
-            alerts = await butler.check_quota_alerts(db)
-            logger.info(f"[ButlerWorker] Quota patrol: {len(alerts)} alerts")
+            result = await db.execute(select(TenantQuota.tenant_id))
+            tenant_ids = [row[0] for row in result.fetchall()]
+
+        alerts = []
+        for tid in tenant_ids:
+            action = await butler.check_quota_health(tid)
+            if action.severity.value in ("high", "critical"):
+                alerts.append(action)
+                await butler.log_action(action)
+
+        logger.info(f"[ButlerWorker] Quota patrol: {len(alerts)} alerts em {len(tenant_ids)} tenants")
     except Exception as e:
         logger.error(f"[ButlerWorker] quota_patrol failed: {e}")
 
 
 async def job_churn_scan():
-    """Diário às 08:00: detecta tenants com queda de uso."""
+    """Diário às 08:00: detecta leads quentes esquecidos por tenant."""
     logger.info("[ButlerWorker] Running daily churn scan")
     try:
+        from sqlalchemy import select
+        from src.models.tenant import Tenant
+
         butler = _get_butler()
         async with async_session() as db:
-            risks = await butler.detect_churn_risk(db)
-            logger.info(f"[ButlerWorker] Churn scan: {len(risks)} at-risk tenants")
+            result = await db.execute(select(Tenant.id).where(Tenant.is_active == True))
+            tenant_ids = [row[0] for row in result.fetchall()]
+
+        risks = []
+        for tid in tenant_ids:
+            action = await butler.check_forgotten_leads(tid)
+            if action.severity.value in ("medium", "high", "critical"):
+                risks.append(action)
+                await butler.log_action(action)
+
+        logger.info(f"[ButlerWorker] Churn scan: {len(risks)} tenants em risco")
     except Exception as e:
         logger.error(f"[ButlerWorker] churn_scan failed: {e}")
 
@@ -83,46 +101,56 @@ async def job_daily_report():
     logger.info("[ButlerWorker] Generating daily report")
     try:
         from src.services.telegram_service import telegram_service
+        from sqlalchemy import select
+        from src.models.tenant import Tenant
+
         butler = _get_butler()
         async with async_session() as db:
-            report = await butler.generate_billing_report(db)
-            s = report["summary"]
-            msg = (
-                f"📋 *Relatório Diário — Auto Tech Lith*\n"
-                f"🕐 {datetime.utcnow().strftime('%Y-%m-%d %H:%M')} UTC\n\n"
-                f"🔴 Alertas críticos: {s['critical_alerts']}\n"
-                f"⚠️ Warnings: {s['warning_alerts']}\n"
-                f"🚫 Suspensos: {s['suspended_tenants']}\n\n"
-                f"_Gerado automaticamente pelo Mordomo Digital._"
-            )
-            await telegram_service.send_message(msg)
-            logger.info("[ButlerWorker] Daily report sent")
+            result = await db.execute(select(Tenant.id).where(Tenant.is_active == True))
+            tenant_ids = [row[0] for row in result.fetchall()]
+
+        summaries = []
+        for tid in tenant_ids:
+            summary = await butler.generate_operational_summary(tid)
+            summaries.append(summary)
+
+        critical = sum(1 for s in summaries if any("CRÍTI" in a for a in s.alerts))
+        warnings = sum(len(s.alerts) for s in summaries) - critical
+
+        msg = (
+            f"📋 *Relatório Diário — Auto Tech Lith*\n"
+            f"🕐 {datetime.utcnow().strftime('%Y-%m-%d %H:%M')} UTC\n\n"
+            f"👥 Tenants ativos: {len(summaries)}\n"
+            f"🔴 Alertas críticos: {critical}\n"
+            f"⚠️ Warnings: {warnings}\n\n"
+            f"_Gerado automaticamente pelo Mordomo Digital._"
+        )
+        await telegram_service.send_message(msg)
+        logger.info("[ButlerWorker] Daily report sent")
     except Exception as e:
         logger.error(f"[ButlerWorker] daily_report failed: {e}")
 
 
 async def job_log_rotation():
-    """Diário às 03:00: limpeza de logs antigos."""
+    """Diário às 03:00: limpeza de ButlerLog com mais de 90 dias."""
     logger.info("[ButlerWorker] Running log rotation")
     try:
-        butler = _get_butler()
+        from sqlalchemy import delete
+        from src.models.butler_log import ButlerLog
+
+        cutoff = datetime.utcnow() - timedelta(days=90)
         async with async_session() as db:
-            result = await butler.run_tool(
-                db, "run_logrotate", {}, operator="butler_scheduler",
+            result = await db.execute(
+                delete(ButlerLog).where(ButlerLog.created_at < cutoff)
             )
-            logger.info(f"[ButlerWorker] Log rotation: {result}")
+            await db.commit()
+            logger.info(f"[ButlerWorker] Log rotation: {result.rowcount} entradas removidas")
     except Exception as e:
         logger.error(f"[ButlerWorker] log_rotation failed: {e}")
 
 
-# ─── Novos Jobs Sprint 2 ──────────────────────────────────────────────────────
-
 async def job_stuck_tickets_scan():
-    """
-    Sprint 2 — A cada 15 min.
-    Detecta tickets abertos sem atualização há mais de 2h.
-    Alerta o operador do tenant correspondente via Telegram/WhatsApp.
-    """
+    """A cada 15 min: detecta tickets abertos sem atualização há mais de 2h."""
     logger.debug("[ButlerWorker] Running stuck tickets scan")
     try:
         from sqlalchemy import select
@@ -174,10 +202,7 @@ async def job_stuck_tickets_scan():
 
 
 async def job_hot_leads_scan():
-    """
-    Sprint 2 — A cada 1 hora.
-    Detecta leads qualificados sem follow-up há mais de 24h.
-    """
+    """A cada 1 hora: detecta leads qualificados sem follow-up há mais de 24h."""
     logger.debug("[ButlerWorker] Running hot leads scan")
     try:
         from sqlalchemy import select
@@ -233,10 +258,7 @@ async def job_hot_leads_scan():
 
 
 async def job_webhook_health():
-    """
-    Sprint 2 — A cada 10 min.
-    Detecta webhooks com erros recentes e alerta o operador.
-    """
+    """A cada 10 min: detecta webhooks com erros recentes."""
     logger.debug("[ButlerWorker] Running webhook health check")
     try:
         from sqlalchemy import select
@@ -285,7 +307,7 @@ async def job_webhook_health():
 # ─── Notificação interna ──────────────────────────────────────────────────────
 
 async def _notify_tenant_operator(tenant_id: int, message: str):
-    """Envia notificação ao operador: Telegram primeiro, WhatsApp como fallback."""
+    """Envia notificação ao operador via Telegram."""
     try:
         from src.agents.handoff_service import handoff_service
         await handoff_service._notify_via_telegram(tenant_id, message)
@@ -299,14 +321,13 @@ _scheduler: AsyncIOScheduler = None
 
 
 def create_butler_scheduler() -> AsyncIOScheduler:
-    """Cria e configura o scheduler com todos os jobs."""
+    """Cria e configura o scheduler. Singleton — seguro chamar múltiplas vezes."""
     global _scheduler
     if _scheduler is not None:
         return _scheduler
 
     scheduler = AsyncIOScheduler(timezone="America/Sao_Paulo")
 
-    # Jobs existentes
     scheduler.add_job(job_infra_health_check, IntervalTrigger(minutes=30),
                       id="infra_health_check", replace_existing=True, misfire_grace_time=60)
     scheduler.add_job(job_quota_patrol, IntervalTrigger(minutes=60),
@@ -317,8 +338,6 @@ def create_butler_scheduler() -> AsyncIOScheduler:
                       id="daily_report", replace_existing=True)
     scheduler.add_job(job_log_rotation, CronTrigger(hour=3, minute=0),
                       id="log_rotation", replace_existing=True)
-
-    # Novos jobs Sprint 2
     scheduler.add_job(job_stuck_tickets_scan, IntervalTrigger(minutes=15),
                       id="stuck_tickets_scan", replace_existing=True, misfire_grace_time=60)
     scheduler.add_job(job_hot_leads_scan, IntervalTrigger(hours=1),
