@@ -235,7 +235,8 @@
 
 <script>
 const API = '/api/v1';
-let token = localStorage.getItem('access_token') || '';
+// FIX: usa 'token' — mesma chave salva pelo login.html
+let token = localStorage.getItem('token') || '';
 let currentProfile = {};
 
 function toast(msg, color='#3b82f6') {
@@ -265,7 +266,8 @@ async function apiFetch(path, opts={}) {
 }
 
 function logout() {
-  localStorage.removeItem('access_token');
+  // FIX: remove 'token' — mesma chave salva pelo login.html
+  localStorage.removeItem('token');
   window.location.href = '/login';
 }
 
@@ -421,11 +423,9 @@ async function openBillingPortal() {
 }
 
 async function saveSettings() {
-  // Preferências de notificação — usar a API de preferences existente
   const telegram = document.getElementById('s-telegram').value;
   const whatsapp = document.getElementById('s-whatsapp').value;
   const hours = document.getElementById('s-hours').value;
-  // PATCH para /api/v1/preferences
   const data = await apiFetch('/preferences', {
     method: 'PATCH',
     body: JSON.stringify({
@@ -455,7 +455,6 @@ if (params.get('upgrade') === 'success') {
 // Init
 async function init() {
   if (!token) { window.location.href = '/login'; return; }
-  // Tenta buscar info do usuário
   const me = await apiFetch('/auth/me').catch(() => null);
   if (me) {
     document.getElementById('nav-user').textContent = me.email || '';
