@@ -1,6 +1,6 @@
 services:
 
-  # ─── PostgreSQL Database ──────────────────────────────────────────────────
+  # ─── PostgreSQL Database ───────────────────────────────────────────────────────
   postgres:
     image: postgres:15-alpine
     restart: unless-stopped
@@ -20,7 +20,7 @@ services:
     networks:
       - auto_tech_network
 
-  # ─── Redis Cache ─────────────────────────────────────────────────────────────────
+  # ─── Redis Cache ──────────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     restart: unless-stopped
@@ -36,7 +36,7 @@ services:
       retries: 5
       start_period: 10s
 
-  # ─── Backend Application ───────────────────────────────────────────────────────────
+  # ─── Backend Application ──────────────────────────────────────────────────────────────
   backend:
     build: .
     restart: unless-stopped
@@ -83,25 +83,31 @@ services:
       - dokploy-network
     labels:
       - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      # ─ Frontend (tudo exceto /api/v1/)
       - traefik.http.routers.frontend.rule=Host(`${DOMAIN:-autotechlith.com}`) && !PathPrefix(`/api/v1/`)
       - traefik.http.routers.frontend.service=backend
       - traefik.http.routers.frontend.entrypoints=websecure
       - traefik.http.routers.frontend.tls=true
       - traefik.http.routers.frontend.tls.certresolver=letsencrypt
+      # ─ Backend API (/api/v1/)
       - traefik.http.routers.backend.rule=Host(`${DOMAIN:-autotechlith.com}`) && PathPrefix(`/api/v1/`)
       - traefik.http.routers.backend.service=backend
       - traefik.http.routers.backend.entrypoints=websecure
       - traefik.http.routers.backend.tls=true
       - traefik.http.routers.backend.tls.certresolver=letsencrypt
+      # ─ Redirect HTTP → HTTPS (fix: service explicitado para evitar "router sem service")
       - traefik.http.routers.http-catchall.rule=Host(`${DOMAIN:-autotechlith.com}`)
       - traefik.http.routers.http-catchall.entrypoints=web
       - traefik.http.routers.http-catchall.middlewares=redirect-to-https
+      - traefik.http.routers.http-catchall.service=backend
       - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
       - traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true
+      # ─ Service
       - traefik.http.services.backend.loadbalancer.server.port=8000
       - dokploy.managed=true
 
-  # ─── pgAdmin (profile dev) ──────────────────────────────────────────────────────
+  # ─── pgAdmin (profile dev) ───────────────────────────────────────────────────────────────
   pgadmin:
     image: dpage/pgadmin4:latest
     restart: unless-stopped
@@ -116,7 +122,7 @@ services:
     profiles:
       - dev
 
-  # ─── Evolution API PostgreSQL ────────────────────────────────────────────────
+  # ─── Evolution API PostgreSQL ────────────────────────────────────────────────────────
   evolution-postgres:
     image: postgres:15-alpine
     restart: unless-stopped
@@ -127,7 +133,6 @@ services:
       TZ: America/Sao_Paulo
     volumes:
       - evolution_db_data:/var/lib/postgresql/data
-    # healthcheck obrigatório para que evolution-api espere o banco estar pronto
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${EVOLUTION_DB_USER:-postgresql}"]
       interval: 10s
@@ -137,7 +142,7 @@ services:
     networks:
       - auto_tech_network
 
-  # ─── Evolution API Redis ────────────────────────────────────────────────────────────
+  # ─── Evolution API Redis ──────────────────────────────────────────────────────────────────
   evolution-redis:
     image: redis:7-alpine
     restart: unless-stopped
@@ -153,7 +158,7 @@ services:
     networks:
       - auto_tech_network
 
-  # ─── Evolution API ──────────────────────────────────────────────────────────────────
+  # ─── Evolution API ─────────────────────────────────────────────────────────────────────────────
   evolution-api:
     image: evoapicloud/evolution-api:v2.3.7
     restart: unless-stopped
@@ -183,7 +188,6 @@ services:
       - WEBHOOK_GLOBAL_URL=http://backend:8000/api/v1/webhooks/whatsapp?token=${VERIFY_TOKEN}
       - WEBHOOK_GLOBAL_ENABLED=true
       - WEBHOOK_GLOBAL_EVENTS=APPLICATION_STARTUP,QRCODE_UPDATED,MESSAGES_SET,MESSAGES_UPSERT,MESSAGES_UPDATE,MESSAGES_DELETE,SEND_MESSAGE,CONNECTION_UPDATE,CALL
-    # Aguarda banco e redis da evolution estarem saudáveis antes de tentar migrate
     depends_on:
       evolution-postgres:
         condition: service_healthy
@@ -195,6 +199,22 @@ services:
     networks:
       - auto_tech_network
       - dokploy-network
+    labels:
+      # FIX: evolution-api agora exposta via Traefik para https://evolution.autotechlith.com
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - traefik.http.routers.evolution.rule=Host(`${EVOLUTION_DOMAIN:-evolution.autotechlith.com}`)
+      - traefik.http.routers.evolution.entrypoints=websecure
+      - traefik.http.routers.evolution.tls=true
+      - traefik.http.routers.evolution.tls.certresolver=letsencrypt
+      - traefik.http.routers.evolution.service=evolution
+      - traefik.http.services.evolution.loadbalancer.server.port=8080
+      # Redirect HTTP → HTTPS para evolution
+      - traefik.http.routers.evolution-http.rule=Host(`${EVOLUTION_DOMAIN:-evolution.autotechlith.com}`)
+      - traefik.http.routers.evolution-http.entrypoints=web
+      - traefik.http.routers.evolution-http.middlewares=redirect-to-https
+      - traefik.http.routers.evolution-http.service=evolution
+      - dokploy.managed=true
 
 volumes:
   backend_logs:
