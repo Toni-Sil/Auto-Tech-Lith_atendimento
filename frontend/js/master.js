@@ -57,9 +57,21 @@ async function apiFetch(path, opts = {}) {
 
     if (r.status === 401 && path !== '/auth/refresh') {
         // Try refresh
-        const refreshed = await fetch(API + '/auth/refresh', { method: 'POST', credentials: 'include' });
+        const refreshed = await fetch(API + '/auth/refresh', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' }
+        });
         if (refreshed.ok) {
-            // Retry original request
+            // Salva novo access_token no localStorage se o backend retornar um
+            try {
+                const data = await refreshed.json();
+                if (data && data.access_token) {
+                    localStorage.setItem('token', data.access_token);
+                }
+            } catch (_) { /* backend pode não retornar JSON — ignorar */ }
+            // Retry original request com headers atualizados
+            opts.headers = { ...authHeaders(), ...(opts.headers || {}) };
             r = await fetch(API + path, opts);
         } else {
             localStorage.removeItem('token');
