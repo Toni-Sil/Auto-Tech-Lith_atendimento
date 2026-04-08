@@ -13,14 +13,20 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Criar diretórios necessários
-RUN mkdir -p /app/logs /app/frontend/assets/uploads
+# Criar usuário não-root para segurança (issue #11)
+RUN adduser --disabled-password --gecos "" appuser
+
+# Criar diretórios necessários e ajustar permissões
+RUN mkdir -p /app/logs /app/frontend/assets/uploads \
+    && chown -R appuser:appuser /app
 
 # Copiar código-fonte
-COPY src /app/src
-COPY frontend /app/frontend
+COPY --chown=appuser:appuser src /app/src
+COPY --chown=appuser:appuser frontend /app/frontend
+
+# Executar como usuário não-root
+USER appuser
 
 # Comando para rodar a aplicação
 EXPOSE 8000
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--loop", "uvloop"]
-
