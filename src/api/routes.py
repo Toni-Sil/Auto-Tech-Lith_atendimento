@@ -82,17 +82,15 @@ async def upload_file(
     file: UploadFile = File(...),
     current_user: Annotated[
         AdminUser, Depends(get_current_user)
-    ] = None,  # Workaround if it's meant to be optional, or just remove '= Depends()'
+    ] = None,
 ):
     """
     Endpoint for uploading images and PDFs (for Avatar and Logo).
     Returns the static URL to access the uploaded file.
     """
-    # Create the directory if it doesn't exist
     upload_dir = os.path.join(os.getcwd(), "frontend", "assets", "uploads")
     os.makedirs(upload_dir, exist_ok=True)
 
-    # Generate a unique filename to prevent collisions and caching issues
     file_ext = os.path.splitext(file.filename)[1]
     unique_filename = f"{uuid.uuid4()}{file_ext}"
     file_path = os.path.join(upload_dir, unique_filename)
@@ -104,8 +102,6 @@ async def upload_file(
         logger.error(f"Error saving uploaded file: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to save file")
 
-    # Return the URL that the frontend can use to access this file
-    # The frontend is mounted statically at /static/ from the frontend/ folder
     static_url = f"/static/assets/uploads/{unique_filename}"
 
     return {"status": "success", "url": static_url, "filename": file.filename}
@@ -113,25 +109,21 @@ async def upload_file(
 
 # --- Dashboard Stats ---
 @api_router.get("/stats", response_model=DashboardStats)
-@api_router.get("/stats", response_model=DashboardStats)
 async def get_stats(
     current_user: Annotated[AdminUser, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db),
 ):
-    # Estatísticas básicas
     active_customers = await db.scalar(
         select(func.count(Customer.id)).where(
             Customer.tenant_id == current_user.tenant_id
         )
     )
-    # Tickets abertos
     open_tickets = await db.scalar(
         select(func.count(Ticket.id)).where(
             Ticket.status == TicketStatus.OPEN,
             Ticket.tenant_id == current_user.tenant_id,
         )
     )
-    # Reuniões agendadas
     scheduled_meetings = await db.scalar(
         select(func.count(Meeting.id)).where(
             Meeting.status == MeetingStatus.SCHEDULED,
@@ -139,7 +131,6 @@ async def get_stats(
             Meeting.tenant_id == current_user.tenant_id,
         )
     )
-    # Conversas de hoje
     today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     today_conversations = await db.scalar(
         select(func.count(Conversation.id)).where(
@@ -162,7 +153,6 @@ async def list_customers(
     current_user: Annotated[AdminUser, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db),
 ):
-    # Query com contagem de tickets abertos
     stmt = (
         select(Customer, func.count(Ticket.id).label("open_tickets_count"))
         .outerjoin(
@@ -180,10 +170,6 @@ async def list_customers(
 
     customers = []
     for customer, count in result:
-        # Pydantic validates from ORM object, but we need to inject the count
-        # or convert to dict. Since schema has from_attributes=True,
-        # we can attach the attribute ensuring it doesn't conflict with ORM state.
-        # Safer approach: create model from dict/attributes
         c_dict = customer.__dict__.copy()
         c_dict["open_tickets_count"] = count
         customers.append(CustomerResponse.model_validate(c_dict))
@@ -197,9 +183,6 @@ async def create_customer(
     current_user: Annotated[AdminUser, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db),
 ):
-    # Verificar duplicidade por telefone APENAS se não for update explícito
-    # (Embora POST seja criação, mantemos a lógica de upsert por conveniência,
-    # mas o ideal é o frontend usar PUT para edição)
     existing = await db.scalar(
         select(Customer).where(
             Customer.phone == customer.phone,
@@ -207,11 +190,6 @@ async def create_customer(
         )
     )
     if existing:
-        return existing  # Retorna o existente sem alterar, ou atualiza?
-        # A lógica anterior atualizava. Vamos manter o POST como creation apenas ou upsert.
-        # Melhor: POST cria. Se já existe, erro 400 ou retorna o existente.
-        # Vamos manter comportamento "upsert" suave mas sem alterar dados para evitar overwrite acidental?
-        # A regra de negócio anterior era: Se existe, ATUALIZA. OK.
         existing.name = customer.name
         existing.email = customer.email
         existing.company = customer.company
@@ -282,12 +260,10 @@ async def delete_customer(
 
 # --- Tickets ---
 @api_router.get("/tickets", response_model=List[TicketResponse])
-@api_router.get("/tickets", response_model=List[TicketResponse])
 async def list_tickets(
     current_user: Annotated[AdminUser, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db),
 ):
-    # Join com Customer para pegar nome
     result = await db.execute(
         select(Ticket, Customer.name)
         .join(Customer)
@@ -303,7 +279,6 @@ async def list_tickets(
 
 
 # --- Meetings ---
-@api_router.get("/meetings", response_model=List[MeetingResponse])
 @api_router.get("/meetings", response_model=List[MeetingResponse])
 async def list_meetings(
     current_user: Annotated[AdminUser, Depends(get_current_user)],
@@ -324,13 +299,11 @@ async def list_meetings(
 
 
 @api_router.post("/meetings", response_model=MeetingResponse)
-@api_router.post("/meetings", response_model=MeetingResponse)
 async def create_meeting(
     meeting: MeetingCreate,
     current_user: Annotated[AdminUser, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db),
 ):
-    # 1. Enforce ownership and check if customer belongs to tenant
     customer = await db.scalar(
         select(Customer).where(
             Customer.id == meeting.customer_id,
@@ -343,7 +316,6 @@ async def create_meeting(
     new_meeting = Meeting(**meeting.model_dump(), tenant_id=current_user.tenant_id)
     db.add(new_meeting)
 
-    # 2. Automate Customer Status Update
     if new_meeting.type == MeetingType.BRIEFING:
         customer.status = "briefing"
     elif new_meeting.type == MeetingType.PROPOSAL:
@@ -357,7 +329,6 @@ async def create_meeting(
     return resp
 
 
-@api_router.put("/meetings/{meeting_id}", response_model=MeetingResponse)
 @api_router.put("/meetings/{meeting_id}", response_model=MeetingResponse)
 async def update_meeting(
     meeting_id: int,
@@ -377,7 +348,6 @@ async def update_meeting(
     existing.time = meeting_data.time
     existing.type = meeting_data.type
     existing.notes = meeting_data.notes
-    # existing.status = meeting_data.status # Se quisermos editar status tb
 
     await db.commit()
     await db.refresh(existing)
@@ -388,7 +358,6 @@ async def update_meeting(
     return resp
 
 
-@api_router.delete("/meetings/{meeting_id}")
 @api_router.delete("/meetings/{meeting_id}")
 async def delete_meeting(
     meeting_id: int,
@@ -424,25 +393,19 @@ async def whatsapp_webhook(
     Recebe eventos da Evolution API via webhook global.
     IMPORTANTE: Este endpoint SEMPRE retorna HTTP 200 para evitar
     que a Evolution API reencaminhe eventos em loop infinito.
-    Qualquer retorno 4xx/5xx é interpretado como falha e resulta em reenvio.
     """
     logger.info(f"--- WHATSAPP WEBHOOK HIT --- Instance: {instance_name}")
     try:
-        # ── Parse do JSON ───────────────────────────────────────────────────
         try:
             payload = await request.json()
         except Exception as e:
             logger.error(f"Failed to parse webhook JSON: {e}")
             return {"status": "ok", "reason": "invalid_json"}
 
-        # ── Verificação do Token de Segurança ───────────────────────────────
-        # Verificar query param 'token' ou header 'Verification-Token'
         token = request.query_params.get("token") or request.headers.get(
             "verification-token"
         )
         if token != settings.VERIFY_TOKEN:
-            # Nunca retornar 403 — a Evolution API reenviaria em loop.
-            # Registrar como warning e ignorar silenciosamente.
             logger.warning(
                 f"Unauthorized webhook attempt. Received token: '{token}' — ignoring."
             )
@@ -450,7 +413,6 @@ async def whatsapp_webhook(
 
         logger.info(f"Webhook received event: {payload.get('event', 'unknown')}")
 
-        # ── Identificar instância ────────────────────────────────────────────
         if not instance_name:
             instance_name = payload.get("instance")
 
@@ -472,7 +434,6 @@ async def whatsapp_webhook(
 
         event_type = payload.get("event")
 
-        # ── Atualização de conexão ───────────────────────────────────────────
         if event_type == "connection.update":
             state = payload.get("data", {}).get("state")
             if state and instance_name:
@@ -499,14 +460,12 @@ async def whatsapp_webhook(
                     )
             return {"status": "ok", "reason": "connection_update_processed"}
 
-        # ── Validação de estrutura do payload ────────────────────────────────
         if not isinstance(payload, dict):
             logger.warning(f"Non-dict payload received: {type(payload)}")
             return {"status": "ok", "reason": "non_dict_payload"}
 
         data = payload.get("data", {})
 
-        # Eventos como 'contacts.update' e 'chats.set' enviam lista em 'data'
         if not isinstance(data, dict):
             logger.info(
                 f"Evento '{event_type}' ignorado: data não é dict (provavelmente evento de sistema)."
@@ -520,13 +479,11 @@ async def whatsapp_webhook(
             )
             return {"status": "ok", "reason": "no_message_data"}
 
-        # ── Extrair metadados da mensagem ────────────────────────────────────
         key = data.get("key", {})
         remote_jid = key.get("remoteJid", "")
         from_me = key.get("fromMe", False)
         message_id = key.get("id", "")
 
-        # Ignorar mensagens enviadas pelo próprio sistema (evitar loop)
         if from_me:
             return {"status": "ok", "reason": "from_me_ignored"}
 
@@ -535,12 +492,10 @@ async def whatsapp_webhook(
 
         phone = remote_jid.split("@")[0] if remote_jid else ""
 
-        # ── Texto ─────────────────────────────────────────────────────────────
         text = message.get("conversation") or message.get(
             "extendedTextMessage", {}
         ).get("text")
 
-        # ── Processar Áudio ───────────────────────────────────────────────────
         audio_message = message.get("audioMessage")
         if audio_message:
             message_id = data.get("key", {}).get("id")
@@ -626,10 +581,8 @@ async def whatsapp_webhook(
                     f"Audio processing failed for {message_id}. Using fallback text."
                 )
 
-        # ── Nome (pushName) ───────────────────────────────────────────────────
         push_name = data.get("pushName", "Cliente WhatsApp")
 
-        # ── Despachar para o agente em background ─────────────────────────────
         if phone and text:
             background_tasks.add_task(
                 customer_agent.process_message,
@@ -647,8 +600,6 @@ async def whatsapp_webhook(
         return {"status": "ok", "reason": "no_actionable_data"}
 
     except Exception as e:
-        # Captura qualquer erro inesperado — NUNCA propagar exceção para fora do handler.
-        # A Evolution API interpreta qualquer 5xx como falha e reencaminha em loop.
         logger.error(f"Unexpected error in whatsapp_webhook: {e}", exc_info=True)
         return {"status": "ok", "reason": "internal_error_handled"}
 
@@ -666,10 +617,6 @@ async def list_conversations(
     current_user: Annotated[AdminUser, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db),
 ):
-    # Strategy: List customers ordered by last_interaction, and fetch their last message.
-    # To be efficient, we might just query customers with conversations.
-    # For now, let's query customers who have interactions.
-
     stmt = (
         select(Customer)
         .where(
@@ -684,7 +631,6 @@ async def list_conversations(
 
     response = []
     for customer in customers:
-        # Get last message content
         last_msg = await db.scalar(
             select(Conversation)
             .where(Conversation.customer_id == customer.id)
@@ -702,7 +648,7 @@ async def list_conversations(
 
         response.append(
             ConversationResponse(
-                id=customer.id,  # Using customer_id as conversation ID for now since it's 1:1 in this view
+                id=customer.id,
                 customer_name=customer.name,
                 phone=customer.phone,
                 last_message_at=customer.last_interaction,
@@ -752,17 +698,13 @@ async def chat_test(
         history = (await db.execute(stmt)).scalars().all()
 
         if current_user.tenant_id is None:
-            # Master Admin: usa AdminAgent
             from src.agents.admin_agent import AdminAgent
 
             admin_agent = AdminAgent()
-
-            # Autenticação fake / injetando o contexto
             context = {"user_id": current_user.id, "username": current_user.name}
             final_response = await admin_agent.process_message(request.message, context)
 
         else:
-            # Tenant Test
             system_prompt = await customer_agent.load_system_prompt(
                 mock_customer, "test"
             )
@@ -774,7 +716,6 @@ async def chat_test(
             response = await llm_service.get_chat_response(messages)
             final_response = response.content
 
-        # Persist to DB
         user_msg = Conversation(
             tenant_id=current_user.tenant_id,
             customer_id=mock_customer.id,
@@ -832,24 +773,19 @@ async def create_profile(
 ):
     profile_data = data.model_dump()
 
-    # Auto-fill logic
     base_prompt = profile_data.get("base_prompt")
     if base_prompt:
         extracted = await prompt_generator_service.analyze_prompt(base_prompt)
 
-        # 1. Fallback for 'name'
         if not profile_data.get("name"):
             profile_data["name"] = extracted.get("name") or "Agente"
 
-        # 2. Fallback for 'tone'
         if not profile_data.get("tone") or profile_data.get("tone") == "neutro":
             profile_data["tone"] = extracted.get("tone") or "neutro"
 
-        # 3. Fallback for 'objective'
         if not profile_data.get("objective"):
             profile_data["objective"] = extracted.get("objective") or "atendimento"
 
-        # Other extracted fields
         for field, value in extracted.items():
             if field not in ["name", "tone", "objective"] and field in profile_data:
                 current_val = profile_data.get(field)
@@ -875,24 +811,19 @@ async def update_profile(
 ):
     profile_data = data.model_dump(exclude_unset=True)
 
-    # Auto-fill logic
     base_prompt = profile_data.get("base_prompt")
     if base_prompt:
         extracted = await prompt_generator_service.analyze_prompt(base_prompt)
 
-        # 1. Fallback for 'name'
         if not profile_data.get("name"):
             profile_data["name"] = extracted.get("name") or "Agente"
 
-        # 2. Fallback for 'tone'
         if not profile_data.get("tone") or profile_data.get("tone") == "neutro":
             profile_data["tone"] = extracted.get("tone") or "neutro"
 
-        # 3. Fallback for 'objective'
         if not profile_data.get("objective"):
             profile_data["objective"] = extracted.get("objective") or "atendimento"
 
-        # Other extracted fields
         for field, value in extracted.items():
             if field not in ["name", "tone", "objective"] and field in profile_data:
                 current_val = profile_data.get(field)
@@ -1034,23 +965,3 @@ async def generate_prompt(
         niche=request.niche,
         tone=request.tone,
     )
-
-
-import subprocess
-import sys
-
-
-@api_router.get("/validate-hack")
-async def validate_hack():
-    try:
-        res = subprocess.run(
-            [
-                sys.executable,
-                "/media/toni-sil/Arquivos3/agentes/antigravity-awesome-skills/scripts/validate_skills.py",
-            ],
-            capture_output=True,
-            text=True,
-        )
-        return {"status": "ok", "out": res.stdout, "err": res.stderr}
-    except Exception as e:
-        return {"error": str(e)}
